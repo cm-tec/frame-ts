@@ -52,33 +52,18 @@ const App: React.FC = () => {
       ctx.stroke();
     });
 
-    // draw nodes (optional)
-    ctx.fillStyle = "#f6ff00ff";
-    bernoulli_beam.elements.forEach(el => {
-      [el.point_a, el.point_b].forEach(p => {
-        let p_scaled = vec2.fromValues(p.x, p.y);
-
-        vec2.transformMat2d(p_scaled, p_scaled, transform);
-
-
-        ctx.beginPath();
-        ctx.arc(p_scaled[0], p_scaled[1], 6, 0, Math.PI * 2);
-        ctx.fill();
-      });
-    });
-
     ctx.fillStyle = "#ff0000ff";
-    bernoulli_beam.elements.forEach(el => {
-      [el.point_a, el.point_b].forEach(p => {
-        let p_scaled = vec2.fromValues(p.x, p.y);
+    bernoulli_beam.nodes.forEach(n => {
 
-        vec2.transformMat2d(p_scaled, p_scaled, transform);
+      let p_scaled = vec2.fromValues(n.point.x, n.point.y);
+
+      vec2.transformMat2d(p_scaled, p_scaled, transform);
 
 
-        ctx.beginPath();
-        ctx.arc(p_scaled[0], p_scaled[1], 6, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      ctx.beginPath();
+      ctx.arc(p_scaled[0], p_scaled[1], 6, 0, Math.PI * 2);
+      ctx.fill();
+
     });
   }, []);
 
