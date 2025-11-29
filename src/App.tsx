@@ -1,89 +1,80 @@
-import React, { useRef, useEffect } from "react";
-import { bernoulli_beam } from "./models";
-import { mat2d, vec2 } from "gl-matrix";
+import React, { useState, useRef, useEffect } from "react";
+import { Stage, Layer, Circle, Line } from "react-konva";
+import { vec2 } from "gl-matrix";
+import { bernoulli_beam, Point } from "./models";
 
-const App: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+// ---------- React Component ----------
+
+export default function App() {
+  const stageRef = useRef<any>(null);
+  const [hoveredNode, setHoveredNode] = useState<Point | null>(null);
+
+  const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
 
+  const margin = 0.1; // 10% margin
+
+  // Canvas size
+  const width = stageSize.width;
+  const height = stageSize.height;
+
+  // Compute scale and offset to fit system
+  const scale_x = (1 - 2 * margin) * width / bernoulli_beam.width();
+  const scale_y = (1 - 2 * margin) * height / bernoulli_beam.height();
+
+
+  const offset_x = -bernoulli_beam.min_x() * scale_x + margin * width;
+  const offset_y = -bernoulli_beam.min_y() * scale_y + margin * height;
+
+  // Transform system coordinates to canvas coordinates
+  const transform = (p: Point) => ({
+    x: p.x * scale_x + offset_x,
+    y: p.y * scale_y + offset_y,
+  });
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-
-    const system = bernoulli_beam;
-    const margin = 0.05;
-
-
-    // clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-
-    const transform = mat2d.create();
-    transform
-
-    const scale_x = (1 - 2 * margin) * canvas.width / system.width();
-    const scale_y = (1 - 2 * margin) * canvas.height / system.height();
-
-    const offset_x = - system.min_x() + margin * system.width();
-    const offset_y = - system.min_y() + margin * system.height();
-
-
-    mat2d.scale(transform, transform, [scale_x, scale_y]);
-    mat2d.translate(transform, transform, [offset_x, offset_y]);
-
-    // draw elements
-    ctx.strokeStyle = "#1f6feb";
-    ctx.lineWidth = 4;
-    bernoulli_beam.elements.forEach(el => {
-
-      let p_a = vec2.fromValues(el.point_a.x, el.point_a.y);
-      let p_b = vec2.fromValues(el.point_b.x, el.point_b.y);
-
-      vec2.transformMat2d(p_a, p_a, transform);
-      vec2.transformMat2d(p_b, p_b, transform);
-
-      ctx.beginPath();
-      ctx.moveTo(p_a[0], p_a[1]);
-      ctx.lineTo(p_b[0], p_b[1]);
-      ctx.stroke();
-    });
-
-    ctx.fillStyle = "#ff0000ff";
-    bernoulli_beam.nodes.forEach(n => {
-
-      let p_scaled = vec2.fromValues(n.point.x, n.point.y);
-
-      vec2.transformMat2d(p_scaled, p_scaled, transform);
-
-
-      ctx.beginPath();
-      ctx.arc(p_scaled[0], p_scaled[1], 6, 0, Math.PI * 2);
-      ctx.fill();
-
-    });
+    const handleResize = () => setStageSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Animated Point along a Curve</h2>
-      <canvas
-        ref={canvasRef}
-        width={window.innerWidth}
-        height={400}
-        style={{ border: "1px solid #ddd", display: "block" }}
-      />
-      <center>
-        <button>
-          Hello
-        </button>
-      </center>
+    <Stage width={width} height={height} ref={stageRef}>
+      <Layer>
+        {/* Draw elements */}
+        {bernoulli_beam.elements.map((el, i) => {
+          const pA = transform(el.point_a);
+          const pB = transform(el.point_b);
+          return (
+            <Line
+              key={i}
+              points={[pA.x, pA.y, pB.x, pB.y]}
+              stroke="#1f6feb"
+              strokeWidth={4}
+            />
+          );
+        })}
 
-    </div>
+        {/* Draw nodes */}
+        {bernoulli_beam.nodes.map((n, i) => {
+          const canvasP = transform(n.point);
+          const isHovered = hoveredNode === n.point;
+          return (
+            <Circle
+              key={i}
+              x={canvasP.x}
+              y={canvasP.y}
+              radius={isHovered ? 10 : 6}
+              fill={isHovered ? "red" : "#ff5500"}
+              onMouseEnter={() => setHoveredNode(n.point)}
+              onMouseLeave={() => setHoveredNode(null)}
+              onClick={() => console.log("Clicked node", n.point)}
+            />
+
+          )
+        })}
+      </Layer>
+    </Stage>
   );
-};
-
-export default App;
+}
