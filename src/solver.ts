@@ -20,6 +20,7 @@ export function merge(a11: Matrix, a12: Matrix, a21: Matrix, a22: Matrix): Matri
 }
 
 
+
 function get_u() {
     const NDOF = 1;
 

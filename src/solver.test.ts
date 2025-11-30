@@ -1,6 +1,6 @@
 import { assert, expect, test } from 'vitest'
 import { merge } from './solver.ts'
-import math, { complex, concat, deepEqual, divide, dotMultiply, eigs, equal, exp, identity, index, inv, lusolve, map, Matrix, matrix, multiply, range, re, sqrt, subset, transpose, zeros, type MathType } from 'mathjs'
+import { complex, concat, deepEqual, divide, dotMultiply, eigs, equal, exp, identity, index, inv, lusolve, map, Matrix, matrix, multiply, range, re, sqrt, subset, transpose, zeros, type MathType } from 'mathjs'
 
 
 
@@ -19,7 +19,7 @@ function get_ws(eigenvectors: Matrix, eigenvalues: Matrix, coefficients: Matrix)
     let NDOF = eigenvectors.size().at(0)! / 2;
 
 
-    let N = 100;
+    let N = 1000;
     let dt = 0.01;
 
     let w = zeros([2 * NDOF, N]);
@@ -38,7 +38,7 @@ function get_w(eigenvectors: Matrix, eigenvalues: Matrix, coefficients: Matrix, 
 
     let ec = dotMultiply(coefficients, e);
 
-    return multiply(eigenvectors, ec)
+    return multiply(eigenvectors, ec).map((v, i) => v.re)
 }
 
 
@@ -70,6 +70,7 @@ function getEigenvalues(m: Matrix): Matrix {
     }).reshape([nrows, 1])
 }
 
+/*
 
 test('merge', () => {
     let a11 = matrix([[0]]);
@@ -237,4 +238,64 @@ test('system', () => {
 
     console.log(w);
 
-})  
+})
+
+*/
+
+
+
+
+export default function getPoints() {
+    let NDOF = 2;
+
+    let m1 = 80.0;
+    let m2 = 8.0;
+    let k1 = 200.0;
+    let k2 = 125.0;
+    let c1 = 0.0;
+    let c2 = 0.6;
+
+    let m = matrix([
+        [m1, 0],
+        [0, m2]
+    ]);
+
+    let c = matrix([
+        [c1, -c1],
+        [-c1, c1 + c2]
+    ]);
+
+    let k = matrix([
+        [k1, -k1],
+        [-k1, k1 + k2]
+    ])
+
+    let initialConditions = matrix([
+        [complex(-1, 0)],
+        [complex(1, 0)],
+        [0],
+        [0]
+    ]);
+
+
+
+
+    let m_inv = inv(m);
+
+    let a11 = zeros([NDOF, NDOF]);
+    let a12 = identity(NDOF);
+    let a21 = multiply(-1, multiply(m_inv, k));
+    let a22 = multiply(-1, multiply(m_inv, c));
+
+    let a = merge(a11, a12, a21, a22);
+
+
+
+    let eigenVectors = getEigenvectors(a);
+    let eigenValues = getEigenvalues(a);
+
+    let coefficients = solveInitalConditions(eigenVectors, initialConditions);
+
+
+    return get_ws(eigenVectors, eigenValues, coefficients);
+}

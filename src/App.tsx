@@ -1,104 +1,50 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Circle, Line, Arrow, Group } from "react-konva";
-import { bernoulli_beam, Point } from "./models";
+import { useState, useRef, useEffect } from "react";
+import { Stage, Layer, Circle } from "react-konva";
+import MatrixLineChart from "./chart";
+import getPoints from "./solver.test";
+import Konva from "konva";
+import { round } from "mathjs";
 
-interface LineLoadProps {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-  loadMagnitude: number; // controls arrow length
-  numArrows?: number;    // how many arrows along the line
-}
 
-export const LineLoad: React.FC<LineLoadProps> = ({
-  startX,
-  startY,
-  endX,
-  endY,
-  loadMagnitude,
-  numArrows = 5
-}) => {
-  const points: { x: number; y: number }[] = [];
-
-  // Compute arrows positions along the line
-  for (let i = 0; i <= numArrows; i++) {
-    const t = i / numArrows;
-    const x = startX + (endX - startX) * t;
-    const y = startY + (endY - startY) * t;
-    points.push({ x, y });
-  }
-
-  // Compute line angle
-  const dx = endX - startX;
-  const dy = endY - startY;
-  const angle = Math.atan2(dy, dx);
-
-  // Arrow offset perpendicular to the line (optional, if you want arrows "above" the beam)
-  const offset = 0; // you can set to e.g., -10
-
-  return (
-    <Group>
-      {points.map((p, i) => {
-        // Arrow points
-        const arrowLength = loadMagnitude;
-        // Arrow pointing perpendicular to beam (downwards)
-        const perpAngle = angle - Math.PI / 2;
-        const endX = p.x + arrowLength * Math.cos(perpAngle);
-        const endY = p.y + arrowLength * Math.sin(perpAngle);
-
-        return (
-          <Arrow
-            key={i}
-            points={[p.x, p.y, endX, endY]}
-            stroke="red"
-            fill="red"
-            pointerLength={10}
-            pointerWidth={8}
-            strokeWidth={2}
-            draggable={true}
-          />
-        );
-      })}
-    </Group>
-  );
-};
 
 
 export default function App() {
+  const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
+
   const stageRef = useRef<any>(null);
-  const [hoveredNode, setHoveredNode] = useState<Point | null>(null);
+
+  const circleRef1 = useRef<any>(null);
+  const circleRef2 = useRef<any>(null);
+
 
   const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-
-  const margin = 0.1; // 10% margin
-
   // Canvas size
   const width = stageSize.width;
-  const height = stageSize.height;
+  const height = stageSize.height / 2;
 
-  // Compute scale and offset to fit system
-  const scale_x = (1 - 2 * margin) * width / bernoulli_beam.width();
-  const scale_y = (1 - 2 * margin) * height / bernoulli_beam.height();
-
-
-  const offset_x = -bernoulli_beam.min_x() * scale_x + margin * width;
-  const offset_y = -bernoulli_beam.min_y() * scale_y + margin * height;
-
-  // Transform system coordinates to canvas coordinates
-  const transform = (p: Point) => ({
-    x: p.x * scale_x + offset_x,
-    y: height - (p.y * scale_y + offset_y),
-  });
-
-  const [pos, setPos] = useState<Point>(new Point(50, 50));
-
+  const points = getPoints();
 
   useEffect(() => {
     const handleResize = () => setStageSize({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+
+    const anim = new Konva.Animation((frame) => {
+      let i = round(frame.time / 100);
+
+      setCurrentTimeIndex(i);
+
+      circleRef1.current!.x(600 + points[0][i] * 100);
+      circleRef2.current!.x(400 + points[1][i] * 100);
+    }, [circleRef1.current!.getLayer(), circleRef2.current!.getLayer()]);
+
+    anim.start();
+
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      anim.stop();
+    };
   }, []);
 
   const handleVerticalDragMove = (e: any) => {
@@ -106,21 +52,31 @@ export default function App() {
 
   };
 
+
   return (
-    <Stage width={width} height={height} ref={stageRef}>
-      <Layer>
-        <Circle
-          x={pos.x}
-          y={pos.y}
-          radius={20}
-          fill={"red"}
-          draggable
-          onDragMove={handleVerticalDragMove}
-        />
+    <>
+      <Stage width={width} height={height} ref={stageRef}>
+        <Layer>
+          <Circle
+            ref={circleRef1}
+            y={50}
+            radius={25}
+            fill={"red"}
+            draggable
+            onDragMove={handleVerticalDragMove}
+          />
+          <Circle
+            ref={circleRef2}
+            y={50}
+            radius={15}
+            fill={"blue"}
+            draggable
+            onDragMove={handleVerticalDragMove}
+          />
+        </Layer>
+      </Stage >
 
-
-
-      </Layer>
-    </Stage >
+      <MatrixLineChart matrixData={points} currentTimeIndex={currentTimeIndex} />
+    </>
   );
 }

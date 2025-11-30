@@ -11,10 +11,12 @@
     "test": "vitest"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "gl-matrix": "^3.4.4",
     "konva": "^10.0.12",
     "mathjs": "^15.1.0",
     "react": "^19.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.0",
     "react-konva": "^19.2.1"
   },
