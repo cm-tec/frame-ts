@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Stage, Layer, Circle } from "react-konva";
 import MatrixLineChart from "./chart";
-import getPoints from "./solver.test";
+import { get_system, get_w, getPoints } from "./solver.test";
 import Konva from "konva";
-import { round } from "mathjs";
+import { Matrix, round } from "mathjs";
 
 
 
@@ -25,17 +25,23 @@ export default function App() {
 
   const points = getPoints();
 
+  const { eigenVectors, eigenValues, coefficients } = get_system();
+
   useEffect(() => {
     const handleResize = () => setStageSize({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener("resize", handleResize);
 
     const anim = new Konva.Animation((frame) => {
-      let i = round(frame.time / 100);
+      let i = frame.time / 1000;
 
-      setCurrentTimeIndex(i);
+      //setCurrentTimeIndex(i);
 
-      circleRef1.current!.x(600 + points[0][i] * 100);
-      circleRef2.current!.x(400 + points[1][i] * 100);
+      let w: Matrix = get_w(eigenVectors, eigenValues, coefficients, i);
+
+      console.log(w);
+
+      circleRef1.current!.x(600 + w.get([0, 0]) * 100);
+      circleRef2.current!.x(400 + w.get([1, 0]) * 100);
     }, [circleRef1.current!.getLayer(), circleRef2.current!.getLayer()]);
 
     anim.start();

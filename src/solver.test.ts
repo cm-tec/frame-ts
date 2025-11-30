@@ -31,7 +31,7 @@ function get_ws(eigenvectors: Matrix, eigenvalues: Matrix, coefficients: Matrix)
     return w;
 }
 
-function get_w(eigenvectors: Matrix, eigenvalues: Matrix, coefficients: Matrix, t: number): Matrix {
+export function get_w(eigenvectors: Matrix, eigenvalues: Matrix, coefficients: Matrix, t: number): Matrix {
     assert(equal(eigenvalues.size(), coefficients.size()))
 
     let e = map(multiply(eigenvalues, t), exp);
@@ -242,10 +242,60 @@ test('system', () => {
 
 */
 
+export function get_system() {
+    let NDOF = 2;
+
+    let m1 = 80.0;
+    let m2 = 8.0;
+    let k1 = 200.0;
+    let k2 = 125.0;
+    let c1 = 0.0;
+    let c2 = 0.6;
+
+    let m = matrix([
+        [m1, 0],
+        [0, m2]
+    ]);
+
+    let c = matrix([
+        [c1, -c1],
+        [-c1, c1 + c2]
+    ]);
+
+    let k = matrix([
+        [k1, -k1],
+        [-k1, k1 + k2]
+    ])
+
+    let initialConditions = matrix([
+        [complex(-1, 0)],
+        [complex(1, 0)],
+        [0],
+        [0]
+    ]);
 
 
 
-export default function getPoints() {
+
+    let m_inv = inv(m);
+
+    let a11 = zeros([NDOF, NDOF]);
+    let a12 = identity(NDOF);
+    let a21 = multiply(-1, multiply(m_inv, k));
+    let a22 = multiply(-1, multiply(m_inv, c));
+
+    let a = merge(a11, a12, a21, a22);
+
+    let eigenVectors = getEigenvectors(a);
+    let eigenValues = getEigenvalues(a);
+
+    let coefficients = solveInitalConditions(eigenVectors, initialConditions);
+
+    return { eigenVectors, eigenValues, coefficients }
+}
+
+
+export function getPoints() {
     let NDOF = 2;
 
     let m1 = 80.0;
