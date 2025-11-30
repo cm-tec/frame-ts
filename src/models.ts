@@ -168,8 +168,8 @@ export const bernoulli_beam: System = new System(
         new Node(0.5, 0.5, 1),
     ],
     [
-        new Element(0.2, 0, 1, 0, 0),
-        new Element(0.2, 1, 1, 1, 0),
-        new Element(0, 0, 1, 1, 0)
+        new Element(0, 0, 0, 1, 0),
+        new Element(0, 1, 1, 1, 0),
+        new Element(1, 1, 1, 0, 0)
     ]
 );

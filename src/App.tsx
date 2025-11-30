@@ -1,9 +1,69 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Circle, Line } from "react-konva";
-import { vec2 } from "gl-matrix";
+import { Stage, Layer, Circle, Line, Arrow, Group } from "react-konva";
 import { bernoulli_beam, Point } from "./models";
 
-// ---------- React Component ----------
+interface LineLoadProps {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+  loadMagnitude: number; // controls arrow length
+  numArrows?: number;    // how many arrows along the line
+}
+
+export const LineLoad: React.FC<LineLoadProps> = ({
+  startX,
+  startY,
+  endX,
+  endY,
+  loadMagnitude,
+  numArrows = 5
+}) => {
+  const points: { x: number; y: number }[] = [];
+
+  // Compute arrows positions along the line
+  for (let i = 0; i <= numArrows; i++) {
+    const t = i / numArrows;
+    const x = startX + (endX - startX) * t;
+    const y = startY + (endY - startY) * t;
+    points.push({ x, y });
+  }
+
+  // Compute line angle
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const angle = Math.atan2(dy, dx);
+
+  // Arrow offset perpendicular to the line (optional, if you want arrows "above" the beam)
+  const offset = 0; // you can set to e.g., -10
+
+  return (
+    <Group>
+      {points.map((p, i) => {
+        // Arrow points
+        const arrowLength = loadMagnitude;
+        // Arrow pointing perpendicular to beam (downwards)
+        const perpAngle = angle - Math.PI / 2;
+        const endX = p.x + arrowLength * Math.cos(perpAngle);
+        const endY = p.y + arrowLength * Math.sin(perpAngle);
+
+        return (
+          <Arrow
+            key={i}
+            points={[p.x, p.y, endX, endY]}
+            stroke="red"
+            fill="red"
+            pointerLength={10}
+            pointerWidth={8}
+            strokeWidth={2}
+            draggable={true}
+          />
+        );
+      })}
+    </Group>
+  );
+};
+
 
 export default function App() {
   const stageRef = useRef<any>(null);
@@ -29,8 +89,11 @@ export default function App() {
   // Transform system coordinates to canvas coordinates
   const transform = (p: Point) => ({
     x: p.x * scale_x + offset_x,
-    y: p.y * scale_y + offset_y,
+    y: height - (p.y * scale_y + offset_y),
   });
+
+  const [pos, setPos] = useState<Point>(new Point(50, 50));
+
 
   useEffect(() => {
     const handleResize = () => setStageSize({ width: window.innerWidth, height: window.innerHeight });
@@ -38,43 +101,26 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const handleVerticalDragMove = (e: any) => {
+    e.target.x(e.target.y());
+
+  };
 
   return (
     <Stage width={width} height={height} ref={stageRef}>
       <Layer>
-        {/* Draw elements */}
-        {bernoulli_beam.elements.map((el, i) => {
-          const pA = transform(el.point_a);
-          const pB = transform(el.point_b);
-          return (
-            <Line
-              key={i}
-              points={[pA.x, pA.y, pB.x, pB.y]}
-              stroke="#1f6feb"
-              strokeWidth={4}
-            />
-          );
-        })}
+        <Circle
+          x={pos.x}
+          y={pos.y}
+          radius={20}
+          fill={"red"}
+          draggable
+          onDragMove={handleVerticalDragMove}
+        />
 
-        {/* Draw nodes */}
-        {bernoulli_beam.nodes.map((n, i) => {
-          const canvasP = transform(n.point);
-          const isHovered = hoveredNode === n.point;
-          return (
-            <Circle
-              key={i}
-              x={canvasP.x}
-              y={canvasP.y}
-              radius={isHovered ? 10 : 6}
-              fill={isHovered ? "red" : "#ff5500"}
-              onMouseEnter={() => setHoveredNode(n.point)}
-              onMouseLeave={() => setHoveredNode(null)}
-              onClick={() => console.log("Clicked node", n.point)}
-            />
 
-          )
-        })}
+
       </Layer>
-    </Stage>
+    </Stage >
   );
 }
