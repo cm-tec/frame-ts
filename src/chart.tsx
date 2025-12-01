@@ -12,7 +12,10 @@ import {
     Title,
     Tooltip,
     Legend,
+    Chart,
+    animator,
 } from 'chart.js';
+import { row, type Matrix } from 'mathjs';
 
 ChartJS.register(
     CategoryScale,
@@ -23,6 +26,25 @@ ChartJS.register(
     Tooltip,
     Legend
 );
+
+const verticalLinePlugin = {
+    id: 'verticalLinePlugin',
+    afterDraw: (chart, args, options) => {
+        const { ctx, chartArea: { top, bottom } } = chart;
+        const x = chart.scales.x.getPixelForValue(options.xValue);
+
+        ctx.save();
+        ctx.strokeStyle = options.color || 'red';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+        ctx.restore();
+    }
+};
+
+Chart.register(verticalLinePlugin);
 
 // --- Style Constants ---
 const colors = [
@@ -35,66 +57,41 @@ const HIGHLIGHT_COLOR = 'rgb(255, 0, 255)'; // Magenta highlight
 const HIGHLIGHT_RADIUS = 5;
 const DEFAULT_RADIUS = 0;
 
-// --- Data Preparation Function (Fixed for Standard JS Arrays) ---
 
-/**
- * Transforms a standard 2D array into the Chart.js data format and applies point highlighting.
- * @param {number[][]} matrix The 4-row 2D array.
- * @param {number} currentTimeIndex The index of the point to highlight.
- * @returns {object} The Chart.js data object.
- */
-const prepareChartData = (matrix: number[][], currentTimeIndex: number) => {
+const prepareChartData = (matrix: Matrix) => {
 
-    const numRows = matrix.length;
-    const numCols = matrix[0] ? matrix[0].length : 0;
+    const t = row(matrix, 0);
 
     // 1. Determine X-axis labels (0 to N-1)
-    const labels = Array.from({ length: numCols }, (_, i) => i);
+    const labels = (t.toArray().flat() as number[]).map(x => x.toFixed());
 
     // 2. Extract and format the datasets
-    const datasets = matrix.map((rowData, i) => {
-        // --- Highlighting Logic ---
+    const datasets = (matrix.toArray() as number[][]).slice(1).map((rowData, i) => {
 
-        // Array to determine the radius of EVERY point
-        const pointRadius = rowData.map((_, index) =>
-            index === currentTimeIndex ? HIGHLIGHT_RADIUS : DEFAULT_RADIUS
-        );
-
-        // Array to determine the background color of EVERY point
-        const pointBackgroundColor = rowData.map((_, index) =>
-            index === currentTimeIndex ? HIGHLIGHT_COLOR : colors[i % colors.length]
-        );
-        // -------------------------
 
         return {
             label: `Line ${i + 1} (Row ${i})`,
-            data: rowData,
+            data: rowData as any as number[][],
             borderColor: colors[i % colors.length],
             backgroundColor: colors[i % colors.length],
             fill: false,
             tension: 0.2,
-
-            // Apply the dynamic style arrays
-            pointRadius: pointRadius,
-            pointBackgroundColor: pointBackgroundColor,
         };
-    }).slice(0, 2);
+    });
 
     return { labels, datasets };
 };
 
 // --- React Component ---
-const MatrixLineChart = ({ matrixData, currentTimeIndex }: { matrixData: number[][], currentTimeIndex: number }) => {
-
-    // Check if the matrix has 4 rows before proceeding
-    if (matrixData.length !== 4) {
-        return <div>Error: Matrix must have exactly 4 rows.</div>;
-    }
-
+const MatrixLineChart = ({ matrixData, currentTime }: { matrixData: Matrix, currentTime: number }) => {
     // Use useMemo to prevent recalculation unless data or index changes
     const chartData = useMemo(() => {
-        return prepareChartData(matrixData, currentTimeIndex);
-    }, [matrixData, currentTimeIndex]);
+        return prepareChartData(matrixData);
+    }, [matrixData]);
+
+
+
+
 
     // Define chart options
     const options = {
@@ -119,15 +116,24 @@ const MatrixLineChart = ({ matrixData, currentTimeIndex }: { matrixData: number[
             },
             title: {
                 display: true,
-                text: `Animated Plot - Current Step: ${currentTimeIndex}`,
+                text: `Animated Plot - Current time: ${currentTime.toFixed(2)}s`,
+            },
+
+            verticalLinePlugin: {
+                xValue: currentTime,  // <-- updates the vertical line
+                color: "gray"
             }
         },
-        // Remove the static global point radius setting, as we use dynamic arrays now
-        // elements: {
-        //     point: {
-        //         radius: 0,
-        //     }
-        // }
+        elements: {
+            point: {
+                radius: 0
+            }
+        },
+        animation: {
+            duration: 0, // initial render has no animation
+            // You can also customize updates:
+            onComplete: () => { /* optional callback */ }
+        },
     };
 
     return (
