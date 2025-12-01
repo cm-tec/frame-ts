@@ -105,7 +105,6 @@ export class SystemSolution {
             w.set([0, n], t);
             w.set([1, n], this.get_w(dof, t));
         }
-        console.log(w);
         return w;
     }
 
