@@ -53,33 +53,27 @@ const colors = [
     'rgb(75, 192, 192)',  // Line 3: Teal
     'rgb(255, 205, 86)',  // Line 4: Yellow
 ];
-const HIGHLIGHT_COLOR = 'rgb(255, 0, 255)'; // Magenta highlight
-const HIGHLIGHT_RADIUS = 5;
-const DEFAULT_RADIUS = 0;
 
 
 const prepareChartData = (matrix: Matrix) => {
 
     const t = row(matrix, 0);
 
-    // 1. Determine X-axis labels (0 to N-1)
-    const labels = (t.toArray().flat() as number[]).map(x => x.toFixed());
+    const tArray = (t.toArray().flat() as number[]).map(x => +x.toFixed(2));
 
-    // 2. Extract and format the datasets
-    const datasets = (matrix.toArray() as number[][]).slice(1).map((rowData, i) => {
-
-
-        return {
-            label: `Line ${i + 1} (Row ${i})`,
-            data: rowData as any as number[][],
+    const datasets = (matrix.toArray() as number[][])
+        .slice(1)
+        .map((rowData, i) => ({
+            label: `Line ${i + 1}`,
+            data: tArray.map((x, j) => ({ x, y: rowData[j] })),
             borderColor: colors[i % colors.length],
             backgroundColor: colors[i % colors.length],
             fill: false,
             tension: 0.2,
-        };
-    });
+            pointRadius: 0
+        }));
 
-    return { labels, datasets };
+    return { datasets };
 };
 
 // --- React Component ---
@@ -98,10 +92,10 @@ const MatrixLineChart = ({ matrixData, currentTime }: { matrixData: Matrix, curr
         responsive: true,
         scales: {
             x: {
-                title: {
-                    display: true,
-                    text: 'Time Step',
-                },
+                type: 'linear' as const,  // must be linear to interpolate
+                title: { display: true, text: 'Time' },
+                min: matrixData.get([0, 0]),
+                max: matrixData.get([0, matrixData.size()[1] - 1])
             },
             y: {
                 title: {
