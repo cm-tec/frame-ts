@@ -3,6 +3,8 @@ import { Stage, Layer, Circle, Line } from "react-konva";
 import Konva from "konva";
 import { SystemSolution } from "./SystemSolver";
 import MatrixLineChart from "./Chart";
+import { Button, Group, Paper, TextInput, Box, Text } from '@mantine/core';
+import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
 
 
 export default function SolutionVisualization({ systemSolution }: { systemSolution: SystemSolution }) {
@@ -105,16 +107,7 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
     };
 
     return (
-        <>
-            <p>{currentTime.toFixed(2)} s</p>
-            <input name="age" type="number" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} />
-            <button onClick={isRunning ? pauseAnimation : resumeAnimation}>
-                {isRunning ? "Pause" : "Resume"}
-            </button>
-            <button onClick={restartAnimation}>Restart</button>
-
-
-
+        <Box style={{ paddingBottom: '70px' }}>
             <Stage width={width} height={height} ref={stageRef}>
                 <Layer>
                     <Line ref={lineRef1} stroke="black" strokeWidth={10} />
@@ -135,7 +128,62 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
             </Stage>
 
             <MatrixLineChart matrixData={systemSolution.get_w_history(0, 300, 50)} currentTime={currentTime} />
-        </>
+
+            <Paper
+                p="xs"
+                shadow="xl"
+                withBorder
+                style={{
+                    position: 'fixed',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    zIndex: 100,
+                    borderRadius: 0
+                }}
+            >
+                <Group justify="space-between">
+                    <Group gap="md">
+                        <Box w={100}>
+                            <Text>
+                                {currentTime.toFixed(2)} s
+                            </Text>
+                        </Box>
+                        <TextInput
+                            label="Speed"
+                            type="number"
+                            value={speed}
+                            onChange={(e) => setSpeed(Number(e.target.value))}
+                            style={{ width: 50 }}
+                            size="xs"
+                            step={0.1}
+                            min={0.1}
+                        />
+
+
+                    </Group>
+
+                    {/* Right Side: Control Buttons */}
+                    <Group gap="md">
+                        <Button
+                            onClick={isRunning ? pauseAnimation : resumeAnimation}
+                            leftSection={isRunning ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
+                            color={isRunning ? 'orange' : 'green'}
+                        >
+                            {isRunning ? "Pause" : "Resume"}
+                        </Button>
+
+                        <Button
+                            onClick={restartAnimation}
+                            leftSection={<IconRotateClockwise size={20} />}
+                            variant="default"
+                        >
+                            Restart
+                        </Button>
+                    </Group>
+                </Group>
+            </Paper>
+        </Box>
     );
 }
 
