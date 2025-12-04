@@ -3,9 +3,8 @@ import { Stage, Layer, Circle, Line } from "react-konva";
 import Konva from "konva";
 import { SystemSolution } from "./SystemSolver";
 import MatrixLineChart from "./Chart";
-import { Button, Group, Paper, TextInput, Box, Text } from '@mantine/core';
+import { Button, Group, Paper, TextInput, Box, Text, Flex, rem } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
-
 
 export default function SolutionVisualization({ systemSolution }: { systemSolution: SystemSolution }) {
     const [currentTime, setCurrentTime] = useState(0);
@@ -28,12 +27,15 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
 
     // Canvas size
     const width = stageSize.width;
-    const height = stageSize.height / 2;
-
+    const height = stageSize.height;
 
 
 
     useEffect(() => {
+        const body = document.body;
+
+        body.style.overflow = 'hidden';
+
         const handleResize = () => setStageSize({ width: window.innerWidth, height: window.innerHeight });
         window.addEventListener("resize", handleResize);
 
@@ -49,6 +51,7 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
         animRef.current = anim;
 
         return () => {
+            body.style.overflow = '';
             window.removeEventListener("resize", handleResize);
             anim.stop();
         };
@@ -106,28 +109,38 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
 
     };
 
-    return (
-        <Box style={{ paddingBottom: '70px' }}>
-            <Stage width={width} height={height} ref={stageRef}>
-                <Layer>
-                    <Line ref={lineRef1} stroke="black" strokeWidth={10} />
-                    <Line ref={lineRef2} stroke="gray" strokeWidth={10} />
-                    <Circle
-                        ref={circleRef1}
-                        y={50}
-                        radius={25}
-                        fill={"red"}
-                    />
-                    <Circle
-                        ref={circleRef2}
-                        y={50}
-                        radius={15}
-                        fill={"blue"}
-                    />
-                </Layer>
-            </Stage>
 
-            <MatrixLineChart matrixData={systemSolution.get_w_history(0, 300, 50)} currentTime={currentTime} />
+    return (
+        <Flex
+            style={{
+                overflowY: 'auto',
+            }}
+        >
+
+            <Box style={{ width: "70%", backgroundColor: "lightblue" }}>
+                <Stage width={width} height={0.8 * height} ref={stageRef}>
+                    <Layer>
+                        <Line ref={lineRef1} stroke="black" strokeWidth={10} />
+                        <Line ref={lineRef2} stroke="gray" strokeWidth={10} />
+                        <Circle
+                            ref={circleRef1}
+                            y={50}
+                            radius={25}
+                            fill={"red"}
+                        />
+                        <Circle
+                            ref={circleRef2}
+                            y={50}
+                            radius={15}
+                            fill={"blue"}
+                        />
+                    </Layer>
+                </Stage>
+            </Box>
+            <Box style={{ width: "30%" }}>
+                <MatrixLineChart matrixData={systemSolution.get_w_history(0, 300, 50)} currentTime={currentTime} />
+            </Box>
+
 
             <Paper
                 p="xs"
@@ -183,7 +196,7 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
                     </Group>
                 </Group>
             </Paper>
-        </Box>
+        </Flex >
     );
 }
 

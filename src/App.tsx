@@ -17,16 +17,6 @@ export default function App() {
     setEditMode(prev => !prev);
   };
 
-  useEffect(() => {
-    const body = document.body;
-
-    body.style.overflow = 'hidden';
-
-    return () => {
-      body.style.overflow = '';
-    };
-  }, []);
-
   return (
     <MantineProvider>
       <div style={{ position: 'relative', padding: '20px' }}>

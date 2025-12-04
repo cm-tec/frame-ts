@@ -131,9 +131,9 @@ const MatrixLineChart = ({ matrixData, currentTime }: { matrixData: Matrix, curr
     };
 
     return (
-        <div style={{ width: '800px', margin: '20px auto' }}>
-            <Line options={options} data={chartData} />
-        </div>
+
+        <Line options={options} data={chartData} />
+
     );
 };
 
