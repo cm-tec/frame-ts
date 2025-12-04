@@ -5,7 +5,7 @@ import Editor from "./view/Editor";
 import '@mantine/core/styles.css';
 
 import { Button, MantineProvider } from '@mantine/core';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function App() {
 
@@ -16,6 +16,16 @@ export default function App() {
   const toggleMode = (setEditMode: React.Dispatch<React.SetStateAction<boolean>>) => {
     setEditMode(prev => !prev);
   };
+
+  useEffect(() => {
+    const body = document.body;
+
+    body.style.overflow = 'hidden';
+
+    return () => {
+      body.style.overflow = '';
+    };
+  }, []);
 
   return (
     <MantineProvider>
