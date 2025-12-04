@@ -1,78 +1,69 @@
-import "./Editor.css";
+import React, { useState } from 'react';
+import { Table, TextInput, Button, Group } from '@mantine/core';
 
-import { useReactTable, getCoreRowModel, flexRender } from '@tanstack/react-table'
+type Node = {
+    id: number;
+    x: number;
+    z: number; // keep as string for simple inline editing
+};
 
+export default function Editor() {
+    const [rows, setRows] = useState<Node[]>([
+        { id: 1, x: 1, z: 0 },
+        { id: 2, x: 2, z: 1 },
+    ]);
 
-const data = [
-    { id: 1, x: 2, z: 2, m: 3 },
-    { id: 2, x: 0, z: 0, m: 3 }
-]
+    const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: string) => {
+        setRows((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
+    };
 
-const columns = [
-    { accessorKey: 'id', header: 'Id' },
-    { accessorKey: 'x', header: 'x' },
-    { accessorKey: 'z', header: 'z' },
-    { accessorKey: 'm', header: 'Mass' },
-]
-
-
-export default function Chart() {
-
-    const table = useReactTable({
-        data, columns, getCoreRowModel: getCoreRowModel(),
-        enableColumnResizing: false,
-        columnResizeMode: 'onChange',
-    })
+    const addRow = () => {
+        const nextId = rows.length ? Math.max(...rows.map((r) => r.id)) + 1 : 1;
+        setRows((r) => [...r, { id: nextId, x: 0, z: 0 }]);
+    };
 
     return (
-        <table>
-            <thead>
-                {table.getHeaderGroups().map(headerGroup => (
-                    <tr key={headerGroup.id}>
-                        {headerGroup.headers.map(header => {
-                            return (
-                                <th
-                                    key={header.id}
-                                    colSpan={header.colSpan}
-                                    style={{ position: 'relative', width: header.getSize() }}
-                                >
-                                    {header.isPlaceholder
-                                        ? null
-                                        : flexRender(
-                                            header.column.columnDef.header,
-                                            header.getContext()
-                                        )}
-                                    {header.column.getCanResize() && (
-                                        <div
-                                            onMouseDown={header.getResizeHandler()}
-                                            onTouchStart={header.getResizeHandler()}
-                                            className={`resizer ${header.column.getIsResizing() ? 'isResizing' : ''}`}
-                                        ></div>
-                                    )}
-                                </th>
-                            )
-                        })}
-                    </tr>
-                ))}
-            </thead>
-            <tbody>
-                {table.getRowModel().rows.map(row => {
-                    return (
-                        <tr key={row.id}>
-                            {row.getVisibleCells().map(cell => {
-                                return (
-                                    <td key={cell.id} style={{ width: cell.column.getSize() }}>
-                                        {flexRender(
-                                            cell.column.columnDef.cell,
-                                            cell.getContext()
-                                        )}
-                                    </td>
-                                )
-                            })}
-                        </tr>
-                    )
-                })}
-            </tbody>
-        </table>
-    )
-} 
+        <>
+
+
+
+
+            <Table highlightOnHover verticalSpacing="xs">
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Id</Table.Th>
+                        <Table.Th>x</Table.Th>
+                        <Table.Th>z</Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {
+                        rows.map((row) => (
+                            <Table.Tr key={row.id}>
+                                <Table.Td>{row.id}</Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.x}
+                                        onChange={(e) => updateCell(row.id, 'x', e.currentTarget.value)}
+                                        placeholder="Name"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.z}
+                                        onChange={(e) => updateCell(row.id, 'z', e.currentTarget.value)}
+                                        placeholder="Age"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                            </Table.Tr>
+                        ))
+                    }
+                </Table.Tbody>
+            </Table>
+            <Button onClick={addRow}>Add row</Button>
+
+        </>
+    );
+}
