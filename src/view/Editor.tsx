@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Table, TextInput, Button, Group } from '@mantine/core';
+import { Circle, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { max, min } from 'mathjs';
 
 type Node = {
     id: number;
@@ -7,24 +9,183 @@ type Node = {
     z: number; // keep as string for simple inline editing
 };
 
+type Element = {
+    id: number;
+    node_i: number;
+    node_j: number; // keep as string for simple inline editing
+};
+
+
 export default function Editor() {
-    const [rows, setRows] = useState<Node[]>([
+    const [nodes, setNodes] = useState<Node[]>([
         { id: 1, x: 1, z: 0 },
         { id: 2, x: 2, z: 1 },
     ]);
 
+    const [elements, setElements] = useState<Element[]>([
+        { id: 1, node_i: 1, node_j: 2 },
+    ]);
+
+
+
     const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: string) => {
-        setRows((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
+        setNodes((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
     };
 
-    const addRow = () => {
-        const nextId = rows.length ? Math.max(...rows.map((r) => r.id)) + 1 : 1;
-        setRows((r) => [...r, { id: nextId, x: 0, z: 0 }]);
+    const updateElementCell = (id: number, key: keyof Omit<Element, 'id'>, value: string) => {
+        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
     };
+
+    const addNode = () => {
+        const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
+        setNodes((r) => [...r, { id: nextId, x: 0, z: 0 }]);
+    };
+
+    const getNode = (id: number) => {
+        return nodes.find(n => n.id == id)
+    };
+
+    const addElement = () => {
+        const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
+        setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2 }]);
+    };
+
+    const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+    const canvasWidth = stageSize.width;
+    const canvasHeight = stageSize.height / 2;
+
+    const canvasCenterX = () => canvasWidth / 2;
+    const canvasCenterZ = () => canvasHeight / 2;
+
+    const getMinContentX = () => min(nodes.map(n => n.x));
+    const getMaxContentX = () => max(nodes.map(n => n.x));
+
+    const getMinContentZ = () => min(nodes.map(n => n.z));
+    const getMaxContentZ = () => max(nodes.map(n => n.z));
+
+    const getContentWidth = () => getMaxContentX() - getMinContentX();
+    const getContentHeight = () => getMaxContentZ() - getMinContentZ();
+
+    const getCenterContentX = () => (getMaxContentX() - getMinContentX()) / 2;
+    const getCenterContentZ = () => (getMaxContentZ() - getMinContentZ()) / 2;
+
+
+    const toCanvasCoords = (x: number, z: number) => {
+        const x_scale = canvasWidth / getContentWidth();
+        const z_scale = canvasHeight / getContentHeight();
+
+        return (x - getMinContentX()) * x_scale, (z - getMinContentZ()) * z_scale
+    }
+
+    const marginX = 0.05;
+    const marginZ = 0.1;
+
+
+    const toCanvasX = (x: number) => {
+        const x_scale = (1 - 2 * marginX) * canvasWidth / getContentWidth();
+
+        return marginX * canvasWidth + (x - getMinContentX()) * x_scale;
+    }
+
+    const toCanvasZ = (z: number) => {
+        const z_scale = (1 - 2 * marginZ) * canvasHeight / getContentHeight();
+
+        return marginZ * canvasHeight + (z - getMinContentZ()) * z_scale;
+    }
+
+    const CIRCLE_RADIUS = 20;
+    const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2; // Bounding box for the text to ensure it covers the circle
+
 
     return (
         <>
+            <Stage height={canvasHeight} width={canvasWidth}>
+                <Layer>
+                    {elements.map(element => {
+                        const node_i = getNode(element.node_i);
+                        if (!node_i) {
+                            return;
+                        }
+                        const node_j = getNode(element.node_j);
+                        if (!node_j) {
+                            return;
+                        }
 
+
+                        const x_i = toCanvasX(node_i.x);
+                        const z_i = toCanvasZ(node_i.z);
+
+                        const x_j = toCanvasX(node_j.x);
+                        const z_j = toCanvasZ(node_j.z);
+
+
+                        const textX = x_i + (x_j - x_i) / 2 - (TEXT_BOX_SIZE / 2);
+                        const textY = z_i + (z_j - z_i) / 2 - (TEXT_BOX_SIZE / 2);
+
+                        return (
+                            <React.Fragment key={element.id}>
+                                <Line stroke="gray" strokeWidth={10} points={[x_i, z_i, x_j, z_j]} />
+                                <Rect
+                                    x={textX}
+                                    y={textY}
+                                    width={TEXT_BOX_SIZE}
+                                    height={TEXT_BOX_SIZE}
+                                    fill="white"
+                                    stroke="black"
+                                    strokeWidth={1}
+                                    cornerRadius={10}
+                                />
+
+                                <Text
+                                    x={textX}
+                                    y={textY}
+                                    width={TEXT_BOX_SIZE}
+                                    height={TEXT_BOX_SIZE}
+                                    text={`${element.id}`}
+                                    fontSize={20}
+                                    fill="black"
+                                    align="center"
+                                    verticalAlign="middle"
+                                />
+                            </React.Fragment>
+
+                        );
+                    })}
+
+
+                    {nodes.map(node => {
+                        const circleX = toCanvasX(node.x);
+                        const circleY = toCanvasZ(node.z);
+
+                        const textX = circleX - (TEXT_BOX_SIZE / 2);
+                        const textY = circleY - (TEXT_BOX_SIZE / 2);
+
+                        return (
+                            <React.Fragment key={node.id}>
+                                {/* Circle Component */}
+                                <Circle
+                                    x={circleX}
+                                    y={circleY}
+                                    radius={CIRCLE_RADIUS}
+                                    fill={"red"}
+                                />
+                                <Text
+                                    x={textX}
+                                    y={textY}
+                                    width={TEXT_BOX_SIZE}
+                                    height={TEXT_BOX_SIZE}
+                                    text={`${node.id}`}
+                                    fontSize={20}
+                                    fill="white"
+                                    align="center"
+                                    verticalAlign="middle"
+                                />
+                            </React.Fragment>
+                        );
+                    })}
+                </Layer>
+            </Stage>
 
 
 
@@ -38,7 +199,7 @@ export default function Editor() {
                 </Table.Thead>
                 <Table.Tbody>
                     {
-                        rows.map((row) => (
+                        nodes.map((row) => (
                             <Table.Tr key={row.id}>
                                 <Table.Td>{row.id}</Table.Td>
                                 <Table.Td>
@@ -62,8 +223,43 @@ export default function Editor() {
                     }
                 </Table.Tbody>
             </Table>
-            <Button onClick={addRow}>Add row</Button>
+            <Button onClick={addNode}>Add Node</Button>
 
+            <Table highlightOnHover verticalSpacing="xs">
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Id</Table.Th>
+                        <Table.Th>Node i</Table.Th>
+                        <Table.Th>Node j</Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {
+                        elements.map((row) => (
+                            <Table.Tr key={row.id}>
+                                <Table.Td>{row.id}</Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.node_i}
+                                        onChange={(e) => updateElementCell(row.id, 'node_i', e.currentTarget.value)}
+                                        placeholder="Name"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.node_j}
+                                        onChange={(e) => updateElementCell(row.id, 'node_j', e.currentTarget.value)}
+                                        placeholder="Age"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                            </Table.Tr>
+                        ))
+                    }
+                </Table.Tbody>
+            </Table>
+            <Button onClick={addElement}>Add element</Button>
         </>
     );
 }
