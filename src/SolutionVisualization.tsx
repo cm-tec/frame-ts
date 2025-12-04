@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Stage, Layer, Circle, Line } from "react-konva";
 import Konva from "konva";
 import { SystemSolution } from "./SystemSolver";
-import MatrixLineChart from "./chart";
+import MatrixLineChart from "./Chart";
 
 
 export default function SolutionVisualization({ systemSolution }: { systemSolution: SystemSolution }) {

@@ -1,8 +1,6 @@
 import { SystemSolver } from "./SystemSolver";
 import SolutionVisualization from "./SolutionVisualization";
-
-
-
+import Editor from "./view/Editor";
 
 export default function App() {
 
@@ -10,7 +8,8 @@ export default function App() {
 
   return (
     <>
-      <SolutionVisualization systemSolution={systemSolver.solve()} />
+      {/*  <SolutionVisualization systemSolution={systemSolver.solve()} />*/}
+      <Editor />
     </>
   );
 }

@@ -29,7 +29,7 @@ ChartJS.register(
 
 const verticalLinePlugin = {
     id: 'verticalLinePlugin',
-    afterDraw: (chart, args, options) => {
+    afterDraw: (chart: { scales?: any; ctx?: any; chartArea?: any; }, args: any, options: { xValue: any; color: string; }) => {
         const { ctx, chartArea: { top, bottom } } = chart;
         const x = chart.scales.x.getPixelForValue(options.xValue);
 
