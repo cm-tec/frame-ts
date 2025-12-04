@@ -12,7 +12,9 @@ type Node = {
 type Element = {
     id: number;
     node_i: number;
-    node_j: number; // keep as string for simple inline editing
+    node_j: number;
+    ea: number;
+    c: number;
 };
 
 
@@ -23,7 +25,7 @@ export default function Editor() {
     ]);
 
     const [elements, setElements] = useState<Element[]>([
-        { id: 1, node_i: 1, node_j: 2 },
+        { id: 1, node_i: 1, node_j: 2, ea: 1, c: 0 },
     ]);
 
 
@@ -47,7 +49,7 @@ export default function Editor() {
 
     const addElement = () => {
         const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
-        setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2 }]);
+        setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2, ea: 1, c: 0 }]);
     };
 
     const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -225,12 +227,14 @@ export default function Editor() {
             </Table>
             <Button onClick={addNode}>Add Node</Button>
 
-            <Table highlightOnHover verticalSpacing="xs">
+            <Table highlightOnHover verticalSpacing="xsea">
                 <Table.Thead>
                     <Table.Tr>
                         <Table.Th>Id</Table.Th>
                         <Table.Th>Node i</Table.Th>
                         <Table.Th>Node j</Table.Th>
+                        <Table.Th>EA</Table.Th>
+                        <Table.Th>c</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -250,6 +254,22 @@ export default function Editor() {
                                     <TextInput
                                         value={row.node_j}
                                         onChange={(e) => updateElementCell(row.id, 'node_j', e.currentTarget.value)}
+                                        placeholder="Age"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.ea}
+                                        onChange={(e) => updateElementCell(row.id, 'ea', e.currentTarget.value)}
+                                        placeholder="Age"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.c}
+                                        onChange={(e) => updateElementCell(row.id, 'c', e.currentTarget.value)}
                                         placeholder="Age"
                                         variant="unstyled"
                                     />
