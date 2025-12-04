@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
-import { Table, TextInput, Button, Group } from '@mantine/core';
-import { Circle, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { Table, TextInput, Button, Group, Combobox, InputBase, Input, useCombobox, Select, Checkbox } from '@mantine/core';
+import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
+import SupportSelector from './RoleSelector';
+import { Support } from './Support';
+
 
 type Node = {
     id: number;
     x: number;
-    z: number; // keep as string for simple inline editing
+    z: number;
+    restrained_u: boolean;
+    restrained_v: boolean;
+    restrained_phi: boolean;
+    support: Support
 };
 
 type Element = {
@@ -20,8 +27,8 @@ type Element = {
 
 export default function Editor() {
     const [nodes, setNodes] = useState<Node[]>([
-        { id: 1, x: 1, z: 0 },
-        { id: 2, x: 2, z: 1 },
+        { id: 1, x: 1, z: 0, support: Support.None, restrained_u: false, restrained_v: false, restrained_phi: false },
+        { id: 2, x: 2, z: 1, support: Support.None, restrained_u: false, restrained_v: false, restrained_phi: false },
     ]);
 
     const [elements, setElements] = useState<Element[]>([
@@ -30,7 +37,7 @@ export default function Editor() {
 
 
 
-    const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: string) => {
+    const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: any) => {
         setNodes((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
     };
 
@@ -40,7 +47,7 @@ export default function Editor() {
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
-        setNodes((r) => [...r, { id: nextId, x: 0, z: 0 }]);
+        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, support: Support.None, restrained_u: false, restrained_v: false, restrained_phi: false },]);
     };
 
     const getNode = (id: number) => {
@@ -100,6 +107,65 @@ export default function Editor() {
     const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2; // Bounding box for the text to ensure it covers the circle
 
 
+    function renderNode(node: Node) {
+        const circleX = toCanvasX(node.x);
+        const circleY = toCanvasZ(node.z);
+
+        const textX = circleX - (TEXT_BOX_SIZE / 2);
+        const textY = circleY - (TEXT_BOX_SIZE / 2);
+
+        return <React.Fragment key={node.id}>
+
+            {node.support == Support.Pinned || node.support == Support.Vertical ?
+
+                <Shape
+                    stroke="black"
+                    fill="lightgray"
+                    strokeWidth={1}
+                    sceneFunc={(context, shape) => {
+                        context.beginPath();
+                        context.moveTo(circleX, circleY);
+                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY - 1.5 * CIRCLE_RADIUS);
+                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY + 1.5 * CIRCLE_RADIUS);
+                        context.closePath();
+                        context.fillStrokeShape(shape);
+                    }}
+                /> : null
+
+
+            }
+            {node.support == Support.Pinned || node.support == Support.Horizontal ?
+                <Shape
+                    stroke="black"
+                    fill="lightgray"
+                    strokeWidth={1}
+                    sceneFunc={(context, shape) => {
+                        context.beginPath();
+                        context.moveTo(circleX, circleY);
+                        context.lineTo(circleX - 1.5 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
+                        context.lineTo(circleX + 1.5 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
+                        context.closePath();
+                        context.fillStrokeShape(shape);
+                    }}
+                /> : null}
+            {node.support == Support.Clamped ? <Rect
+                x={circleX - CIRCLE_RADIUS * 1.75 / 2}
+                y={circleY - CIRCLE_RADIUS * 1.75 / 2}
+                width={CIRCLE_RADIUS * 1.75}
+                height={CIRCLE_RADIUS * 1.75}
+                fill={"white"}
+                stroke={"black"}
+            /> : <Circle
+                x={circleX}
+                y={circleY}
+                radius={CIRCLE_RADIUS}
+                fill={"white"}
+                stroke={"black"}
+            />}
+        </React.Fragment>;
+    }
+
+
     return (
         <>
             <Stage height={canvasHeight} width={canvasWidth}>
@@ -156,36 +222,7 @@ export default function Editor() {
                     })}
 
 
-                    {nodes.map(node => {
-                        const circleX = toCanvasX(node.x);
-                        const circleY = toCanvasZ(node.z);
-
-                        const textX = circleX - (TEXT_BOX_SIZE / 2);
-                        const textY = circleY - (TEXT_BOX_SIZE / 2);
-
-                        return (
-                            <React.Fragment key={node.id}>
-                                {/* Circle Component */}
-                                <Circle
-                                    x={circleX}
-                                    y={circleY}
-                                    radius={CIRCLE_RADIUS}
-                                    fill={"red"}
-                                />
-                                <Text
-                                    x={textX}
-                                    y={textY}
-                                    width={TEXT_BOX_SIZE}
-                                    height={TEXT_BOX_SIZE}
-                                    text={`${node.id}`}
-                                    fontSize={20}
-                                    fill="white"
-                                    align="center"
-                                    verticalAlign="middle"
-                                />
-                            </React.Fragment>
-                        );
-                    })}
+                    {nodes.map(node => renderNode(node))}
                 </Layer>
             </Stage>
 
@@ -197,6 +234,10 @@ export default function Editor() {
                         <Table.Th>Id</Table.Th>
                         <Table.Th>x</Table.Th>
                         <Table.Th>z</Table.Th>
+                        <Table.Th>Support</Table.Th>
+                        <Table.Th>u</Table.Th>
+                        <Table.Th>v</Table.Th>
+                        <Table.Th>phi</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -208,7 +249,6 @@ export default function Editor() {
                                     <TextInput
                                         value={row.x}
                                         onChange={(e) => updateCell(row.id, 'x', e.currentTarget.value)}
-                                        placeholder="Name"
                                         variant="unstyled"
                                     />
                                 </Table.Td>
@@ -216,10 +256,39 @@ export default function Editor() {
                                     <TextInput
                                         value={row.z}
                                         onChange={(e) => updateCell(row.id, 'z', e.currentTarget.value)}
-                                        placeholder="Age"
                                         variant="unstyled"
                                     />
                                 </Table.Td>
+                                <Table.Td>
+                                    <Select
+                                        data={Object.values(Support)}
+                                        value={row.support ? row.support.toString() : Support.None}
+                                        onChange={(e) => updateCell(row.id, 'support', e)}
+                                    />
+
+                                </Table.Td>
+                                <Table.Td>
+                                    <Checkbox
+                                        checked={row.restrained_u}
+                                        onChange={(e) => updateCell(row.id, "restrained_u", e.currentTarget.checked)}
+                                    />
+
+                                </Table.Td>
+                                <Table.Td>
+                                    <Checkbox
+                                        checked={row.restrained_v}
+                                        onChange={(e) => updateCell(row.id, "restrained_v", e.currentTarget.checked)}
+                                    />
+
+                                </Table.Td>
+                                <Table.Td>
+                                    <Checkbox
+                                        checked={row.restrained_phi}
+                                        onChange={(e) => updateCell(row.id, "restrained_phi", e.currentTarget.checked)}
+                                    />
+
+                                </Table.Td>
+
                             </Table.Tr>
                         ))
                     }

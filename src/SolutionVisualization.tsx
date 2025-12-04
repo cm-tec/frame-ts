@@ -175,8 +175,6 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
 
 
                     </Group>
-
-                    {/* Right Side: Control Buttons */}
                     <Group gap="md">
                         <Button
                             onClick={isRunning ? pauseAnimation : resumeAnimation}

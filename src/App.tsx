@@ -19,7 +19,7 @@ export default function App() {
 
   return (
     <MantineProvider>
-      <div style={{ position: 'relative', padding: '20px' }}>
+      <div style={{ position: 'relative' }}>
 
         {/* The Button is styled to be absolutely positioned 
           in the top-right corner.
