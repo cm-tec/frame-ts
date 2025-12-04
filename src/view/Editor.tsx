@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Table, TextInput, Button, Group, Combobox, InputBase, Input, useCombobox, Select, Checkbox } from '@mantine/core';
+import { Table, TextInput, Button, Checkbox } from '@mantine/core';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
-import SupportSelector from './RoleSelector';
-import { Support } from './Support';
 
 
 type Node = {
@@ -13,7 +11,6 @@ type Node = {
     restrained_u: boolean;
     restrained_v: boolean;
     restrained_phi: boolean;
-    support: Support
 };
 
 type Element = {
@@ -27,8 +24,8 @@ type Element = {
 
 export default function Editor() {
     const [nodes, setNodes] = useState<Node[]>([
-        { id: 1, x: 1, z: 0, support: Support.None, restrained_u: false, restrained_v: false, restrained_phi: false },
-        { id: 2, x: 2, z: 1, support: Support.None, restrained_u: false, restrained_v: false, restrained_phi: false },
+        { id: 1, x: 1, z: 0, restrained_u: false, restrained_v: false, restrained_phi: false },
+        { id: 2, x: 2, z: 1, restrained_u: false, restrained_v: false, restrained_phi: false },
     ]);
 
     const [elements, setElements] = useState<Element[]>([
@@ -47,7 +44,7 @@ export default function Editor() {
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
-        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, support: Support.None, restrained_u: false, restrained_v: false, restrained_phi: false },]);
+        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, restrained_u: false, restrained_v: false, restrained_phi: false },]);
     };
 
     const getNode = (id: number) => {
@@ -64,8 +61,6 @@ export default function Editor() {
     const canvasWidth = stageSize.width;
     const canvasHeight = stageSize.height / 2;
 
-    const canvasCenterX = () => canvasWidth / 2;
-    const canvasCenterZ = () => canvasHeight / 2;
 
     const getMinContentX = () => min(nodes.map(n => n.x));
     const getMaxContentX = () => max(nodes.map(n => n.x));
@@ -76,16 +71,8 @@ export default function Editor() {
     const getContentWidth = () => getMaxContentX() - getMinContentX();
     const getContentHeight = () => getMaxContentZ() - getMinContentZ();
 
-    const getCenterContentX = () => (getMaxContentX() - getMinContentX()) / 2;
-    const getCenterContentZ = () => (getMaxContentZ() - getMinContentZ()) / 2;
 
 
-    const toCanvasCoords = (x: number, z: number) => {
-        const x_scale = canvasWidth / getContentWidth();
-        const z_scale = canvasHeight / getContentHeight();
-
-        return (x - getMinContentX()) * x_scale, (z - getMinContentZ()) * z_scale
-    }
 
     const marginX = 0.05;
     const marginZ = 0.1;
@@ -116,7 +103,7 @@ export default function Editor() {
 
         return <React.Fragment key={node.id}>
 
-            {node.support == Support.Pinned || node.support == Support.Vertical ?
+            {node.restrained_u ?
 
                 <Shape
                     stroke="black"
@@ -125,8 +112,8 @@ export default function Editor() {
                     sceneFunc={(context, shape) => {
                         context.beginPath();
                         context.moveTo(circleX, circleY);
-                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY - 1.5 * CIRCLE_RADIUS);
-                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY + 1.5 * CIRCLE_RADIUS);
+                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY - 1.4 * CIRCLE_RADIUS);
+                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY + 1.4 * CIRCLE_RADIUS);
                         context.closePath();
                         context.fillStrokeShape(shape);
                     }}
@@ -134,7 +121,7 @@ export default function Editor() {
 
 
             }
-            {node.support == Support.Pinned || node.support == Support.Horizontal ?
+            {node.restrained_v ?
                 <Shape
                     stroke="black"
                     fill="lightgray"
@@ -142,13 +129,13 @@ export default function Editor() {
                     sceneFunc={(context, shape) => {
                         context.beginPath();
                         context.moveTo(circleX, circleY);
-                        context.lineTo(circleX - 1.5 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
-                        context.lineTo(circleX + 1.5 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
+                        context.lineTo(circleX - 1.4 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
+                        context.lineTo(circleX + 1.4 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
                         context.closePath();
                         context.fillStrokeShape(shape);
                     }}
                 /> : null}
-            {node.support == Support.Clamped ? <Rect
+            {node.restrained_phi ? <Rect
                 x={circleX - CIRCLE_RADIUS * 1.75 / 2}
                 y={circleY - CIRCLE_RADIUS * 1.75 / 2}
                 width={CIRCLE_RADIUS * 1.75}
@@ -162,6 +149,18 @@ export default function Editor() {
                 fill={"white"}
                 stroke={"black"}
             />}
+
+            <Text
+                x={textX}
+                y={textY}
+                width={TEXT_BOX_SIZE}
+                height={TEXT_BOX_SIZE}
+                text={`${node.id}`}
+                fontSize={20}
+                fill="black"
+                align="center"
+                verticalAlign="middle"
+            />
         </React.Fragment>;
     }
 
@@ -234,7 +233,6 @@ export default function Editor() {
                         <Table.Th>Id</Table.Th>
                         <Table.Th>x</Table.Th>
                         <Table.Th>z</Table.Th>
-                        <Table.Th>Support</Table.Th>
                         <Table.Th>u</Table.Th>
                         <Table.Th>v</Table.Th>
                         <Table.Th>phi</Table.Th>
@@ -258,14 +256,6 @@ export default function Editor() {
                                         onChange={(e) => updateCell(row.id, 'z', e.currentTarget.value)}
                                         variant="unstyled"
                                     />
-                                </Table.Td>
-                                <Table.Td>
-                                    <Select
-                                        data={Object.values(Support)}
-                                        value={row.support ? row.support.toString() : Support.None}
-                                        onChange={(e) => updateCell(row.id, 'support', e)}
-                                    />
-
                                 </Table.Td>
                                 <Table.Td>
                                     <Checkbox
