@@ -1,6 +1,64 @@
-import { all, complex, create, dotMultiply, equal, exp, identity, index, inv, lusolve, map, matrix, multiply, range, row, subset, zeros, type MathJsInstance, type Matrix } from "mathjs";
+import { add, all, atan2, complex, create, dot, dotMultiply, equal, exp, identity, index, inv, lusolve, map, matrix, multiply, phi, range, rotationMatrix, row, subset, transpose, zeros, type MathJsInstance, type Matrix } from "mathjs";
 import { assert } from "vitest";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
+import type { StructuralSystem } from "./StructuralSystem";
+
+
+function get_rotation_matrix_of_element(v: [number, number]) {
+    const dx = v[0];
+    const dz = v[1];
+
+    const theta = atan2(dz, dx);
+    const t = rotationMatrix(theta) as math.Matrix;
+
+    const T_e = identity(6) as math.Matrix;
+
+    T_e.subset(index([0, 1], [0, 1]), t);
+    T_e.subset(index([3, 4], [3, 4]), t);
+
+    return T_e;
+}
+
+
+function k_element(EA: number = 1, EI: number = 1, l: number = 1) {
+    const k_axial = multiply(EA / l, matrix(
+        [
+            [1, 0, 0, -1, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [-1, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+        ]
+    ));
+
+    const k_flexural = multiply(2 * EI / l ** 3, matrix(
+        [
+            [0, 0, 0, 0, 0, 0],
+            [0, 6, -3 * l, 0, -6, -3 * l],
+            [0, -3 * l, 2 * l ** 2, 0, 3 * l, l ** 2],
+            [0, 0, 0, 0, 0, 0],
+            [0, -6, 3 * l, 0, 6, 3 * l],
+            [0, -3 * l, l ** 2, 0, 3 * l, 2 * l ** 2],
+        ]
+    ));
+
+    return add(k_axial, k_flexural);
+}
+
+function c_element(c: number) {
+    return matrix(
+        [
+            [c, 0, 0, -c, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [-c, 0, 0, c, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+        ]
+    )
+}
+
 
 
 export class SystemSolver {
@@ -13,8 +71,98 @@ export class SystemSolver {
     f: Matrix;
     initialConditions: Matrix;
 
-    constructor() {
-        this.NDOF = 2;
+    m_11: Matrix;
+    m_12: Matrix;
+    m_22: Matrix;
+
+    c_11: Matrix;
+    c_12: Matrix;
+    c_22: Matrix;
+
+    k_11: Matrix;
+    k_12: Matrix;
+    k_22: Matrix;
+
+    f_1: Matrix;
+    f_2: Matrix;
+
+    constructor(system: StructuralSystem) {
+        let k = matrix(zeros(system.ndofs, system.ndofs));
+        let c = matrix(zeros(system.ndofs, system.ndofs));
+        let m = matrix(zeros(system.ndofs, system.ndofs));
+
+        let restrained: number[] = [];
+        let non_restrained: number[] = [];
+
+
+        const expand_matrix = (m: Matrix, indices: number[]) => {
+            let T = matrix(zeros([indices.length, system.ndofs]))
+
+            indices.forEach((idx, i) => {
+                T.set([i, idx], 1);
+            });
+
+            return multiply(transpose(T), multiply(m, T));
+        }
+
+
+        for (const e of system.elements) {
+            let n_i = system.nodes.find(n => n.id = e.node_i)!;
+            let n_j = system.nodes.find(n => n.id = e.node_j)!;
+
+            const R_e = get_rotation_matrix_of_element([n_j.x - n_i.x, n_j.z - n_i.z])
+            const R_e_T = transpose(R_e);
+            const k_e = multiply(R_e_T, multiply(k_element(), R_e));
+
+            k = add(k, expand_matrix(k_e, [e.u_i_dof, e.v_i_dof, e.phi_i_dof, e.u_j_dof, e.v_j_dof, e.phi_j_dof]));
+
+            c = add(c, expand_matrix(c_element(e.c), [e.u_i_dof, e.v_i_dof, e.phi_i_dof, e.u_j_dof, e.v_j_dof, e.phi_j_dof]));
+        }
+
+        for (const n of system.nodes) {
+            subset(m, index(n.u_dof, n.u_dof), n.mass);
+            subset(m, index(n.v_dof, n.v_dof), n.mass);
+
+            if (n.restrained_u) {
+                restrained.push(n.u_dof);
+            }
+
+            if (n.restrained_v) {
+                restrained.push(n.v_dof);
+            }
+
+            if (n.restrained_phi) {
+                restrained.push(n.phi_dof);
+            }
+        }
+
+        for (let i = 0; i < system.ndofs; i++) {
+            if (!restrained.includes(i)) {
+                non_restrained.push(i);
+            }
+        }
+
+
+        this.k_11 = subset(k, index(non_restrained, non_restrained));
+        this.k_12 = subset(k, index(restrained, non_restrained));
+        this.k_22 = subset(k, index(restrained, restrained));
+
+        this.c_11 = subset(c, index(non_restrained, non_restrained));
+        this.c_12 = subset(c, index(restrained, non_restrained));
+        this.c_22 = subset(c, index(restrained, restrained));
+
+        this.m_11 = subset(m, index(non_restrained, non_restrained));
+        this.m_12 = subset(m, index(restrained, non_restrained));
+        this.m_22 = subset(m, index(restrained, restrained));
+
+        this.f_1 = matrix(zeros([non_restrained.length, 1]));
+        this.f_2 = matrix(zeros([restrained.length, 1]));
+
+        console.log(k);
+        console.log(this.k_11);
+
+
+        this.NDOF = 2; //non_restrained.length;
 
         let m1 = 80.0;
         let m2 = 8.0;
@@ -67,8 +215,6 @@ export class SystemSolver {
 
         return new SystemSolution(eigenVectors, eigenValues, coefficients);
     }
-
-
 }
 
 

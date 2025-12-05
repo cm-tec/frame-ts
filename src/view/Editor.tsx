@@ -3,35 +3,16 @@ import { Table, TextInput, Button, Checkbox } from '@mantine/core';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
+import { type Node, type Element } from "../models/models";
 
-type Node = {
-    id: number;
-    x: number;
-    z: number;
-    restrained_u: boolean;
-    restrained_v: boolean;
-    restrained_phi: boolean;
-};
+interface EditorProps {
+    nodes: Node[];
+    setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
+    elements: Element[];
+    setElements: React.Dispatch<React.SetStateAction<Element[]>>;
+}
 
-type Element = {
-    id: number;
-    node_i: number;
-    node_j: number;
-    ea: number;
-    c: number;
-};
-
-
-export default function Editor() {
-    const [nodes, setNodes] = useState<Node[]>([
-        { id: 1, x: 1, z: 0, restrained_u: false, restrained_v: false, restrained_phi: false },
-        { id: 2, x: 2, z: 1, restrained_u: false, restrained_v: false, restrained_phi: false },
-    ]);
-
-    const [elements, setElements] = useState<Element[]>([
-        { id: 1, node_i: 1, node_j: 2, ea: 1, c: 0 },
-    ]);
-
+export default function Editor({ nodes, setNodes, elements, setElements }: EditorProps) {
 
 
     const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: any) => {
@@ -44,7 +25,7 @@ export default function Editor() {
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
-        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, restrained_u: false, restrained_v: false, restrained_phi: false },]);
+        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, mass: 0, restrained_u: false, restrained_v: false, restrained_phi: false },]);
     };
 
     const getNode = (id: number) => {
@@ -241,6 +222,7 @@ export default function Editor() {
                         <Table.Th>Id</Table.Th>
                         <Table.Th>x</Table.Th>
                         <Table.Th>z</Table.Th>
+                        <Table.Th>Mass</Table.Th>
                         <Table.Th>u</Table.Th>
                         <Table.Th>v</Table.Th>
                         <Table.Th>phi</Table.Th>
@@ -262,6 +244,13 @@ export default function Editor() {
                                     <TextInput
                                         value={row.z}
                                         onChange={(e) => updateCell(row.id, 'z', e.currentTarget.value)}
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                                <Table.Td>
+                                    <TextInput
+                                        value={row.z}
+                                        onChange={(e) => updateCell(row.id, 'mass', e.currentTarget.value)}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
