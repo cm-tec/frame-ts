@@ -79,12 +79,20 @@ export default function Editor() {
 
 
     const toCanvasX = (x: number) => {
+        if (getContentWidth() == 0) {
+            return canvasWidth / 2;
+        }
+
         const x_scale = (1 - 2 * marginX) * canvasWidth / getContentWidth();
 
         return marginX * canvasWidth + (x - getMinContentX()) * x_scale;
     }
 
     const toCanvasZ = (z: number) => {
+        if (getContentHeight() == 0) {
+            return canvasHeight / 2;
+        }
+
         const z_scale = (1 - 2 * marginZ) * canvasHeight / getContentHeight();
 
         return marginZ * canvasHeight + (z - getMinContentZ()) * z_scale;
