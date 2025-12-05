@@ -72,8 +72,8 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
     const runFrame = (t: number) => {
         setCurrentTime(t);
 
-        const w1 = systemSolution.get_w(0, t);
-        const w2 = systemSolution.get_w(1, t);
+        const w1 = systemSolution.get_w(1, t);
+        const w2 = systemSolution.get_w(0, t);
 
         const x1 = 650 + w1 * 100;
         const x2 = 350 + w2 * 100;
@@ -138,7 +138,7 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
                 </Stage>
             </Box>
             <Box style={{ width: "30%" }}>
-                <MatrixLineChart matrixData={systemSolution.get_w_history(0, 300, 50)} currentTime={currentTime} />
+                <MatrixLineChart matrixData={systemSolution.get_w_history(1, 300, 50)} currentTime={currentTime} />
             </Box>
 
 

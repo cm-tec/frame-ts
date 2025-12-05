@@ -249,7 +249,7 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                 </Table.Td>
                                 <Table.Td>
                                     <TextInput
-                                        value={row.z}
+                                        value={row.mass}
                                         onChange={(e) => updateCell(row.id, 'mass', e.currentTarget.value)}
                                         variant="unstyled"
                                     />

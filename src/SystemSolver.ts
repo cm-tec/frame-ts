@@ -20,7 +20,7 @@ function get_rotation_matrix_of_element(v: [number, number]) {
 }
 
 
-function k_element(EA: number = 1, EI: number = 1, l: number = 1) {
+function k_element(EA: number, EI: number, l: number) {
     const k_axial = multiply(EA / l, matrix(
         [
             [1, 0, 0, -1, 0, 0],
@@ -71,6 +71,9 @@ export class SystemSolver {
     f: Matrix;
     initialConditions: Matrix;
 
+    ndof_restrained: number;
+    ndof_non_restrained: number;
+
     m_11: Matrix;
     m_12: Matrix;
     m_22: Matrix;
@@ -112,7 +115,7 @@ export class SystemSolver {
 
             const R_e = get_rotation_matrix_of_element([n_j.x - n_i.x, n_j.z - n_i.z])
             const R_e_T = transpose(R_e);
-            const k_e = multiply(R_e_T, multiply(k_element(), R_e));
+            const k_e = multiply(R_e_T, multiply(k_element(e.ea, 0, 1), R_e));
 
             k = add(k, expand_matrix(k_e, [e.u_i_dof, e.v_i_dof, e.phi_i_dof, e.u_j_dof, e.v_j_dof, e.phi_j_dof]));
 
@@ -120,8 +123,8 @@ export class SystemSolver {
         }
 
         for (const n of system.nodes) {
-            subset(m, index(n.u_dof, n.u_dof), n.mass);
-            subset(m, index(n.v_dof, n.v_dof), n.mass);
+            m.set([n.u_dof, n.u_dof], n.mass);
+            m.set([n.v_dof, n.v_dof], n.mass);
 
             if (n.restrained_u) {
                 restrained.push(n.u_dof);
@@ -158,9 +161,8 @@ export class SystemSolver {
         this.f_1 = matrix(zeros([non_restrained.length, 1]));
         this.f_2 = matrix(zeros([restrained.length, 1]));
 
-        console.log(k);
-        console.log(this.k_11);
-
+        this.ndof_non_restrained = non_restrained.length;
+        this.ndof_restrained = restrained.length;
 
         this.NDOF = 2; //non_restrained.length;
 
@@ -189,8 +191,8 @@ export class SystemSolver {
         this.f = zeros([this.NDOF, 1]) as Matrix;
 
         this.initialConditions = matrix([
-            [complex(-1, 0)],
             [complex(1, 0)],
+            [complex(-1, 0)],
             [0],
             [0]
         ]);
@@ -199,12 +201,12 @@ export class SystemSolver {
 
 
     solve(): SystemSolution {
-        let m_inv = inv(this.m);
+        let m_inv = inv(this.m_11);
 
-        let a11 = zeros([this.NDOF, this.NDOF]) as Matrix;
-        let a12 = identity(this.NDOF) as Matrix;
-        let a21 = multiply(-1, multiply(m_inv, this.k));
-        let a22 = multiply(-1, multiply(m_inv, this.c));
+        let a11 = zeros([this.ndof_non_restrained, this.ndof_non_restrained]) as Matrix;
+        let a12 = identity(this.ndof_non_restrained) as Matrix;
+        let a21 = multiply(-1, multiply(m_inv, this.k_11));
+        let a22 = multiply(-1, multiply(m_inv, this.c_11));
 
         let a = merge(a11, a12, a21, a22);
 

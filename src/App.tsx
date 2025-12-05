@@ -21,14 +21,17 @@ export default function App() {
 
   const [nodes, setNodes] = useState<Node[]>([
     { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, restrained_phi: true },
-    { id: 2, x: 1, z: 0, mass: 1, restrained_u: false, restrained_v: true, restrained_phi: true },
-    { id: 3, x: 2, z: 0, mass: 3, restrained_u: false, restrained_v: true, restrained_phi: true },
+    { id: 2, x: 1, z: 0, mass: 8, restrained_u: false, restrained_v: true, restrained_phi: true },
+    { id: 3, x: 2, z: 0, mass: 80, restrained_u: false, restrained_v: true, restrained_phi: true },
   ]);
 
   const [elements, setElements] = useState<Element[]>([
-    { id: 1, node_i: 1, node_j: 2, ea: 1, c: 1 },
-    { id: 2, node_i: 2, node_j: 3, ea: 1, c: 1 },
+    { id: 1, node_i: 1, node_j: 2, ea: 125, c: 0.6 },
+    { id: 2, node_i: 2, node_j: 3, ea: 200, c: 0 },
   ]);
+
+
+
 
 
 
