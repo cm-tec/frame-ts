@@ -10,6 +10,8 @@ export default function SolutionVisualization({ systemSolution }: { systemSoluti
     const height = stageSize.height;
 
 
+
+
     return (
         <Stage width={width} height={0.8 * height} ref={stageRef}>
             <Layer>
