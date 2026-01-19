@@ -11,8 +11,6 @@ interface NodeData {
 }
 
 const MinimalNetwork = () => {
-    // 2. Properly typed Refs
-    // We use <Konva.Layer> etc. to give TS the correct API methods
     const layerRef = useRef<Konva.Layer>(null);
     const nodesRef = useRef<Map<string, Konva.Circle>>(new Map());
     const lineRef = useRef<Konva.Line>(null);

@@ -19,10 +19,10 @@ let structuralSystem = new StructuralSystem([
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <MinimalNetwork />
 
+    <StructuralSystemViewer structuralSystem={structuralSystem} />
   </StrictMode>,
 )
 
 
-// <StructuralSystemViewer structuralSystem={structuralSystem} />
+//     <MinimalNetwork />

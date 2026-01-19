@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Table, TextInput, Button, Checkbox } from '@mantine/core';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
 import { type Node, type Element } from "../models/models";
 import type { StructuralSystem } from '../StructuralSystem';
+import type Konva from 'konva';
 
 interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
@@ -12,6 +13,7 @@ interface StructuralSystemViewerProps {
 
 export default function StructuralSystemViewer({ structuralSystem }: StructuralSystemViewerProps) {
 
+    const layerRef = useRef<Konva.Layer>(null);
 
     const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
@@ -189,7 +191,7 @@ export default function StructuralSystemViewer({ structuralSystem }: StructuralS
 
     return (
         <Stage width={canvasWidth} height={canvasHeight}>
-            <Layer>
+            <Layer ref={layerRef}>
                 {structuralSystem.elements.map(
                     (e) => renderElement(e)
                 )}
