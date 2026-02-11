@@ -17,12 +17,39 @@ let structuralSystem = new StructuralSystem([
     { id: 2, node_i: 2, node_j: 3, ea: 1, c: 0 }
   ]);
 
+
+const getNodePosition = (nodeId: number, time: number): { x: number; z: number } => {
+  const node = structuralSystem.nodes.find(n => n.id == nodeId)!;
+
+  return {
+    x: node.x,
+    z: node.z
+  };
+};
+
+
+const getElementPositions = (elementId: number, time: number): Array<{ x: number; z: number }> => {
+  const element = structuralSystem.elements.find(e => e.id == elementId)!;
+
+  const node_i = structuralSystem.nodes.find(n => n.id == element.node_i)!;
+  const node_j = structuralSystem.nodes.find(n => n.id == element.node_j)!;
+
+  const N = 200;
+
+  return [{ x: node_i.x, z: node_i.z }, { x: node_i.x + (node_j.x - node_i.x) / 2, z: node_i.z + (node_j.x - node_i.x) / 2 + 2 }, { x: node_j.x, z: node_j.z }];
+};
+
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-
-    <StructuralSystemViewer structuralSystem={structuralSystem} />
+    <StructuralSystemViewer
+      structuralSystem={structuralSystem}
+      getNodePosition={getNodePosition}
+      getElementPositions={getElementPositions}
+    />
   </StrictMode>,
 )
 
 
-//     <MinimalNetwork />
+//  <MinimalNetwork />
+// <StructuralSystemViewer structuralSystem={structuralSystem} />  

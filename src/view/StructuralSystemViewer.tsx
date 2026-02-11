@@ -9,9 +9,11 @@ import type Konva from 'konva';
 
 interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
+    getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
+    getElementPositions: (ElementId: number, time: number) => Array<{ x: number; z: number }>;
 }
 
-export default function StructuralSystemViewer({ structuralSystem }: StructuralSystemViewerProps) {
+export default function StructuralSystemViewer({ structuralSystem, getNodePosition: getNodePosition, getElementPositions: getElementPositions }: StructuralSystemViewerProps) {
 
     const layerRef = useRef<Konva.Layer>(null);
 
@@ -53,7 +55,12 @@ export default function StructuralSystemViewer({ structuralSystem }: StructuralS
 
     const toCanvasZ = (z: number) => {
         if (getContentHeight() == 0) {
-            return canvasHeight / 2;
+            if (z == getMinContentZ()) {
+                return canvasHeight / 2;
+            } else {
+                const z_scale = (1 - 2 * marginZ) * canvasHeight / 10;
+                return canvasHeight / 2 + (z - getMinContentZ()) * z_scale;
+            }
         }
 
         const z_scale = (1 - 2 * marginZ) * canvasHeight / getContentHeight();
@@ -62,13 +69,15 @@ export default function StructuralSystemViewer({ structuralSystem }: StructuralS
     }
 
     const CIRCLE_RADIUS = 20;
-    const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2; // Bounding box for the text to ensure it covers the circle
+    const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 
 
 
     function renderNode(node: Node) {
-        const circleX = toCanvasX(node.x);
-        const circleY = toCanvasZ(node.z);
+        const { x, z } = getNodePosition(node.id, 0);
+
+        const circleX = toCanvasX(x);
+        const circleY = toCanvasZ(z);
 
         const textX = circleX - (TEXT_BOX_SIZE / 2);
         const textY = circleY - (TEXT_BOX_SIZE / 2);
@@ -118,7 +127,7 @@ export default function StructuralSystemViewer({ structuralSystem }: StructuralS
                 x={circleX}
                 y={circleY}
                 radius={CIRCLE_RADIUS}
-                fill={"white"}
+                fill={"red"}
                 stroke={"black"}
             />}
 
@@ -147,12 +156,15 @@ export default function StructuralSystemViewer({ structuralSystem }: StructuralS
             return;
         }
 
+        const position = getElementPositions(element.id, 0);
 
-        const x_i = toCanvasX(node_i.x);
-        const z_i = toCanvasZ(node_i.z);
+        const canvasPositions = position.map(({ x, z }) => ({ x: toCanvasX(x), z: toCanvasZ(z) }));
 
-        const x_j = toCanvasX(node_j.x);
-        const z_j = toCanvasZ(node_j.z);
+        const x_i = canvasPositions.at(0)!.x;
+        const z_i = canvasPositions.at(0)!.z;
+
+        const x_j = canvasPositions.at(-1)!.x;
+        const z_j = canvasPositions.at(-1)!.z;
 
 
         const textX = x_i + (x_j - x_i) / 2 - (TEXT_BOX_SIZE / 2);
@@ -160,7 +172,7 @@ export default function StructuralSystemViewer({ structuralSystem }: StructuralS
 
         return (
             <React.Fragment key={element.id}>
-                <Line stroke="gray" strokeWidth={10} points={[x_i, z_i, x_j, z_j]} />
+                <Line stroke="gray" strokeWidth={10} points={canvasPositions.flatMap(({ x, z }) => [x, z])} />
                 <Rect
                     x={textX}
                     y={textY}
