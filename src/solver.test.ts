@@ -1,75 +1,13 @@
+import { test } from "vitest";
+
+test('initial conditions', () => {
+
+})
+
+
+
+
 /*
-
-test('merge', () => {
-    let a11 = matrix([[0]]);
-    let a12 = matrix([[1]]);
-    let a21 = matrix([[2]]);
-    let a22 = matrix([[3]]);
-
-    let a = matrix([
-        [0, 1],
-        [2, 3]
-    ])
-
-
-    expect(merge(a11, a12, a21, a22)).toStrictEqual(a)
-})
-
-
-test('eigenvectors', () => {
-
-    let m = matrix([
-        [0.0, -1.0],
-        [1.0, 0.0]
-    ]);
-
-    let eigen = eigs(m);
-    let V = eigen.eigenvectors;
-
-    expect(V.length).toBe(2);
-
-    let e1 = V[0].value;
-    let v1 = V[0].vector as Matrix;
-
-    let e2 = V[1].value;
-    let v2 = V[1].vector as Matrix;
-
-    // Eigenvalue 1 should be equal to: e = i;
-    expect(e1).toStrictEqual(complex(0, 1));
-    // Eigenvector 1 should be a multiple of: v = [1, -i];
-    expect(isMultiple(v1, matrix([complex(1, 0), complex(0, -1)]))).toBe(true);
-
-    // Eigenvalue 2 should be equal to: e = -i;
-    expect(e2).toStrictEqual(complex(0, -1));
-    // Eigenvector 2 should be a multiple of: v = [1, i];
-    expect(isMultiple(v2, matrix([complex(1, 0), complex(0, 1)]))).toBe(true);
-})
-
-test('getEigenvectors', () => {
-    let m = matrix([
-        [0.0, -1.0],
-        [1.0, 0.0]
-    ]);
-
-    expect(getEigenvectors(m)).toStrictEqual(matrix([
-        [complex(-1, 0), complex(-1, 0)],
-        [complex(0, 1), complex(0, -1)]
-    ]))
-})
-
-
-test('getEigenvalues', () => {
-    let m = matrix([
-        [0.0, -1.0],
-        [1.0, 0.0]
-    ]);
-
-    expect(getEigenvalues(m)).toStrictEqual(matrix([
-        [complex(0, 1)],
-        [complex(0, -1)]
-    ]))
-})
-
 
 test('initial conditions', () => {
     // Initial conditions are [-1, 1, 0, 0]

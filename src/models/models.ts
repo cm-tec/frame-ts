@@ -13,5 +13,6 @@ export type Element = {
     node_i: number;
     node_j: number;
     ea: number;
+    ei: number;
     c: number;
 };

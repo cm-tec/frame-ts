@@ -1,4 +1,4 @@
-import { add, all, atan2, complex, create, dot, dotMultiply, equal, exp, identity, index, inv, lusolve, map, matrix, multiply, phi, range, rotationMatrix, row, subset, transpose, zeros, type MathJsInstance, type Matrix } from "mathjs";
+import { add, all, atan2, complex, create, dot, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, ones, phi, range, rotationMatrix, row, sqrt, subset, transpose, zeros, type MathJsInstance, type Matrix } from "mathjs";
 import { assert } from "vitest";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import type { StructuralSystem } from "./StructuralSystem";
@@ -69,10 +69,12 @@ export class SystemSolver {
     k: Matrix;
 
     f: Matrix;
-    initialConditions: Matrix;
 
     ndof_restrained: number;
     ndof_non_restrained: number;
+
+    restrained: number[];
+    non_restrained: number[];
 
     m_11: Matrix;
     m_12: Matrix;
@@ -110,12 +112,15 @@ export class SystemSolver {
 
 
         for (const e of system.elements) {
-            let n_i = system.nodes.find(n => n.id = e.node_i)!;
-            let n_j = system.nodes.find(n => n.id = e.node_j)!;
+            let n_i = system.nodes.find(n => n.id === e.node_i)!;
+            let n_j = system.nodes.find(n => n.id === e.node_j)!;
 
             const R_e = get_rotation_matrix_of_element([n_j.x - n_i.x, n_j.z - n_i.z])
             const R_e_T = transpose(R_e);
-            const k_e = multiply(R_e_T, multiply(k_element(e.ea, 0, 1), R_e));
+
+            const l = hypot(n_j.x - n_i.x, n_j.z - n_i.z);
+
+            const k_e = multiply(R_e_T, multiply(k_element(e.ea, e.ei, l), R_e));
 
             k = add(k, expand_matrix(k_e, [e.u_i_dof, e.v_i_dof, e.phi_i_dof, e.u_j_dof, e.v_j_dof, e.phi_j_dof]));
 
@@ -125,6 +130,9 @@ export class SystemSolver {
         for (const n of system.nodes) {
             m.set([n.u_dof, n.u_dof], n.mass);
             m.set([n.v_dof, n.v_dof], n.mass);
+
+            const tinyInertia = n.mass > 0 ? 1e-6 : 0;
+            m.set([n.phi_dof, n.phi_dof], tinyInertia);
 
             if (n.restrained_u) {
                 restrained.push(n.u_dof);
@@ -144,7 +152,6 @@ export class SystemSolver {
                 non_restrained.push(i);
             }
         }
-
 
         this.k_11 = subset(k, index(non_restrained, non_restrained));
         this.k_12 = subset(k, index(restrained, non_restrained));
@@ -190,17 +197,15 @@ export class SystemSolver {
 
         this.f = zeros([this.NDOF, 1]) as Matrix;
 
-        this.initialConditions = matrix([
-            [complex(1, 0)],
-            [complex(-1, 0)],
-            [0],
-            [0]
-        ]);
+
+
+        this.restrained = restrained;
+        this.non_restrained = non_restrained;
     }
 
 
 
-    solve(): SystemSolution {
+    solve(initialConditions: Matrix): SystemSolution {
         let m_inv = inv(this.m_11);
 
         let a11 = zeros([this.ndof_non_restrained, this.ndof_non_restrained]) as Matrix;
@@ -213,9 +218,15 @@ export class SystemSolver {
         let eigenVectors = getEigenvectors(a);
         let eigenValues = getEigenvalues(a);
 
-        let coefficients = lusolve(eigenVectors, this.initialConditions);
+        let coefficients = lusolve(eigenVectors, initialConditions);
 
-        return new SystemSolution(eigenVectors, eigenValues, coefficients);
+        return new SystemSolution(
+            eigenVectors,
+            eigenValues,
+            coefficients,
+            this.restrained,
+            this.non_restrained
+        );
     }
 }
 
@@ -228,8 +239,16 @@ export class SystemSolution {
 
     coefficients: Matrix;
 
+    restrained: number[];
+    non_restrained: number[];
 
-    constructor(eigenVectors: Matrix, eigenValues: Matrix, coefficients: Matrix) {
+    constructor(
+        eigenVectors: Matrix,
+        eigenValues: Matrix,
+        coefficients: Matrix,
+        restrained: number[],
+        non_restrained: number[]
+    ) {
         assert(equal(eigenValues.size(), coefficients.size()))
 
 
@@ -239,6 +258,9 @@ export class SystemSolution {
         this.eigenValues = eigenValues;
 
         this.coefficients = coefficients;
+
+        this.restrained = restrained;
+        this.non_restrained = non_restrained;
     }
 
     // Get the displacement of a dof over time
@@ -267,9 +289,14 @@ export class SystemSolution {
 
     // Get the displacement of a specific dof at certain time t
     get_w(dof: number, t: number): number {
+        if (this.restrained.includes(dof)) {
+            return 0;
+        }
+        let i = this.non_restrained.indexOf(dof);
+
         let e = map(multiply(this.eigenValues, t), exp);
         let ec = dotMultiply(this.coefficients, e);
 
-        return multiply(row(this.eigenVectors, dof), ec).map((v, _) => v.re).get([0, 0])
+        return multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re).get([0, 0])
     }
 }

@@ -1,6 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Table, TextInput, Button, Checkbox } from '@mantine/core';
-import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
+import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
 import { type Node, type Element } from "../models/models";
@@ -11,13 +11,18 @@ interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
     getElementPositions: (ElementId: number, time: number) => Array<{ x: number; z: number }>;
+    time: number;
 }
 
-export default function StructuralSystemViewer({ structuralSystem, getNodePosition: getNodePosition, getElementPositions: getElementPositions }: StructuralSystemViewerProps) {
+export default function StructuralSystemViewer({ structuralSystem, getNodePosition, getElementPositions, time }: StructuralSystemViewerProps) {
 
     const layerRef = useRef<Konva.Layer>(null);
 
-    const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+    const nodeGroupsRef = useRef<Map<number, Konva.Group>>(new Map());
+    const elementLinesRef = useRef<Map<number, Konva.Line>>(new Map());
+    const elementLabelsRef = useRef<Map<number, Konva.Group>>(new Map());
+
+    const [stageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
 
     const canvasWidth = stageSize.width;
@@ -72,9 +77,45 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
     const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 
 
+    useEffect(() => {
+        // 1. Update Nodes
+        structuralSystem.nodes.forEach((nodeData) => {
+            const group = nodeGroupsRef.current.get(nodeData.id);
+            if (group) {
+                const disp = getNodePosition(nodeData.id, time);
+                group.x(toCanvasX(disp.x));
+                group.y(toCanvasZ(disp.z));
+            }
+        });
+
+        // 2. Update Elements
+        structuralSystem.elements.forEach((elData) => {
+            const line = elementLinesRef.current.get(elData.id);
+            const label = elementLabelsRef.current.get(elData.id);
+
+            const points = getElementPositions(elData.id, time);
+            const canvasPoints = points.flatMap(p => [toCanvasX(p.x), toCanvasZ(p.z)]);
+
+            if (line) line.points(canvasPoints);
+
+            if (label && canvasPoints.length >= 4) {
+                const x_i = canvasPoints[0];
+                const z_i = canvasPoints[1];
+                const x_j = canvasPoints[canvasPoints.length - 2];
+                const z_j = canvasPoints[canvasPoints.length - 1];
+                label.x(x_i + (x_j - x_i) / 2 - 20);
+                label.y(z_i + (z_j - z_i) / 2 - 20);
+            }
+        });
+
+        // 3. Batch draw for performance
+        layerRef.current?.batchDraw();
+
+    }, [time, structuralSystem, getNodePosition, getElementPositions]);
+
 
     function renderNode(node: Node) {
-        const { x, z } = getNodePosition(node.id, 0);
+        const { x, z } = getNodePosition(node.id, time);
 
         const circleX = toCanvasX(x);
         const circleY = toCanvasZ(z);
@@ -156,19 +197,25 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
             return;
         }
 
-        const position = getElementPositions(element.id, 0);
+        const position = getElementPositions(element.id, time);
 
         const canvasPositions = position.map(({ x, z }) => ({ x: toCanvasX(x), z: toCanvasZ(z) }));
 
-        const x_i = canvasPositions.at(0)!.x;
-        const z_i = canvasPositions.at(0)!.z;
+        const centerIndex = Math.floor(canvasPositions.length / 2);
 
-        const x_j = canvasPositions.at(-1)!.x;
-        const z_j = canvasPositions.at(-1)!.z;
+        let textX, textY;
 
+        if (canvasPositions.length % 2 === 1) {
+            textX = canvasPositions[centerIndex].x - (TEXT_BOX_SIZE / 2);
+            textY = canvasPositions[centerIndex].z - (TEXT_BOX_SIZE / 2);
+        } else {
+            // If even (like a simple 2-node beam), average the two middle points
+            const p1 = canvasPositions[centerIndex - 1];
+            const p2 = canvasPositions[centerIndex];
 
-        const textX = x_i + (x_j - x_i) / 2 - (TEXT_BOX_SIZE / 2);
-        const textY = z_i + (z_j - z_i) / 2 - (TEXT_BOX_SIZE / 2);
+            textX = (p1.x + p2.x) / 2 - (TEXT_BOX_SIZE / 2);
+            textY = (p1.z + p2.z) / 2 - (TEXT_BOX_SIZE / 2);
+        }
 
         return (
             <React.Fragment key={element.id}>
@@ -202,19 +249,11 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
 
 
     return (
-        <Stage width={canvasWidth} height={canvasHeight}>
+        <Stage width={stageSize.width} height={stageSize.height}>
             <Layer ref={layerRef}>
-                {structuralSystem.elements.map(
-                    (e) => renderElement(e)
-                )}
+                {structuralSystem.elements.map((element) => renderElement(element))}
 
-
-                {structuralSystem.nodes.map(
-                    (n) => renderNode(n)
-                )}
-
-
-
+                {structuralSystem.nodes.map((node) => renderNode(node))}
             </Layer>
         </Stage>
     );

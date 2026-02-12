@@ -26,8 +26,8 @@ export default function App() {
   ]);
 
   const [elements, setElements] = useState<Element[]>([
-    { id: 1, node_i: 1, node_j: 2, ea: 125, c: 0.6 },
-    { id: 2, node_i: 2, node_j: 3, ea: 200, c: 0 },
+    { id: 1, node_i: 1, node_j: 2, ea: 125, ei: 1, c: 0.6 },
+    { id: 2, node_i: 2, node_j: 3, ea: 200, ei: 1, c: 0 },
   ]);
 
 
