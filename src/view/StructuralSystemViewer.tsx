@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Table, TextInput, Button, Checkbox } from '@mantine/core';
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
@@ -16,13 +16,32 @@ interface StructuralSystemViewerProps {
 
 export default function StructuralSystemViewer({ structuralSystem, getNodePosition, getElementPositions, time }: StructuralSystemViewerProps) {
 
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+
     const layerRef = useRef<Konva.Layer>(null);
+
+    // Measure the container size
+    useLayoutEffect(() => {
+        const updateSize = () => {
+            if (containerRef.current) {
+                setStageSize({
+                    width: containerRef.current.offsetWidth,
+                    height: containerRef.current.offsetHeight || 500, // Fallback height
+                });
+            }
+        };
+
+        window.addEventListener("resize", updateSize);
+        updateSize(); // Initial call
+
+        return () => window.removeEventListener("resize", updateSize);
+    }, []);
 
     const nodeGroupsRef = useRef<Map<number, Konva.Group>>(new Map());
     const elementLinesRef = useRef<Map<number, Konva.Line>>(new Map());
     const elementLabelsRef = useRef<Map<number, Konva.Group>>(new Map());
 
-    const [stageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
 
     const canvasWidth = stageSize.width;
@@ -249,12 +268,13 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
 
 
     return (
-        <Stage width={stageSize.width} height={stageSize.height}>
-            <Layer ref={layerRef}>
-                {structuralSystem.elements.map((element) => renderElement(element))}
-
-                {structuralSystem.nodes.map((node) => renderNode(node))}
-            </Layer>
-        </Stage>
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+            <Stage width={stageSize.width} height={stageSize.height}>
+                <Layer ref={layerRef}>
+                    {structuralSystem.elements.map((element) => renderElement(element))}
+                    {structuralSystem.nodes.map((node) => renderNode(node))}
+                </Layer>
+            </Stage>
+        </div>
     );
 }

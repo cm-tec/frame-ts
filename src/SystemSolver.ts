@@ -131,7 +131,7 @@ export class SystemSolver {
             m.set([n.u_dof, n.u_dof], n.mass);
             m.set([n.v_dof, n.v_dof], n.mass);
 
-            const tinyInertia = n.mass > 0 ? 1e-6 : 0;
+            const tinyInertia = n.mass > 0 ? (n.mass) / 12 : 0;
             m.set([n.phi_dof, n.phi_dof], tinyInertia);
 
             if (n.restrained_u) {

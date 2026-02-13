@@ -10,15 +10,14 @@ import SolutionVisualization from './SolutionVisualization.tsx'
 import { SystemSolver } from './SystemSolver.ts'
 import { MantineProvider } from '@mantine/core'
 import { matrix, zeros } from 'mathjs'
+import App from './App.tsx'
 
 let structuralSystem = new StructuralSystem([
   { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, restrained_phi: true },
   { id: 2, x: 1, z: 0, mass: 1, restrained_u: false, restrained_v: false, restrained_phi: false },
-  { id: 3, x: 2, z: 0, mass: 2, restrained_u: true, restrained_v: false, restrained_phi: false },
 ],
   [
-    { id: 1, node_i: 1, node_j: 2, ea: 100, ei: 1, c: 1 },
-    { id: 2, node_i: 2, node_j: 3, ea: 100, ei: 1, c: 1 },
+    { id: 1, node_i: 1, node_j: 2, ea: 1, ei: 100, c: 0.1 },
   ]);
 
 
@@ -28,7 +27,7 @@ let structuralSystem = new StructuralSystem([
 const solver = new SystemSolver(structuralSystem);
 
 let initialConditions = matrix(zeros([2 * solver.non_restrained.length, 1]));
-initialConditions.set([0, 0], -0.1);
+initialConditions.set([4, 0], 1);
 
 const solution = solver.solve(initialConditions);
 
@@ -42,19 +41,71 @@ const getNodePosition = (nodeId: number, time: number): { x: number; z: number }
   };
 };
 
+const getNodeState = (nodeId: number, time: number) => {
+  const node = structuralSystem.nodes.find(n => n.id == nodeId)!;
+  return {
+    x: node.x,
+    z: node.z,
+    u: solution.get_w(node.u_dof, time),
+    v: solution.get_w(node.v_dof, time),
+    phi: solution.get_w(node.phi_dof, time)
+  };
+};
 
 const getElementPositions = (elementId: number, time: number): Array<{ x: number; z: number }> => {
   const element = structuralSystem.elements.find(e => e.id == elementId)!;
 
-  const node_i = structuralSystem.nodes.find(n => n.id == element.node_i)!;
-  const node_j = structuralSystem.nodes.find(n => n.id == element.node_j)!;
+  // 1. Get full state (pos + displacement) for both nodes
+  const ni = getNodeState(element.node_i, time);
+  const nj = getNodeState(element.node_j, time);
 
-  const N = 200;
+  // 2. Geometry basics
+  const dx = nj.x - ni.x;
+  const dz = nj.z - ni.z;
+  const L = Math.hypot(dx, dz);
+  const angle = Math.atan2(dz, dx);
 
-  const { x: x_i, z: z_i } = getNodePosition(node_i.id, time);
-  const { x: x_j, z: z_j } = getNodePosition(node_j.id, time);
+  // 3. Project global displacements into local element coordinates
+  // Local u is axial, Local v is transverse
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
 
-  return [{ x: x_i, z: z_i }, { x: x_i + (x_j - x_i) / 2, z: z_i + (z_j - z_i) / 2 }, { x: x_j, z: z_j }];
+  // Local transverse displacements (v) and rotations (phi)
+  const v_local_i = -ni.u * sinA + ni.v * cosA;
+  const v_local_j = -nj.u * sinA + nj.v * cosA;
+  const phi_i = ni.phi;
+  const phi_j = nj.phi;
+
+  // Local axial displacements (u)
+  const u_local_i = ni.u * cosA + ni.v * sinA;
+  const u_local_j = nj.u * cosA + nj.v * sinA;
+
+  const N = 50; // 50 points is usually plenty for a smooth curve
+  const points: Array<{ x: number; z: number }> = [];
+
+  for (let step = 0; step <= N; step++) {
+    const xi = step / N; // normalized distance 0 to 1
+    const local_x_dist = xi * L;
+
+    // Hermite Shape Functions
+    const n1 = 1 - 3 * xi ** 2 + 2 * xi ** 3;
+    const n2 = L * (xi - 2 * xi ** 2 + xi ** 3);
+    const n3 = 3 * xi ** 2 - 2 * xi ** 3;
+    const n4 = L * (- (xi ** 2) + xi ** 3);
+
+    // Interpolate local displacements
+    const local_v = n1 * v_local_i + n2 * phi_i + n3 * v_local_j + n4 * phi_j;
+    const local_u = u_local_i * (1 - xi) + u_local_j * xi;
+
+    // 4. Transform back to Global X, Z
+    // Start at node_i, add axial component along beam, add transverse component perpendicular
+    const finalX = ni.x + (local_x_dist + local_u) * cosA - local_v * sinA;
+    const finalZ = ni.z + (local_x_dist + local_u) * sinA + local_v * cosA;
+
+    points.push({ x: finalX, z: finalZ });
+  }
+
+  return points;
 };
 
 
@@ -65,7 +116,7 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
-
+/*
 function App() {
   const [time, setTime] = useState(0);
 
@@ -97,6 +148,7 @@ function App() {
     </div>
   );
 }
+  */
 
 
 //  <MinimalNetwork />

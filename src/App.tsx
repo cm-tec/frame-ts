@@ -31,11 +31,6 @@ export default function App() {
   ]);
 
 
-
-
-
-
-
   return (
     <MantineProvider>
       <div style={{ position: 'relative' }}>
@@ -55,7 +50,7 @@ export default function App() {
             setElements={setElements} />
         )
           : (
-            <SolutionVisualization systemSolution={new SystemSolver(new StructuralSystem(nodes, elements)).solve()} />
+            <SolutionVisualization structuralSystem={new StructuralSystem(nodes, elements)} />
           )
         }
       </div>
