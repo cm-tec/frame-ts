@@ -1,11 +1,10 @@
-import { SystemSolver } from "./SystemSolver";
 import SolutionVisualization from "./view/SolutionVisualization";
 import Editor from "./view/Editor";
 
 import '@mantine/core/styles.css';
 
 import { Button, MantineProvider } from '@mantine/core';
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { type Node, type Element } from "./models/models";
 import { StructuralSystem } from "./StructuralSystem";

@@ -2,6 +2,7 @@ import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput,
 import { useMemo, useState } from 'react';
 import MatrixLineChart from "../Chart";
 import type { StructuralSystem } from '../StructuralSystem';
+import { max, min } from 'mathjs';
 
 interface DiagramSidebarProps {
     structuralSystem: StructuralSystem;
@@ -118,7 +119,7 @@ export function DiagramSidebar({
                             }}>
                                 <MatrixLineChart
                                     // Passing the new explicit range and count parameters
-                                    matrixData={solution.get_w_history(dofIdx, t1, numPoints, t2 - t1)}
+                                    matrixData={solution.get_w_history(dofIdx, t1, max(1, numPoints), t2 - t1)}
                                     currentTime={time}
                                     yAxis={label}
                                 />

@@ -11,9 +11,10 @@ interface StructuralSystemViewerProps {
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
     getElementPositions: (ElementId: number, time: number) => Array<{ x: number; z: number }>;
     time: number;
+    showUndeformedSystem: boolean;
 }
 
-export default function StructuralSystemViewer({ structuralSystem, getNodePosition, getElementPositions, time }: StructuralSystemViewerProps) {
+export default function StructuralSystemViewer({ structuralSystem, getNodePosition, getElementPositions, time, showUndeformedSystem }: StructuralSystemViewerProps) {
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -266,12 +267,96 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
     }
 
 
+    function renderGhostNode(node: Node) {
+        const { x, z } = { x: node.x, z: node.z }
+
+        const circleX = toCanvasX(x);
+        const circleY = toCanvasZ(z);
+
+        const textX = circleX - (TEXT_BOX_SIZE / 2);
+        const textY = circleY - (TEXT_BOX_SIZE / 2);
+
+        let colors = {
+            supportFill: "#e7e7e7", // Muted light gray
+            nodeFill: "#ffffff",    // Desaturated "Red" (Pastel/Light Coral)
+            stroke: "#aeaeae",      // Soft black/dark gray
+            text: "#848484"
+        }
+
+        return <React.Fragment key={node.id}>
+
+            {node.restrained_u ?
+
+                <Shape
+                    stroke={colors.stroke}
+                    fill={colors.supportFill}
+                    strokeWidth={1}
+                    sceneFunc={(context, shape) => {
+                        context.beginPath();
+                        context.moveTo(circleX, circleY);
+                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY - 1.4 * CIRCLE_RADIUS);
+                        context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY + 1.4 * CIRCLE_RADIUS);
+                        context.closePath();
+                        context.fillStrokeShape(shape);
+                    }}
+                /> : null
+
+
+            }
+            {node.restrained_v ?
+                <Shape
+                    stroke={colors.stroke}
+                    fill={colors.supportFill}
+                    strokeWidth={1}
+                    sceneFunc={(context, shape) => {
+                        context.beginPath();
+                        context.moveTo(circleX, circleY);
+                        context.lineTo(circleX - 1.4 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
+                        context.lineTo(circleX + 1.4 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
+                        context.closePath();
+                        context.fillStrokeShape(shape);
+                    }}
+                /> : null}
+            {node.restrained_phi ? <Rect
+                x={circleX - CIRCLE_RADIUS * 1.75 / 2}
+                y={circleY - CIRCLE_RADIUS * 1.75 / 2}
+                width={CIRCLE_RADIUS * 1.75}
+                height={CIRCLE_RADIUS * 1.75}
+                fill={colors.nodeFill}
+                stroke={colors.stroke}
+            /> : <Circle
+                x={circleX}
+                y={circleY}
+                radius={CIRCLE_RADIUS}
+                fill={colors.nodeFill}
+                stroke={colors.stroke}
+            />}
+
+            <Text
+                x={textX}
+                y={textY}
+                width={TEXT_BOX_SIZE}
+                height={TEXT_BOX_SIZE}
+                text={`${node.id}`}
+                fontSize={20}
+                fill={colors.text}
+                align="center"
+                verticalAlign="middle"
+            />
+        </React.Fragment>;
+    }
+
+
+
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
             <Stage width={stageSize.width} height={stageSize.height}>
                 <Layer ref={layerRef}>
+                    {showUndeformedSystem && structuralSystem.nodes.map((node) => renderGhostNode(node))}
+
                     {structuralSystem.elements.map((element) => renderElement(element))}
                     {structuralSystem.nodes.map((node) => renderNode(node))}
+
                 </Layer>
             </Stage>
         </div>

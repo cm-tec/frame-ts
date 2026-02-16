@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import Konva from "konva";
 import { SystemSolver } from "../SystemSolver";
-import { Button, Group, Paper, TextInput, Box, Text, Flex } from '@mantine/core';
+import { Button, Group, Paper, TextInput, Box, Text, Flex, Checkbox } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
 import type { StructuralSystem } from "../StructuralSystem";
 import { matrix, zeros } from "mathjs";
@@ -11,6 +11,8 @@ import { DiagramSidebar } from "./DiagramSidebar";
 export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [speed, setSpeed] = useState(1);
     const [isRunning, setIsRunning] = useState(true);
+
+    const [showUndeformedSystem, setShowUndeformedSystem] = useState(false);
 
     const animRef = useRef<Konva.Animation | null>(null);
     const [time, setTime] = useState(0);
@@ -181,6 +183,7 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
                         time={time}
+                        showUndeformedSystem={showUndeformedSystem}
                     />
                 </Box>
 
@@ -223,6 +226,13 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                             size="xs"
                             step={0.1}
                             min={0.1}
+                        />
+
+                        <Checkbox
+                            label="Show Undeformed System"
+                            checked={showUndeformedSystem}
+                            onChange={(event) => setShowUndeformedSystem(event.currentTarget.checked)}
+                            size="xs"
                         />
                     </Group>
 
