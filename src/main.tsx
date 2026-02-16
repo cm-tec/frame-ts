@@ -6,7 +6,7 @@ import StructuralSystemViewer from './view/StructuralSystemViewer.tsx'
 import { StructuralSystem } from './StructuralSystem.ts'
 import { type Node } from './models/models.ts';
 import MinimalNetwork from './view/Test.tsx'
-import SolutionVisualization from './SolutionVisualization.tsx'
+import SolutionVisualization from './view/SolutionVisualization.tsx'
 import { SystemSolver } from './SystemSolver.ts'
 import { MantineProvider } from '@mantine/core'
 import { matrix, zeros } from 'mathjs'

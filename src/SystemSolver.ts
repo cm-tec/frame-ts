@@ -264,11 +264,12 @@ export class SystemSolution {
     }
 
     // Get the displacement of a dof over time
-    get_w_history(dof: number, N: number = 1000, T: number = 10): Matrix {
+    get_w_history(dof: number, t0: number = 0, N: number = 1000, T: number = 10): Matrix {
+
         let dt = T / N;
         let w = matrix(zeros([2, N]));
 
-        let t = 0;
+        let t = t0;
 
         for (let n = 0; n < N; n++) {
             t = n * dt

@@ -1,5 +1,4 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Table, TextInput, Button, Checkbox } from '@mantine/core';
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 

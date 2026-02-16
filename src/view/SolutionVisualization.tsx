@@ -1,13 +1,12 @@
-import { useState, useRef, useEffect } from "react";
-import { Stage, Layer, Circle, Line } from "react-konva";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Konva from "konva";
-import { SystemSolution, SystemSolver } from "./SystemSolver";
-import MatrixLineChart from "./Chart";
-import { Button, Group, Paper, TextInput, Box, Text, Flex, rem } from '@mantine/core';
+import { SystemSolver } from "../SystemSolver";
+import { Button, Group, Paper, TextInput, Box, Text, Flex } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
-import type { StructuralSystem } from "./StructuralSystem";
+import type { StructuralSystem } from "../StructuralSystem";
 import { matrix, zeros } from "mathjs";
-import StructuralSystemViewer from "./view/StructuralSystemViewer";
+import StructuralSystemViewer from "./StructuralSystemViewer";
+import { DiagramSidebar } from "./DiagramSidebar";
 
 export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [speed, setSpeed] = useState(1);
@@ -19,13 +18,19 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
     const stageRef = useRef<any>(null);
 
-    const solver = new SystemSolver(structuralSystem);
+    const [activeDofIndices, setActiveDofIndices] = useState<string[]>([]);
 
-    let initialConditions = matrix(zeros([2 * solver.non_restrained.length, 1]));
-    initialConditions.set([0, 0], -1);
-    initialConditions.set([1, 0], 1);
 
-    const solution = solver.solve(initialConditions);
+
+    const solution = useMemo(() => {
+        const solver = new SystemSolver(structuralSystem);
+        let initialConditions = matrix(zeros([2 * solver.non_restrained.length, 1]));
+        initialConditions.set([0, 0], -1);
+        initialConditions.set([1, 0], 1);
+        console.log(structuralSystem);
+
+        return solver.solve(initialConditions);
+    }, [structuralSystem]);
 
     const getNodePosition = (nodeId: number, time: number): { x: number; z: number } => {
         const node = structuralSystem.nodes.find(n => n.id == nodeId)!;
@@ -110,10 +115,6 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
         body.style.overflow = 'hidden';
 
-
-
-
-        // Create animation
         const anim = new Konva.Animation((frame) => {
             if (!frame) return;
             let t = speed * frame.time / 1000;
@@ -173,7 +174,7 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         // 1. Make the outer container a full-height column
         <Flex direction="column" style={{ height: '100vh', overflow: 'hidden' }}>
             <Flex style={{ flex: 1, overflow: 'hidden' }}>
-                {/* 70% Viewer Box */}
+
                 <Box style={{ width: "70%", height: "100%", backgroundColor: "lightblue" }}>
                     <StructuralSystemViewer
                         structuralSystem={structuralSystem}
@@ -183,47 +184,13 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                     />
                 </Box>
 
-
-
-                <Box style={{
-                    width: "30%",
-                    height: "100%",
-                    overflowY: 'auto',
-                    backgroundColor: '#f8f9fa', // Optional: light gray for contrast
-                    borderLeft: '1px solid #dee2e6'
-                }}>
-                    <Flex direction="column" gap="xl" p="md">
-
-                        {/* Diagram 1 */}
-                        <Box style={{ width: "100%" }}>
-                            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={5}>
-                                Displacement U_2
-                            </Text>
-                            <Box style={{ height: 250, width: "100%" }}>
-                                <MatrixLineChart
-                                    matrixData={solution.get_w_history(3, 300, 100)}
-                                    currentTime={time}
-
-                                />
-                            </Box>
-                        </Box>
-
-                        {/* Diagram 2 */}
-                        <Box style={{ width: "100%" }}>
-                            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={5}>
-                                Displacement U_3
-                            </Text>
-                            <Box style={{ height: 250, width: "100%" }}>
-                                <MatrixLineChart
-                                    matrixData={solution.get_w_history(6, 300, 100)}
-                                    currentTime={time}
-
-                                />
-                            </Box>
-                        </Box>
-
-                    </Flex>
-                </Box>
+                <DiagramSidebar
+                    structuralSystem={structuralSystem}
+                    solution={solution}
+                    time={time}
+                    activeDofIndices={activeDofIndices}
+                    onSelectionChange={setActiveDofIndices}
+                />
             </Flex>
 
 

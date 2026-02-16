@@ -16,11 +16,20 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
 
 
     const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: any) => {
-        setNodes((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
+        const numericKeys: (keyof Node)[] = ['x', 'z', 'mass'];
+
+        const processedValue = numericKeys.includes(key as keyof Node)
+            ? parseFloat(value) || 0
+            : value;
+
+        setNodes((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
     };
 
     const updateElementCell = (id: number, key: keyof Omit<Element, 'id'>, value: string) => {
-        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
+        const numericKeys: (keyof Element)[] = ['node_i', 'node_j', 'ea', 'c'];
+        const processedValue = numericKeys.includes(key as keyof Element) ? parseFloat(value) || 0 : value;
+
+        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
     };
 
     const addNode = () => {
@@ -235,6 +244,7 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                 <Table.Td>{row.id}</Table.Td>
                                 <Table.Td>
                                     <TextInput
+                                        type="number"
                                         value={row.x}
                                         onChange={(e) => updateCell(row.id, 'x', e.currentTarget.value)}
                                         variant="unstyled"
@@ -242,6 +252,7 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                 </Table.Td>
                                 <Table.Td>
                                     <TextInput
+                                        type="number"
                                         value={row.z}
                                         onChange={(e) => updateCell(row.id, 'z', e.currentTarget.value)}
                                         variant="unstyled"

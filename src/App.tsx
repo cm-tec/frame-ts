@@ -1,5 +1,5 @@
 import { SystemSolver } from "./SystemSolver";
-import SolutionVisualization from "./SolutionVisualization";
+import SolutionVisualization from "./view/SolutionVisualization";
 import Editor from "./view/Editor";
 
 import '@mantine/core/styles.css';
@@ -21,8 +21,8 @@ export default function App() {
 
   const [nodes, setNodes] = useState<Node[]>([
     { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, restrained_phi: true },
-    { id: 2, x: 1, z: 0, mass: 8, restrained_u: false, restrained_v: true, restrained_phi: true },
-    { id: 3, x: 2, z: 0, mass: 80, restrained_u: false, restrained_v: true, restrained_phi: true },
+    { id: 2, x: 15, z: 0, mass: 8, restrained_u: false, restrained_v: true, restrained_phi: true },
+    { id: 3, x: 30, z: 0, mass: 80, restrained_u: false, restrained_v: true, restrained_phi: true },
   ]);
 
   const [elements, setElements] = useState<Element[]>([

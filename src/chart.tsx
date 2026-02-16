@@ -77,7 +77,7 @@ const prepareChartData = (matrix: Matrix) => {
 };
 
 // --- React Component ---
-const MatrixLineChart = ({ matrixData, currentTime }: { matrixData: Matrix, currentTime: number }) => {
+const MatrixLineChart = ({ matrixData, currentTime, yAxis }: { matrixData: Matrix, currentTime: number, yAxis: string }) => {
     // Use useMemo to prevent recalculation unless data or index changes
     const chartData = useMemo(() => {
         return prepareChartData(matrixData);
@@ -100,17 +100,18 @@ const MatrixLineChart = ({ matrixData, currentTime }: { matrixData: Matrix, curr
             y: {
                 title: {
                     display: true,
-                    text: 'Value',
+                    text: yAxis,
                 },
             }
         },
         plugins: {
             legend: {
+                display: false,
                 position: 'top' as const,
             },
             title: {
                 display: true,
-                text: `Animated Plot - Current time: ${currentTime.toFixed(2)}s`,
+                text: `Current time: ${currentTime.toFixed(2)}s`,
             },
 
             verticalLinePlugin: {
