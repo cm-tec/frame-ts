@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, TextInput, Button, Checkbox, NumberInput } from '@mantine/core';
+import { Table, Button, Checkbox, NumberInput } from '@mantine/core';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
@@ -26,10 +26,12 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
     };
 
     const updateElementCell = (id: number, key: keyof Omit<Element, 'id'>, value: string | number) => {
-        //const numericKeys: (keyof Element)[] = ['node_i', 'node_j', 'ea', 'c'];
-        //const processedValue = numericKeys.includes(key as keyof Element) ? parseFloat(value) || 0 : value;
+        const numericKeys: (keyof Element)[] = ['node_i', 'node_j', 'ea', 'ei', 'c'];
+        const processedValue = numericKeys.includes(key as keyof Element)
+            ? (typeof value === 'string' ? parseFloat(value) || 0 : value)
+            : value;
 
-        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
+        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
     };
 
     const addNode = () => {
@@ -292,13 +294,14 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
             </Table>
             <Button onClick={addNode}>Add Node</Button>
 
-            <Table highlightOnHover verticalSpacing="xsea">
+            <Table highlightOnHover verticalSpacing="xs">
                 <Table.Thead>
                     <Table.Tr>
                         <Table.Th>Id</Table.Th>
                         <Table.Th>Node i</Table.Th>
                         <Table.Th>Node j</Table.Th>
                         <Table.Th>EA</Table.Th>
+                        <Table.Th>EI</Table.Th>
                         <Table.Th>c</Table.Th>
                     </Table.Tr>
                 </Table.Thead>
@@ -308,18 +311,16 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                             <Table.Tr key={row.id}>
                                 <Table.Td>{row.id}</Table.Td>
                                 <Table.Td>
-                                    <TextInput
+                                    <NumberInput
                                         value={row.node_i}
-                                        onChange={(e) => updateElementCell(row.id, 'node_i', e.currentTarget.value)}
-                                        placeholder="Name"
+                                        onChange={(e) => updateElementCell(row.id, 'node_i', e.valueOf())}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
                                 <Table.Td>
-                                    <TextInput
+                                    <NumberInput
                                         value={row.node_j}
-                                        onChange={(e) => updateElementCell(row.id, 'node_j', e.currentTarget.value)}
-                                        placeholder="Age"
+                                        onChange={(e) => updateElementCell(row.id, 'node_j', e.valueOf())}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
@@ -327,7 +328,13 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     <NumberInput
                                         value={row.ea}
                                         onChange={(e) => updateElementCell(row.id, 'ea', e.valueOf())}
-                                        placeholder="Age"
+                                        variant="unstyled"
+                                    />
+                                </Table.Td>
+                                <Table.Td>
+                                    <NumberInput
+                                        value={row.ei}
+                                        onChange={(e) => updateElementCell(row.id, 'ei', e.valueOf())}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
@@ -335,7 +342,6 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     <NumberInput
                                         value={row.c}
                                         onChange={(e) => updateElementCell(row.id, 'c', e.valueOf())}
-                                        placeholder="Age"
                                         variant="unstyled"
                                     />
                                 </Table.Td>
