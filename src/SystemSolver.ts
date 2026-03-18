@@ -62,14 +62,6 @@ function c_element(c: number) {
 
 
 export class SystemSolver {
-    NDOF: number;
-
-    m: Matrix;
-    c: Matrix;
-    k: Matrix;
-
-    f: Matrix;
-
     ndof_restrained: number;
     ndof_non_restrained: number;
 
@@ -153,6 +145,10 @@ export class SystemSolver {
             }
         }
 
+        console.log(k);
+        console.log(c);
+        console.log(m);
+
         this.k_11 = subset(k, index(non_restrained, non_restrained));
         this.k_12 = subset(k, index(restrained, non_restrained));
         this.k_22 = subset(k, index(restrained, restrained));
@@ -170,34 +166,6 @@ export class SystemSolver {
 
         this.ndof_non_restrained = non_restrained.length;
         this.ndof_restrained = restrained.length;
-
-        this.NDOF = 2; //non_restrained.length;
-
-        let m1 = 80.0;
-        let m2 = 8.0;
-        let k1 = 200.0;
-        let k2 = 125.0;
-        let c1 = 0.0;
-        let c2 = 0.6;
-
-        this.m = matrix([
-            [m1, 0],
-            [0, m2]
-        ]);
-
-        this.c = matrix([
-            [c1, -c1],
-            [-c1, c1 + c2]
-        ]);
-
-        this.k = matrix([
-            [k1, -k1],
-            [-k1, k1 + k2]
-        ])
-
-        this.f = zeros([this.NDOF, 1]) as Matrix;
-
-
 
         this.restrained = restrained;
         this.non_restrained = non_restrained;
@@ -266,6 +234,8 @@ export class SystemSolution {
     // Get the displacement of a dof over time
     get_w_history(dof: number, t0: number = 0, N: number = 1000, T: number = 10): Matrix {
 
+        console.log("get_w_history - called")
+
         let dt = T / N;
         let w = matrix(zeros([2, N]));
 
@@ -281,6 +251,8 @@ export class SystemSolution {
 
     // Get the displacements of all dofs at certain time t
     get_w_total(t: number): Matrix {
+        console.log("get_w_total - called")
+
         let e = map(multiply(this.eigenValues, t), exp);
 
         let ec = dotMultiply(this.coefficients, e);
@@ -290,6 +262,7 @@ export class SystemSolution {
 
     // Get the displacement of a specific dof at certain time t
     get_w(dof: number, t: number): number {
+        console.log("get_w() - called")
         if (this.restrained.includes(dof)) {
             return 0;
         }
@@ -297,6 +270,8 @@ export class SystemSolution {
 
         let e = map(multiply(this.eigenValues, t), exp);
         let ec = dotMultiply(this.coefficients, e);
+
+        console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re));
 
         return multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re).get([0, 0])
     }

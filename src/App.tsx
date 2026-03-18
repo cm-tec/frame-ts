@@ -19,14 +19,14 @@ export default function App() {
   };
 
   const [nodes, setNodes] = useState<Node[]>([
-    { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, restrained_phi: true },
-    { id: 2, x: 15, z: 0, mass: 8, restrained_u: false, restrained_v: true, restrained_phi: true },
-    { id: 3, x: 30, z: 0, mass: 80, restrained_u: false, restrained_v: true, restrained_phi: true },
+    { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, restrained_phi: true },
+    { id: 2, x: 1, z: 0, mass: 1, restrained_u: false, restrained_v: false, restrained_phi: false },
+    { id: 3, x: 1, z: 1, mass: 1, restrained_u: false, restrained_v: false, restrained_phi: false },
   ]);
 
   const [elements, setElements] = useState<Element[]>([
-    { id: 1, node_i: 1, node_j: 2, ea: 125, ei: 1, c: 0.6 },
-    { id: 2, node_i: 2, node_j: 3, ea: 200, ei: 1, c: 0 },
+    { id: 1, node_i: 1, node_j: 2, ea: 1, ei: 2, c: 1 },
+    { id: 2, node_i: 2, node_j: 3, ea: 1, ei: 100, c: 1 },
   ]);
 
 

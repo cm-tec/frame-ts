@@ -2,22 +2,35 @@ import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput,
 import { useMemo, useState } from 'react';
 import MatrixLineChart from "../Chart";
 import type { StructuralSystem } from '../StructuralSystem';
-import { max, min } from 'mathjs';
 
 interface DiagramSidebarProps {
     structuralSystem: StructuralSystem;
     solution: any;
     time: number;
-    activeDofIndices: string[];
-    onSelectionChange: (values: string[]) => void;
 }
+
+const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, time, label }: any) => {
+
+    // This heavy calculation NOW only runs when t1, t2, n, or the DOF changes.
+    // It NO LONGER runs when 'time' changes.
+    const historyData = useMemo(() => {
+        console.log(`Recalculating history for DOF ${dofIdx}`);
+        return solution.get_w_history(dofIdx, t1, Math.max(1, numPoints), t2 - t1);
+    }, [dofIdx, t1, t2, numPoints, solution]);
+
+    return (
+        <MatrixLineChart
+            matrixData={historyData}
+            currentTime={time}
+            yAxis={label}
+        />
+    );
+};
 
 export function DiagramSidebar({
     structuralSystem,
     solution,
     time,
-    activeDofIndices,
-    onSelectionChange
 }: DiagramSidebarProps) {
     // New states for explicit time range and point count
     const [t1, setT1] = useState<number>(0);
@@ -25,6 +38,7 @@ export function DiagramSidebar({
     const [numPoints, setNumPoints] = useState<number>(100);
 
     const dofOptions = useMemo(() => {
+        console.log("Construct DOF-Options in DiagramSidebar")
         const options: { value: string; label: string }[] = [];
         structuralSystem.nodes.forEach(node => {
             options.push({ value: node.u_dof.toString(), label: `N${node.id} - U` });
@@ -34,9 +48,12 @@ export function DiagramSidebar({
         return options;
     }, [structuralSystem]);
 
+    const [activeDofIndices, setActiveDofIndices] = useState<string[]>([]);
+
     const handleRemove = (idToRemove: string) => {
-        onSelectionChange(activeDofIndices.filter(id => id !== idToRemove));
+        setActiveDofIndices(activeDofIndices.filter(id => id !== idToRemove));
     };
+
 
     return (
         <Box style={{
@@ -85,7 +102,7 @@ export function DiagramSidebar({
                     placeholder="Add displacement chart..."
                     data={dofOptions}
                     value={activeDofIndices}
-                    onChange={onSelectionChange}
+                    onChange={setActiveDofIndices}
                     searchable
                     clearable
                     hidePickedOptions
@@ -117,11 +134,14 @@ export function DiagramSidebar({
                                 borderRadius: '4px',
                                 border: '1px solid #eee'
                             }}>
-                                <MatrixLineChart
-                                    // Passing the new explicit range and count parameters
-                                    matrixData={solution.get_w_history(dofIdx, t1, max(1, numPoints), t2 - t1)}
-                                    currentTime={time}
-                                    yAxis={label}
+                                <MemoizedChart
+                                    dofIdx={dofIdx}
+                                    t1={t1}
+                                    t2={t2}
+                                    numPoints={numPoints}
+                                    solution={solution}
+                                    time={time}
+                                    label={label}
                                 />
                             </Box>
                         </Box>

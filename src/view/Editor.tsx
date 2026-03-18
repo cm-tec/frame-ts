@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, TextInput, Button, Checkbox } from '@mantine/core';
+import { Table, TextInput, Button, Checkbox, NumberInput } from '@mantine/core';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
@@ -25,11 +25,11 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
         setNodes((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
     };
 
-    const updateElementCell = (id: number, key: keyof Omit<Element, 'id'>, value: string) => {
-        const numericKeys: (keyof Element)[] = ['node_i', 'node_j', 'ea', 'c'];
-        const processedValue = numericKeys.includes(key as keyof Element) ? parseFloat(value) || 0 : value;
+    const updateElementCell = (id: number, key: keyof Omit<Element, 'id'>, value: string | number) => {
+        //const numericKeys: (keyof Element)[] = ['node_i', 'node_j', 'ea', 'c'];
+        //const processedValue = numericKeys.includes(key as keyof Element) ? parseFloat(value) || 0 : value;
 
-        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
+        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: value } : row)));
     };
 
     const addNode = () => {
@@ -43,7 +43,7 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
 
     const addElement = () => {
         const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
-        setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2, ea: 1, c: 0 }]);
+        setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2, ea: 1, ei: 1, c: 0 }]);
     };
 
     const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -243,25 +243,23 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                             <Table.Tr key={row.id}>
                                 <Table.Td>{row.id}</Table.Td>
                                 <Table.Td>
-                                    <TextInput
-                                        type="number"
+                                    <NumberInput
                                         value={row.x}
-                                        onChange={(e) => updateCell(row.id, 'x', e.currentTarget.value)}
+                                        onChange={(e) => updateCell(row.id, 'x', e.valueOf())}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
                                 <Table.Td>
-                                    <TextInput
-                                        type="number"
+                                    <NumberInput
                                         value={row.z}
-                                        onChange={(e) => updateCell(row.id, 'z', e.currentTarget.value)}
+                                        onChange={(e) => updateCell(row.id, 'z', e.valueOf())}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
                                 <Table.Td>
-                                    <TextInput
+                                    <NumberInput
                                         value={row.mass}
-                                        onChange={(e) => updateCell(row.id, 'mass', e.currentTarget.value)}
+                                        onChange={(e) => updateCell(row.id, 'mass', e.valueOf())}
                                         variant="unstyled"
                                     />
                                 </Table.Td>
@@ -326,17 +324,17 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     />
                                 </Table.Td>
                                 <Table.Td>
-                                    <TextInput
+                                    <NumberInput
                                         value={row.ea}
-                                        onChange={(e) => updateElementCell(row.id, 'ea', e.currentTarget.value)}
+                                        onChange={(e) => updateElementCell(row.id, 'ea', e.valueOf())}
                                         placeholder="Age"
                                         variant="unstyled"
                                     />
                                 </Table.Td>
                                 <Table.Td>
-                                    <TextInput
+                                    <NumberInput
                                         value={row.c}
-                                        onChange={(e) => updateElementCell(row.id, 'c', e.currentTarget.value)}
+                                        onChange={(e) => updateElementCell(row.id, 'c', e.valueOf())}
                                         placeholder="Age"
                                         variant="unstyled"
                                     />

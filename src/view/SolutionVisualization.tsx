@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Konva from "konva";
 import { SystemSolver } from "../SystemSolver";
 import { Button, Group, Paper, TextInput, Box, Text, Flex, Checkbox } from '@mantine/core';
@@ -10,7 +10,7 @@ import { DiagramSidebar } from "./DiagramSidebar";
 
 export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [speed, setSpeed] = useState(1);
-    const [isRunning, setIsRunning] = useState(true);
+    const [isRunning, setIsRunning] = useState(false);
 
     const [showUndeformedSystem, setShowUndeformedSystem] = useState(false);
 
@@ -20,28 +20,27 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
     const stageRef = useRef<any>(null);
 
-    const [activeDofIndices, setActiveDofIndices] = useState<string[]>([]);
-
 
 
     const solution = useMemo(() => {
+        console.log("Solve StructuralSystem");
         const solver = new SystemSolver(structuralSystem);
         let initialConditions = matrix(zeros([2 * solver.non_restrained.length, 1]));
-        initialConditions.set([0, 0], -1);
-        initialConditions.set([1, 0], 1);
-        console.log(structuralSystem);
+        initialConditions.set([0, 0], 0);
+        initialConditions.set([1, 0], 0.2);
+
 
         return solver.solve(initialConditions);
     }, [structuralSystem]);
 
-    const getNodePosition = (nodeId: number, time: number): { x: number; z: number } => {
+    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
         const node = structuralSystem.nodes.find(n => n.id == nodeId)!;
 
         return {
             x: node.x + solution.get_w(node.u_dof, time),
             z: node.z + solution.get_w(node.v_dof, time)
         };
-    };
+    }, [structuralSystem, solution]);
 
     const getNodeState = (nodeId: number, time: number) => {
         const node = structuralSystem.nodes.find(n => n.id == nodeId)!;
@@ -54,12 +53,13 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         };
     };
 
-    const getElementPositions = (elementId: number, time: number): Array<{ x: number; z: number }> => {
+    const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id == elementId)!;
 
         // 1. Get full state (pos + displacement) for both nodes
         const ni = getNodeState(element.node_i, time);
         const nj = getNodeState(element.node_j, time);
+
 
         // 2. Geometry basics
         const dx = nj.x - ni.x;
@@ -106,17 +106,17 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
             points.push({ x: finalX, z: finalZ });
         }
-
+        console.log(points);
         return points;
-    };
+    }, [structuralSystem, solution, getNodeState]);
 
 
 
     useEffect(() => {
         const body = document.body;
-
         body.style.overflow = 'hidden';
 
+        console.log("Use effect inside SolutionVisualization")
         const anim = new Konva.Animation((frame) => {
             if (!frame) return;
             let t = speed * frame.time / 1000;
@@ -124,7 +124,10 @@ export default function SolutionVisualization({ structuralSystem }: { structural
             runFrame(t)
         }, stageRef.current?.getStage()?.children[0]);
 
-        anim.start();
+        if (isRunning) {
+            anim.start();
+        }
+
         animRef.current = anim;
 
         return () => {
@@ -191,8 +194,6 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                     structuralSystem={structuralSystem}
                     solution={solution}
                     time={time}
-                    activeDofIndices={activeDofIndices}
-                    onSelectionChange={setActiveDofIndices}
                 />
             </Flex>
 
