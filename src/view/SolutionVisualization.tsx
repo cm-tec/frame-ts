@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Konva from "konva";
 import { SystemSolver } from "../solver/SystemSolver";
-import { Button, Group, Paper, TextInput, Box, Text, Flex, Checkbox } from '@mantine/core';
+import { ActionIcon, Box, Checkbox, Divider, Flex, Group, NumberInput, Paper, Text } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
 import type { StructuralSystem } from "../solver/StructuralSystem";
 import { matrix, zeros } from "mathjs";
@@ -180,7 +180,7 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
             <Flex style={{ flex: 1, overflow: 'hidden' }}>
 
-                <Box style={{ width: "70%", height: "100%", backgroundColor: "lightblue" }}>
+                <Box style={{ width: "70%", height: "100%", backgroundColor: "var(--mantine-color-gray-0)" }}>
                     <StructuralSystemViewer
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
@@ -199,7 +199,8 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
 
             <Paper
-                p="xs"
+                px="xl"
+                py="xs"
                 shadow="xl"
                 withBorder
                 style={{
@@ -208,53 +209,53 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                     flexShrink: 0
                 }}
             >
-                {/* This outer Group manages the "Space Between" the left and right clusters */}
-                <Group justify="space-between">
+                <Group justify="space-between" align="center">
 
-                    {/* Left Cluster: Time and Speed */}
-                    <Group gap="md">
-                        <Box w={80}>
-                            <Text fw={500}>
-                                {time.toFixed(2)} s
-                            </Text>
-                        </Box>
-                        <TextInput
-                            label="Speed"
-                            type="number"
+                    {/* Left: time + speed */}
+                    <Group gap="xs" align="center">
+                        <Text fw={500} size="sm" w={50}>{time.toFixed(2)} s</Text>
+                        <Divider orientation="vertical" color="gray.3" />
+                        <Text size="sm">Speed</Text>
+                        <NumberInput
                             value={speed}
-                            onChange={(e) => setSpeed(Number(e.target.value))}
-                            style={{ width: 60 }}
-                            size="xs"
+                            onChange={(v) => setSpeed(Number(v) || 1)}
+                            w={60}
+                            size="sm"
                             step={0.1}
                             min={0.1}
-                        />
-
-                        <Checkbox
-                            label="Show Undeformed System"
-                            checked={showUndeformedSystem}
-                            onChange={(event) => setShowUndeformedSystem(event.currentTarget.checked)}
-                            size="xs"
+                            hideControls
                         />
                     </Group>
 
-                    {/* Right Cluster: Play/Pause and Restart */}
-                    <Group gap="md">
-                        <Button
+                    {/* Center: transport controls */}
+                    <Group gap="xs">
+                        <ActionIcon
                             onClick={isRunning ? pauseAnimation : resumeAnimation}
-                            leftSection={isRunning ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
                             color={isRunning ? 'orange' : 'green'}
                             variant="light"
+                            size="lg"
+                            aria-label={isRunning ? "Pause" : "Resume"}
                         >
-                            {isRunning ? "Pause" : "Resume"}
-                        </Button>
-
-                        <Button
+                            {isRunning ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
+                        </ActionIcon>
+                        <ActionIcon
                             onClick={restartAnimation}
-                            leftSection={<IconRotateClockwise size={20} />}
                             variant="default"
+                            size="lg"
+                            aria-label="Restart"
                         >
-                            Restart
-                        </Button>
+                            <IconRotateClockwise size={20} />
+                        </ActionIcon>
+                    </Group>
+
+                    {/* Right: options */}
+                    <Group gap="xs" align="center">
+                        <Checkbox
+                            label="Show Undeformed"
+                            checked={showUndeformedSystem}
+                            onChange={(e) => setShowUndeformedSystem(e.currentTarget.checked)}
+                            size="sm"
+                        />
                     </Group>
                 </Group>
             </Paper>
