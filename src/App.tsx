@@ -27,7 +27,7 @@ export default function App() {
 
   return (
     <MantineProvider>
-      <AppShell header={{ height: 50 }}>
+      <AppShell header={{ height: 50 }} padding={0}>
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
             <Text fw={700} size="lg">Truss</Text>

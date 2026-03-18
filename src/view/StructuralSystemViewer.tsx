@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
@@ -22,20 +22,15 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
     const layerRef = useRef<Konva.Layer>(null);
 
     // Measure the container size
-    useLayoutEffect(() => {
-        const updateSize = () => {
-            if (containerRef.current) {
-                setStageSize({
-                    width: containerRef.current.offsetWidth,
-                    height: containerRef.current.offsetHeight || 500, // Fallback height
-                });
-            }
-        };
-
-        window.addEventListener("resize", updateSize);
-        updateSize(); // Initial call
-
-        return () => window.removeEventListener("resize", updateSize);
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            setStageSize({ width, height });
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
     }, []);
 
     const nodeGroupsRef = useRef<Map<number, Konva.Group>>(new Map());

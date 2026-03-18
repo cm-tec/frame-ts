@@ -177,7 +177,7 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
     return (
         // 1. Make the outer container a full-height column
-        <Flex direction="column" style={{ height: '100vh', overflow: 'hidden' }}>
+        <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
             <Flex style={{ flex: 1, overflow: 'hidden' }}>
 
                 <Box style={{ width: "70%", height: "100%", backgroundColor: "lightblue" }}>
