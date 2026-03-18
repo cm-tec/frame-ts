@@ -133,21 +133,11 @@ interface EditorProps {
 
 export default function Editor({ nodes, setNodes, elements, setElements }: EditorProps) {
 
-    const updateCell = (id: number, key: keyof Omit<Node, 'id'>, value: string | number | boolean) => {
-        const numericKeys: (keyof Node)[] = ['x', 'z', 'mass'];
-        const processedValue = numericKeys.includes(key as keyof Node)
-            ? (typeof value === 'string' ? parseFloat(value) || 0 : value)
-            : value;
-        setNodes((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
-    };
+    const updateNode = (id: number, patch: Partial<Omit<Node, 'id'>>) =>
+        setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
 
-    const updateElementCell = (id: number, key: keyof Omit<Element, 'id'>, value: string | number) => {
-        const numericKeys: (keyof Element)[] = ['node_i', 'node_j', 'ea', 'ei', 'c'];
-        const processedValue = numericKeys.includes(key as keyof Element)
-            ? (typeof value === 'string' ? parseFloat(value) || 0 : value)
-            : value;
-        setElements((r) => r.map((row) => (row.id === id ? { ...row, [key]: processedValue } : row)));
-    };
+    const updateElement = (id: number, patch: Partial<Omit<Element, 'id'>>) =>
+        setElements(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
@@ -229,22 +219,22 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                         <Table.Tr key={row.id}>
                             <Table.Td>{row.id}</Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.x} onChange={(e) => updateCell(row.id, 'x', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.x} onChange={(e) => updateNode(row.id, { x: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.z} onChange={(e) => updateCell(row.id, 'z', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.z} onChange={(e) => updateNode(row.id, { z: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.mass} onChange={(e) => updateCell(row.id, 'mass', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.mass} onChange={(e) => updateNode(row.id, { mass: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <Checkbox checked={row.restrained_u} onChange={(e) => updateCell(row.id, "restrained_u", e.currentTarget.checked)} />
+                                <Checkbox checked={row.restrained_u} onChange={(e) => updateNode(row.id, { restrained_u: e.currentTarget.checked })} />
                             </Table.Td>
                             <Table.Td>
-                                <Checkbox checked={row.restrained_v} onChange={(e) => updateCell(row.id, "restrained_v", e.currentTarget.checked)} />
+                                <Checkbox checked={row.restrained_v} onChange={(e) => updateNode(row.id, { restrained_v: e.currentTarget.checked })} />
                             </Table.Td>
                             <Table.Td>
-                                <Checkbox checked={row.restrained_phi} onChange={(e) => updateCell(row.id, "restrained_phi", e.currentTarget.checked)} />
+                                <Checkbox checked={row.restrained_phi} onChange={(e) => updateNode(row.id, { restrained_phi: e.currentTarget.checked })} />
                             </Table.Td>
                         </Table.Tr>
                     ))}
@@ -268,19 +258,19 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                         <Table.Tr key={row.id}>
                             <Table.Td>{row.id}</Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.node_i} onChange={(e) => updateElementCell(row.id, 'node_i', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.node_i} onChange={(e) => updateElement(row.id, { node_i: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.node_j} onChange={(e) => updateElementCell(row.id, 'node_j', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.node_j} onChange={(e) => updateElement(row.id, { node_j: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.ea} onChange={(e) => updateElementCell(row.id, 'ea', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.ea} onChange={(e) => updateElement(row.id, { ea: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.ei} onChange={(e) => updateElementCell(row.id, 'ei', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.ei} onChange={(e) => updateElement(row.id, { ei: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                             <Table.Td>
-                                <NumberInput value={row.c} onChange={(e) => updateElementCell(row.id, 'c', e.valueOf())} variant="unstyled" />
+                                <NumberInput value={row.c} onChange={(e) => updateElement(row.id, { c: Number(e) || 0 })} variant="unstyled" />
                             </Table.Td>
                         </Table.Tr>
                     ))}
