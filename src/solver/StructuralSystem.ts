@@ -1,4 +1,4 @@
-import { type Node, type Element } from "./models/models";
+import { type Node, type Element } from "../models/models";
 
 interface StructuralNode extends Node {
     id: number;

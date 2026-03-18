@@ -7,7 +7,7 @@ import { Button, MantineProvider } from '@mantine/core';
 import { useState } from "react";
 
 import { type Node, type Element } from "./models/models";
-import { StructuralSystem } from "./StructuralSystem";
+import { StructuralSystem } from "./solver/StructuralSystem";
 
 
 export default function App() {

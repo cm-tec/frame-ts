@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Konva from "konva";
-import { SystemSolver } from "../SystemSolver";
+import { SystemSolver } from "../solver/SystemSolver";
 import { Button, Group, Paper, TextInput, Box, Text, Flex, Checkbox } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
-import type { StructuralSystem } from "../StructuralSystem";
+import type { StructuralSystem } from "../solver/StructuralSystem";
 import { matrix, zeros } from "mathjs";
 import StructuralSystemViewer from "./StructuralSystemViewer";
 import { DiagramSidebar } from "./DiagramSidebar";

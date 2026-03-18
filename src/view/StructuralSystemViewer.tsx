@@ -3,7 +3,7 @@ import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konv
 import { max, min } from 'mathjs';
 
 import { type Node, type Element } from "../models/models";
-import type { StructuralSystem } from '../StructuralSystem';
+import type { StructuralSystem } from '../solver/StructuralSystem';
 import type Konva from 'konva';
 
 interface StructuralSystemViewerProps {

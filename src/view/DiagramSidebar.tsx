@@ -1,7 +1,7 @@
 import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput, SimpleGrid } from '@mantine/core';
 import { useMemo, useState } from 'react';
-import MatrixLineChart from "../Chart";
-import type { StructuralSystem } from '../StructuralSystem';
+import MatrixLineChart from "./Chart";
+import type { StructuralSystem } from '../solver/StructuralSystem';
 
 interface DiagramSidebarProps {
     structuralSystem: StructuralSystem;
