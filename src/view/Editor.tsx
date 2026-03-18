@@ -1,12 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Table, Button, Checkbox, NumberInput } from '@mantine/core';
-import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActionIcon, Box, Button, Checkbox, Divider, Flex, Group, NumberInput, ScrollArea, Stack, Table, Text } from '@mantine/core';
+import { IconTrash } from '@tabler/icons-react';
+import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'react-konva';
 import { max, min } from 'mathjs';
 
 import { type Node, type Element } from "../models/models";
+import './Editor.css';
 
 const CIRCLE_RADIUS = 20;
 const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
+const SIDEBAR_WIDTH = 420;
 
 interface ElementShapeProps {
     element: Element;
@@ -36,7 +39,7 @@ function ElementShape({ element, node_i, node_j, toCanvasX, toCanvasZ }: Element
             strokeWidth={1}
             cornerRadius={10}
         />
-        <Text
+        <KonvaText
             x={textX}
             y={textY}
             width={TEXT_BOX_SIZE}
@@ -110,7 +113,7 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
                 stroke="black"
             />
         }
-        <Text
+        <KonvaText
             x={textX}
             y={textY}
             width={TEXT_BOX_SIZE}
@@ -136,8 +139,14 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
     const updateNode = (id: number, patch: Partial<Omit<Node, 'id'>>) =>
         setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
 
+    const deleteNode = (id: number) =>
+        setNodes(r => r.filter(row => row.id !== id));
+
     const updateElement = (id: number, patch: Partial<Omit<Element, 'id'>>) =>
         setElements(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
+
+    const deleteElement = (id: number) =>
+        setElements(r => r.filter(row => row.id !== id));
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
@@ -151,16 +160,19 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
         setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2, ea: 1, ei: 1, c: 0 }]);
     };
 
-    const [stageSize, setStageSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+    const canvasContainerRef = useRef<HTMLDivElement>(null);
+    const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth - SIDEBAR_WIDTH, height: window.innerHeight - 50 });
 
     useEffect(() => {
-        const onResize = () => setStageSize({ width: window.innerWidth, height: window.innerHeight });
-        window.addEventListener('resize', onResize);
-        return () => window.removeEventListener('resize', onResize);
+        const el = canvasContainerRef.current;
+        if (!el) return;
+        const observer = new ResizeObserver(entries => {
+            const { width, height } = entries[0].contentRect;
+            setCanvasSize({ width, height });
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
     }, []);
-
-    const canvasWidth = stageSize.width;
-    const canvasHeight = stageSize.height / 2;
 
     const marginX = 0.05;
     const marginZ = 0.1;
@@ -176,107 +188,145 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
     }, [nodes]);
 
     const toCanvasX = (x: number) => {
-        if (contentWidth == 0) return canvasWidth / 2;
-        return marginX * canvasWidth + (x - minX) * (1 - 2 * marginX) * canvasWidth / contentWidth;
+        if (contentWidth == 0) return canvasSize.width / 2;
+        return marginX * canvasSize.width + (x - minX) * (1 - 2 * marginX) * canvasSize.width / contentWidth;
     };
 
     const toCanvasZ = (z: number) => {
-        if (contentHeight == 0) return canvasHeight / 2;
-        return marginZ * canvasHeight + (z - minZ) * (1 - 2 * marginZ) * canvasHeight / contentHeight;
+        if (contentHeight == 0) return canvasSize.height / 2;
+        return marginZ * canvasSize.height + (z - minZ) * (1 - 2 * marginZ) * canvasSize.height / contentHeight;
     };
 
     return (
-        <>
-            <Stage height={canvasHeight} width={canvasWidth}>
-                <Layer>
-                    {elements.map(element => {
-                        const node_i = getNode(element.node_i);
-                        const node_j = getNode(element.node_j);
-                        if (!node_i || !node_j) return;
-                        return <ElementShape key={element.id} element={element} node_i={node_i} node_j={node_j} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />;
-                    })}
+        <Flex h="calc(100vh - var(--app-shell-header-height, 50px))">
 
-                    {nodes.map(node => (
-                        <NodeShape key={node.id} node={node} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />
-                    ))}
-                </Layer>
-            </Stage>
+            {/* Canvas */}
+            <Box ref={canvasContainerRef} style={{ flex: 1, background: 'var(--mantine-color-gray-0)' }}>
+                <Stage height={canvasSize.height} width={canvasSize.width}>
+                    <Layer>
+                        {elements.map(element => {
+                            const node_i = getNode(element.node_i);
+                            const node_j = getNode(element.node_j);
+                            if (!node_i || !node_j) return;
+                            return <ElementShape key={element.id} element={element} node_i={node_i} node_j={node_j} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />;
+                        })}
+                        {nodes.map(node => (
+                            <NodeShape key={node.id} node={node} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />
+                        ))}
+                    </Layer>
+                </Stage>
+            </Box>
 
-            <Table highlightOnHover verticalSpacing="xs">
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Id</Table.Th>
-                        <Table.Th>x</Table.Th>
-                        <Table.Th>z</Table.Th>
-                        <Table.Th>Mass</Table.Th>
-                        <Table.Th>u</Table.Th>
-                        <Table.Th>v</Table.Th>
-                        <Table.Th>phi</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {nodes.map((row) => (
-                        <Table.Tr key={row.id}>
-                            <Table.Td>{row.id}</Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.x} onChange={(e) => updateNode(row.id, { x: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.z} onChange={(e) => updateNode(row.id, { z: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.mass} onChange={(e) => updateNode(row.id, { mass: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <Checkbox checked={row.restrained_u} onChange={(e) => updateNode(row.id, { restrained_u: e.currentTarget.checked })} />
-                            </Table.Td>
-                            <Table.Td>
-                                <Checkbox checked={row.restrained_v} onChange={(e) => updateNode(row.id, { restrained_v: e.currentTarget.checked })} />
-                            </Table.Td>
-                            <Table.Td>
-                                <Checkbox checked={row.restrained_phi} onChange={(e) => updateNode(row.id, { restrained_phi: e.currentTarget.checked })} />
-                            </Table.Td>
-                        </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
-            <Button onClick={addNode}>Add Node</Button>
+            {/* Sidebar */}
+            <ScrollArea
+                w={SIDEBAR_WIDTH}
+                style={{ borderLeft: '1px solid var(--mantine-color-gray-3)', flexShrink: 0 }}
+            >
+                <Stack p="md" gap="lg">
 
-            <Table highlightOnHover verticalSpacing="xs">
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Id</Table.Th>
-                        <Table.Th>Node i</Table.Th>
-                        <Table.Th>Node j</Table.Th>
-                        <Table.Th>EA</Table.Th>
-                        <Table.Th>EI</Table.Th>
-                        <Table.Th>c</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                    {elements.map((row) => (
-                        <Table.Tr key={row.id}>
-                            <Table.Td>{row.id}</Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.node_i} onChange={(e) => updateElement(row.id, { node_i: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.node_j} onChange={(e) => updateElement(row.id, { node_j: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.ea} onChange={(e) => updateElement(row.id, { ea: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.ei} onChange={(e) => updateElement(row.id, { ei: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                            <Table.Td>
-                                <NumberInput value={row.c} onChange={(e) => updateElement(row.id, { c: Number(e) || 0 })} variant="unstyled" />
-                            </Table.Td>
-                        </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
-            <Button onClick={addElement}>Add element</Button>
-        </>
+                    <div>
+                        <Group justify="space-between" mb="xs">
+                            <Text fw={600}>Nodes</Text>
+                            <Button size="xs" variant="light" onClick={addNode}>Add Node</Button>
+                        </Group>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1">Id</Table.Th>
+                                    <Table.Th>x</Table.Th>
+                                    <Table.Th>z</Table.Th>
+                                    <Table.Th>Mass</Table.Th>
+                                    <Table.Th>u</Table.Th>
+                                    <Table.Th>v</Table.Th>
+                                    <Table.Th>phi</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {nodes.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1">{row.id}</Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.x} onChange={(e) => updateNode(row.id, { x: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.z} onChange={(e) => updateNode(row.id, { z: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.mass} onChange={(e) => updateNode(row.id, { mass: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Checkbox checked={row.restrained_u} onChange={(e) => updateNode(row.id, { restrained_u: e.currentTarget.checked })} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Checkbox checked={row.restrained_v} onChange={(e) => updateNode(row.id, { restrained_v: e.currentTarget.checked })} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Checkbox checked={row.restrained_phi} onChange={(e) => updateNode(row.id, { restrained_phi: e.currentTarget.checked })} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNode(row.id)}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
+                    <Divider />
+
+                    <div>
+                        <Group justify="space-between" mb="xs">
+                            <Text fw={600}>Elements</Text>
+                            <Button size="xs" variant="light" onClick={addElement}>Add Element</Button>
+                        </Group>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1">Id</Table.Th>
+                                    <Table.Th>Node i</Table.Th>
+                                    <Table.Th>Node j</Table.Th>
+                                    <Table.Th>EA</Table.Th>
+                                    <Table.Th>EI</Table.Th>
+                                    <Table.Th>c</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {elements.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1">{row.id}</Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.node_i} onChange={(e) => updateElement(row.id, { node_i: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.node_j} onChange={(e) => updateElement(row.id, { node_j: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.ea} onChange={(e) => updateElement(row.id, { ea: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.ei} onChange={(e) => updateElement(row.id, { ei: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.c} onChange={(e) => updateElement(row.id, { c: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteElement(row.id)}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
+                </Stack>
+            </ScrollArea>
+
+        </Flex>
     );
 }

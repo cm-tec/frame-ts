@@ -3,7 +3,7 @@ import Editor from "./view/Editor";
 
 import '@mantine/core/styles.css';
 
-import { Button, MantineProvider } from '@mantine/core';
+import { AppShell, Button, Group, MantineProvider, Text } from '@mantine/core';
 import { useState } from "react";
 
 import { type Node, type Element } from "./models/models";
@@ -13,10 +13,6 @@ import { StructuralSystem } from "./solver/StructuralSystem";
 export default function App() {
 
   const [editMode, setEditMode] = useState<boolean>(false);
-
-  const toggleMode = (setEditMode: React.Dispatch<React.SetStateAction<boolean>>) => {
-    setEditMode(prev => !prev);
-  };
 
   const [nodes, setNodes] = useState<Node[]>([
     { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, restrained_phi: true },
@@ -29,32 +25,24 @@ export default function App() {
     { id: 2, node_i: 2, node_j: 3, ea: 1, ei: 100, c: 1 },
   ]);
 
-
   return (
     <MantineProvider>
-      <div style={{ position: 'relative' }}>
-
-        <Button
-          onClick={() => toggleMode(setEditMode)}
-          style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 100 }}
-          variant="filled"
-        >
-          {editMode ? 'Analyze' : 'Edit'}
-        </Button>
-        {editMode ? (
-          <Editor
-            nodes={nodes}
-            setNodes={setNodes}
-            elements={elements}
-            setElements={setElements} />
-        )
-          : (
-            <SolutionVisualization structuralSystem={new StructuralSystem(nodes, elements)} />
-          )
-        }
-      </div>
-
-
+      <AppShell header={{ height: 50 }}>
+        <AppShell.Header>
+          <Group h="100%" px="md" justify="space-between">
+            <Text fw={700} size="lg">Truss</Text>
+            <Button onClick={() => setEditMode(m => !m)} variant="light">
+              {editMode ? 'Analyze' : 'Edit'}
+            </Button>
+          </Group>
+        </AppShell.Header>
+        <AppShell.Main>
+          {editMode
+            ? <Editor nodes={nodes} setNodes={setNodes} elements={elements} setElements={setElements} />
+            : <SolutionVisualization structuralSystem={new StructuralSystem(nodes, elements)} />
+          }
+        </AppShell.Main>
+      </AppShell>
     </MantineProvider>
   );
 }
