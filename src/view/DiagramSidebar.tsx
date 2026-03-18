@@ -64,9 +64,7 @@ export function DiagramSidebar({
             borderLeft: '1px solid #dee2e6'
         }}>
             <Flex direction="column" gap="md" p="md">
-                <Text fw={700} size="sm" c="blue">DIAGRAM CONTROLS</Text>
 
-                {/* --- Time Range & Sampling Controls --- */}
                 <Box p="xs" style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e9ecef' }}>
                     <Text size="xs" fw={700} mb="xs" c="dimmed">TIME RANGE & SAMPLING</Text>
                     <SimpleGrid cols={2} spacing="xs">
