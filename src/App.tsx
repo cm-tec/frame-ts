@@ -4,7 +4,7 @@ import Editor from "./view/Editor";
 import '@mantine/core/styles.css';
 
 import { AppShell, Button, Group, MantineProvider, Text } from '@mantine/core';
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { type Node, type Element } from "./models/models";
 import { StructuralSystem } from "./solver/StructuralSystem";
@@ -25,6 +25,8 @@ export default function App() {
     { id: 2, node_i: 2, node_j: 3, ea: 1, ei: 100, c: 1 },
   ]);
 
+  const structuralSystem = useMemo(() => new StructuralSystem(nodes, elements), [nodes, elements]);
+
   return (
     <MantineProvider>
       <AppShell header={{ height: 50 }} padding={0}>
@@ -39,7 +41,7 @@ export default function App() {
         <AppShell.Main>
           {editMode
             ? <Editor nodes={nodes} setNodes={setNodes} elements={elements} setElements={setElements} />
-            : <SolutionVisualization structuralSystem={new StructuralSystem(nodes, elements)} />
+            : <SolutionVisualization structuralSystem={structuralSystem} />
           }
         </AppShell.Main>
       </AppShell>
