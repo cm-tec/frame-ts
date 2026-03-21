@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Circle, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
+import Konva from 'konva';
+import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node, type Element } from "../models/models";
+import { type Node } from "../models/models";
 import type { StructuralSystem } from '../solver/StructuralSystem';
+import { useAnimationStore } from '../store/animationStore';
 
 interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
-    time: number;
     showUndeformedSystem: boolean;
 }
 
@@ -22,18 +23,15 @@ const defaultColors = { supportFill: 'lightgray', nodeFill: 'red',     stroke: '
 const ghostColors   = { supportFill: '#e7e7e7',   nodeFill: '#ffffff', stroke: '#aeaeae', text: '#848484' };
 type NodeColors = typeof defaultColors;
 
-// ─── Shared sub-components ───────────────────────────────────────────────────
-
-function NodeShape({ node, cx, cy, colors }: { node: Node; cx: number; cy: number; colors: NodeColors }) {
-    const textX = cx - TEXT_BOX_SIZE / 2;
-    const textY = cy - TEXT_BOX_SIZE / 2;
+// Renders at origin — caller positions via a Group wrapper
+function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
     return <>
         {node.restrained_u && (
             <Shape stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(cx - 2 * CIRCLE_RADIUS, cy - 1.4 * CIRCLE_RADIUS);
-                ctx.lineTo(cx - 2 * CIRCLE_RADIUS, cy + 1.4 * CIRCLE_RADIUS);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-2 * CIRCLE_RADIUS, -1.4 * CIRCLE_RADIUS);
+                ctx.lineTo(-2 * CIRCLE_RADIUS,  1.4 * CIRCLE_RADIUS);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
@@ -41,22 +39,22 @@ function NodeShape({ node, cx, cy, colors }: { node: Node; cx: number; cy: numbe
         {node.restrained_v && (
             <Shape stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(cx - 1.4 * CIRCLE_RADIUS, cy + 2 * CIRCLE_RADIUS);
-                ctx.lineTo(cx + 1.4 * CIRCLE_RADIUS, cy + 2 * CIRCLE_RADIUS);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
+                ctx.lineTo( 1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
         )}
         {node.restrained_phi
-            ? <Rect x={cx - CIRCLE_RADIUS * 1.75 / 2} y={cy - CIRCLE_RADIUS * 1.75 / 2} width={CIRCLE_RADIUS * 1.75} height={CIRCLE_RADIUS * 1.75} fill={colors.nodeFill} stroke={colors.stroke} />
-            : <Circle x={cx} y={cy} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
+            ? <Rect x={-CIRCLE_RADIUS * 1.75 / 2} y={-CIRCLE_RADIUS * 1.75 / 2} width={CIRCLE_RADIUS * 1.75} height={CIRCLE_RADIUS * 1.75} fill={colors.nodeFill} stroke={colors.stroke} />
+            : <Circle radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
         }
-        <Text x={textX} y={textY} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={20} fill={colors.text} align="center" verticalAlign="middle" />
+        <Text x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={20} fill={colors.text} align="center" verticalAlign="middle" />
     </>;
 }
 
-// ─── Static layer (ghost) — only re-renders when structure or transforms change ─
+// ─── Static layer (ghost undeformed system) ───────────────────────────────────
 
 interface StaticLayerProps {
     structuralSystem: StructuralSystem;
@@ -66,26 +64,28 @@ interface StaticLayerProps {
     toCanvasZ: (z: number) => number;
 }
 
-const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, nodeMap, toCanvasX, toCanvasZ }: StaticLayerProps) => {
-    return (
-        <Layer listening={false}>
-            {showUndeformedSystem && structuralSystem.elements.map(el => {
-                const ni = nodeMap.get(el.node_i);
-                const nj = nodeMap.get(el.node_j);
-                if (!ni || !nj) return null;
-                return <Line key={el.id} stroke={ghostColors.stroke} strokeWidth={10}
-                    points={[toCanvasX(ni.x), toCanvasZ(ni.z), toCanvasX(nj.x), toCanvasZ(nj.z)]} />;
-            })}
-            {showUndeformedSystem && structuralSystem.nodes.map(node => (
-                <NodeShape key={node.id} node={node} cx={toCanvasX(node.x)} cy={toCanvasZ(node.z)} colors={ghostColors} />
-            ))}
-        </Layer>
-    );
-});
+const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, nodeMap, toCanvasX, toCanvasZ }: StaticLayerProps) => (
+    <Layer listening={false}>
+        {showUndeformedSystem && structuralSystem.elements.map(el => {
+            const ni = nodeMap.get(el.node_i);
+            const nj = nodeMap.get(el.node_j);
+            if (!ni || !nj) return null;
+            return <Line key={el.id} stroke={ghostColors.stroke} strokeWidth={10}
+                points={[toCanvasX(ni.x), toCanvasZ(ni.z), toCanvasX(nj.x), toCanvasZ(nj.z)]} />;
+        })}
+        {showUndeformedSystem && structuralSystem.nodes.map(node => (
+            <Group key={node.id} x={toCanvasX(node.x)} y={toCanvasZ(node.z)}>
+                <NodeShape node={node} colors={ghostColors} />
+            </Group>
+        ))}
+    </Layer>
+));
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function StructuralSystemViewer({ structuralSystem, getNodePosition, getElementPositions, time, showUndeformedSystem }: StructuralSystemViewerProps) {
+export default function StructuralSystemViewer({
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem,
+}: StructuralSystemViewerProps) {
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -129,25 +129,52 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
         return MARGIN_Z * canvasHeight + (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
     }, [canvasHeight, minZ, contentHeight]);
 
-    function renderElement(element: Element) {
-        const ni = nodeMap.get(element.node_i);
-        const nj = nodeMap.get(element.node_j);
-        if (!ni || !nj) return;
+    // Refs to keep callbacks fresh without restarting subscriptions
+    const toCanvasXRef           = useRef(toCanvasX);
+    const toCanvasZRef           = useRef(toCanvasZ);
+    const getNodePositionRef     = useRef(getNodePosition);
+    const getElementPositionsRef = useRef(getElementPositions);
+    useEffect(() => { toCanvasXRef.current = toCanvasX; },               [toCanvasX]);
+    useEffect(() => { toCanvasZRef.current = toCanvasZ; },               [toCanvasZ]);
+    useEffect(() => { getNodePositionRef.current = getNodePosition; },   [getNodePosition]);
+    useEffect(() => { getElementPositionsRef.current = getElementPositions; }, [getElementPositions]);
 
-        const positions = getElementPositions(element.id, time);
-        const canvasPoints = positions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
-        const centerIndex = Math.floor(positions.length / 2);
-        const textX = canvasPoints[centerIndex * 2] - TEXT_BOX_SIZE / 2;
-        const textY = canvasPoints[centerIndex * 2 + 1] - TEXT_BOX_SIZE / 2;
+    // Refs to Konva nodes for imperative per-frame updates
+    const elementLineRefs        = useRef<Map<number, Konva.Line>>(new Map());
+    const elementLabelGroupRefs  = useRef<Map<number, Konva.Group>>(new Map());
+    const nodeGroupRefs          = useRef<Map<number, Konva.Group>>(new Map());
 
-        return (
-            <React.Fragment key={element.id}>
-                <Line stroke="gray" strokeWidth={10} points={canvasPoints} />
-                <Rect x={textX} y={textY} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill="white" stroke="black" strokeWidth={1} cornerRadius={10} />
-                <Text x={textX} y={textY} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${element.id}`} fontSize={20} fill="black" align="center" verticalAlign="middle" />
-            </React.Fragment>
-        );
-    }
+    const applyPositions = useCallback((t: number) => {
+        for (const element of structuralSystem.elements) {
+            const line       = elementLineRefs.current.get(element.id);
+            const labelGroup = elementLabelGroupRefs.current.get(element.id);
+            if (!line) continue;
+            const positions = getElementPositionsRef.current(element.id, t);
+            line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
+            if (labelGroup) {
+                const mid = positions[Math.floor(positions.length / 2)];
+                labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
+                labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
+            }
+        }
+        for (const node of structuralSystem.nodes) {
+            const group = nodeGroupRefs.current.get(node.id);
+            if (!group) continue;
+            const pos = getNodePositionRef.current(node.id, t);
+            group.x(toCanvasXRef.current(pos.x));
+            group.y(toCanvasZRef.current(pos.z));
+        }
+    }, [structuralSystem]);
+
+    // Subscribe to store — fires synchronously when animation writes time, zero React re-renders
+    useEffect(() => {
+        return useAnimationStore.subscribe(state => applyPositions(state.time));
+    }, [applyPositions]);
+
+    // Reposition when canvas is resized (toCanvasX/Z change)
+    useEffect(() => {
+        applyPositions(useAnimationStore.getState().time);
+    }, [toCanvasX, toCanvasZ, applyPositions]);
 
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
@@ -160,10 +187,40 @@ export default function StructuralSystemViewer({ structuralSystem, getNodePositi
                     toCanvasZ={toCanvasZ}
                 />
                 <Layer>
-                    {structuralSystem.elements.map(el => renderElement(el))}
+                    {structuralSystem.elements.map(el => {
+                        const initialPositions = getElementPositions(el.id, 0);
+                        const initialPoints    = initialPositions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
+                        const mid              = initialPositions[Math.floor(initialPositions.length / 2)];
+
+                        return (
+                            <React.Fragment key={el.id}>
+                                <Line
+                                    ref={n => { n ? elementLineRefs.current.set(el.id, n) : elementLineRefs.current.delete(el.id); }}
+                                    stroke="gray" strokeWidth={10} points={initialPoints}
+                                />
+                                <Group
+                                    ref={n => { n ? elementLabelGroupRefs.current.set(el.id, n) : elementLabelGroupRefs.current.delete(el.id); }}
+                                    x={toCanvasX(mid.x) - TEXT_BOX_SIZE / 2}
+                                    y={toCanvasZ(mid.z) - TEXT_BOX_SIZE / 2}
+                                >
+                                    <Rect width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill="white" stroke="black" strokeWidth={1} cornerRadius={10} />
+                                    <Text width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${el.id}`} fontSize={20} fill="black" align="center" verticalAlign="middle" />
+                                </Group>
+                            </React.Fragment>
+                        );
+                    })}
                     {structuralSystem.nodes.map(node => {
-                        const pos = getNodePosition(node.id, time);
-                        return <NodeShape key={node.id} node={node} cx={toCanvasX(pos.x)} cy={toCanvasZ(pos.z)} colors={defaultColors} />;
+                        const pos = getNodePosition(node.id, 0);
+                        return (
+                            <Group
+                                key={node.id}
+                                ref={g => { g ? nodeGroupRefs.current.set(node.id, g) : nodeGroupRefs.current.delete(node.id); }}
+                                x={toCanvasX(pos.x)}
+                                y={toCanvasZ(pos.z)}
+                            >
+                                <NodeShape node={node} colors={defaultColors} />
+                            </Group>
+                        );
                     })}
                 </Layer>
             </Stage>

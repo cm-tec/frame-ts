@@ -1,12 +1,12 @@
 import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput, SimpleGrid } from '@mantine/core';
 import { useMemo, useState } from 'react';
+import { useAnimationStore } from '../store/animationStore';
 import MatrixLineChart from "./Chart";
 import type { StructuralSystem } from '../solver/StructuralSystem';
 
 interface DiagramSidebarProps {
     structuralSystem: StructuralSystem;
     solution: any;
-    time: number;
 }
 
 const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, time, label }: any) => {
@@ -30,8 +30,8 @@ const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, time, label }: any
 export function DiagramSidebar({
     structuralSystem,
     solution,
-    time,
 }: DiagramSidebarProps) {
+    const time = useAnimationStore(s => s.time);
     // New states for explicit time range and point count
     const [t1, setT1] = useState<number>(0);
     const [t2, setT2] = useState<number>(10);
