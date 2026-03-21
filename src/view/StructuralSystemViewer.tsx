@@ -12,6 +12,8 @@ interface StructuralSystemViewerProps {
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
     showUndeformedSystem: boolean;
+    showNodes: boolean;
+    showBearings: boolean;
 }
 
 const CIRCLE_RADIUS = 20;
@@ -24,10 +26,10 @@ const ghostColors = { supportFill: '#e7e7e7', nodeFill: '#ffffff', stroke: '#aea
 type NodeColors = typeof defaultColors;
 
 // Renders at origin — caller positions via a Group wrapper
-function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
+function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean }) {
     return <>
         {node.restrained_u && (
-            <Shape stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
+            <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(-2 * CIRCLE_RADIUS, -1.4 * CIRCLE_RADIUS);
@@ -37,7 +39,7 @@ function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
             }} />
         )}
         {node.restrained_v && (
-            <Shape stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
+            <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(-1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
@@ -47,10 +49,10 @@ function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
             }} />
         )}
         {node.restrained_phi
-            ? <Rect x={-CIRCLE_RADIUS * 1.75 / 2} y={-CIRCLE_RADIUS * 1.75 / 2} width={CIRCLE_RADIUS * 1.75} height={CIRCLE_RADIUS * 1.75} fill={colors.nodeFill} stroke={colors.stroke} />
-            : <Circle radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
+            ? <Rect visible={showNode} x={-CIRCLE_RADIUS * 1.75 / 2} y={-CIRCLE_RADIUS * 1.75 / 2} width={CIRCLE_RADIUS * 1.75} height={CIRCLE_RADIUS * 1.75} fill={colors.nodeFill} stroke={colors.stroke} />
+            : <Circle visible={showNode} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
         }
-        <Text x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={20} fill={colors.text} align="center" verticalAlign="middle" />
+        <Text visible={showNode} x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={20} fill={colors.text} align="center" verticalAlign="middle" />
     </>;
 }
 
@@ -59,12 +61,14 @@ function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
 interface StaticLayerProps {
     structuralSystem: StructuralSystem;
     showUndeformedSystem: boolean;
+    showNodes: boolean;
+    showBearings: boolean;
     nodeMap: Map<number, Node>;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
 }
 
-const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, nodeMap, toCanvasX, toCanvasZ }: StaticLayerProps) => (
+const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, showNodes, showBearings, nodeMap, toCanvasX, toCanvasZ }: StaticLayerProps) => (
     <Layer listening={false}>
         {showUndeformedSystem && structuralSystem.elements.map(el => {
             const ni = nodeMap.get(el.node_i);
@@ -75,7 +79,7 @@ const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, nodeMa
         })}
         {showUndeformedSystem && structuralSystem.nodes.map(node => (
             <Group key={node.id} x={toCanvasX(node.x)} y={toCanvasZ(node.z)}>
-                <NodeShape node={node} colors={ghostColors} />
+                <NodeShape node={node} colors={ghostColors} showNode={showNodes} showBearing={showBearings} />
             </Group>
         ))}
     </Layer>
@@ -84,7 +88,7 @@ const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, nodeMa
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem,
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings,
 }: StructuralSystemViewerProps) {
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -182,6 +186,8 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                 <StaticLayer
                     structuralSystem={structuralSystem}
                     showUndeformedSystem={showUndeformedSystem}
+                    showNodes={showNodes}
+                    showBearings={showBearings}
                     nodeMap={nodeMap}
                     toCanvasX={toCanvasX}
                     toCanvasZ={toCanvasZ}
@@ -218,7 +224,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                                 x={toCanvasX(pos.x)}
                                 y={toCanvasZ(pos.z)}
                             >
-                                <NodeShape node={node} colors={defaultColors} />
+                                <NodeShape node={node} colors={defaultColors} showNode={showNodes} showBearing={showBearings} />
                             </Group>
                         );
                     })}

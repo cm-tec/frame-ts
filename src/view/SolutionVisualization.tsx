@@ -18,6 +18,8 @@ export default function SolutionVisualization({ structuralSystem }: { structural
     const [speed, setSpeed] = useState(1);
     const [isRunning, setIsRunning] = useState(false);
     const [showUndeformedSystem, setShowUndeformedSystem] = useState(false);
+    const [showNodes, setShowNodes] = useState(true);
+    const [showBearings, setShowBearings] = useState(true);
     const [animKey, setAnimKey] = useState(0);
 
     const animRef = useRef<Konva.Animation | null>(null);
@@ -143,6 +145,8 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
                         showUndeformedSystem={showUndeformedSystem}
+                        showNodes={showNodes}
+                        showBearings={showBearings}
                     />
                 </Box>
 
@@ -195,6 +199,18 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                             label="Show Undeformed"
                             checked={showUndeformedSystem}
                             onChange={(e) => setShowUndeformedSystem(e.currentTarget.checked)}
+                            size="sm"
+                        />
+                        <Checkbox
+                            label="Show Nodes"
+                            checked={showNodes}
+                            onChange={(e) => setShowNodes(e.currentTarget.checked)}
+                            size="sm"
+                        />
+                        <Checkbox
+                            label="Show Bearings"
+                            checked={showBearings}
+                            onChange={(e) => setShowBearings(e.currentTarget.checked)}
                             size="sm"
                         />
                     </Group>
