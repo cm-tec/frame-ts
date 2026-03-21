@@ -19,8 +19,8 @@ const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
 
-const defaultColors = { supportFill: 'lightgray', nodeFill: 'red',     stroke: 'black',   text: 'black'   };
-const ghostColors   = { supportFill: '#e7e7e7',   nodeFill: '#ffffff', stroke: '#aeaeae', text: '#848484' };
+const defaultColors = { supportFill: 'lightgray', nodeFill: 'red', stroke: 'black', text: 'black' };
+const ghostColors = { supportFill: '#e7e7e7', nodeFill: '#ffffff', stroke: '#aeaeae', text: '#848484' };
 type NodeColors = typeof defaultColors;
 
 // Renders at origin — caller positions via a Group wrapper
@@ -31,7 +31,7 @@ function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(-2 * CIRCLE_RADIUS, -1.4 * CIRCLE_RADIUS);
-                ctx.lineTo(-2 * CIRCLE_RADIUS,  1.4 * CIRCLE_RADIUS);
+                ctx.lineTo(-2 * CIRCLE_RADIUS, 1.4 * CIRCLE_RADIUS);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
@@ -41,7 +41,7 @@ function NodeShape({ node, colors }: { node: Node; colors: NodeColors }) {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(-1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
-                ctx.lineTo( 1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
+                ctx.lineTo(1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
@@ -83,7 +83,7 @@ const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, nodeMa
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function StructuralSystemViewer({
+const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem,
 }: StructuralSystemViewerProps) {
 
@@ -130,23 +130,23 @@ export default function StructuralSystemViewer({
     }, [canvasHeight, minZ, contentHeight]);
 
     // Refs to keep callbacks fresh without restarting subscriptions
-    const toCanvasXRef           = useRef(toCanvasX);
-    const toCanvasZRef           = useRef(toCanvasZ);
-    const getNodePositionRef     = useRef(getNodePosition);
+    const toCanvasXRef = useRef(toCanvasX);
+    const toCanvasZRef = useRef(toCanvasZ);
+    const getNodePositionRef = useRef(getNodePosition);
     const getElementPositionsRef = useRef(getElementPositions);
-    useEffect(() => { toCanvasXRef.current = toCanvasX; },               [toCanvasX]);
-    useEffect(() => { toCanvasZRef.current = toCanvasZ; },               [toCanvasZ]);
-    useEffect(() => { getNodePositionRef.current = getNodePosition; },   [getNodePosition]);
+    useEffect(() => { toCanvasXRef.current = toCanvasX; }, [toCanvasX]);
+    useEffect(() => { toCanvasZRef.current = toCanvasZ; }, [toCanvasZ]);
+    useEffect(() => { getNodePositionRef.current = getNodePosition; }, [getNodePosition]);
     useEffect(() => { getElementPositionsRef.current = getElementPositions; }, [getElementPositions]);
 
     // Refs to Konva nodes for imperative per-frame updates
-    const elementLineRefs        = useRef<Map<number, Konva.Line>>(new Map());
-    const elementLabelGroupRefs  = useRef<Map<number, Konva.Group>>(new Map());
-    const nodeGroupRefs          = useRef<Map<number, Konva.Group>>(new Map());
+    const elementLineRefs = useRef<Map<number, Konva.Line>>(new Map());
+    const elementLabelGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
+    const nodeGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
 
     const applyPositions = useCallback((t: number) => {
         for (const element of structuralSystem.elements) {
-            const line       = elementLineRefs.current.get(element.id);
+            const line = elementLineRefs.current.get(element.id);
             const labelGroup = elementLabelGroupRefs.current.get(element.id);
             if (!line) continue;
             const positions = getElementPositionsRef.current(element.id, t);
@@ -189,8 +189,8 @@ export default function StructuralSystemViewer({
                 <Layer>
                     {structuralSystem.elements.map(el => {
                         const initialPositions = getElementPositions(el.id, 0);
-                        const initialPoints    = initialPositions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
-                        const mid              = initialPositions[Math.floor(initialPositions.length / 2)];
+                        const initialPoints = initialPositions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
+                        const mid = initialPositions[Math.floor(initialPositions.length / 2)];
 
                         return (
                             <React.Fragment key={el.id}>
@@ -226,4 +226,6 @@ export default function StructuralSystemViewer({
             </Stage>
         </div>
     );
-}
+});
+
+export default StructuralSystemViewer;
