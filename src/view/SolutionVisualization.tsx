@@ -26,17 +26,26 @@ export default function SolutionVisualization({ structuralSystem }: { structural
 
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
-        const initialConditions = matrix(zeros([2 * solver.non_restrained.length, 1]));
-        initialConditions.set([0, 0], 0);
-        initialConditions.set([0, 0], 0.2);
+        const N = solver.non_restrained.length;
+        const initialConditions = matrix(zeros([2 * N, 1]));
+        for (let i = 0; i < N; i++) {
+            const dof = solver.non_restrained[i];
+            const node = structuralSystem.nodes.find(n => n.u_dof === dof || n.v_dof === dof || n.phi_dof === dof)!;
+            let disp = 0, vel = 0;
+            if (node.u_dof === dof)        { disp = node.u0;   vel = node.du0; }
+            else if (node.v_dof === dof)   { disp = node.v0;   vel = node.dv0; }
+            else if (node.phi_dof === dof) { disp = node.phi0; vel = node.dphi0; }
+            initialConditions.set([i, 0], disp);
+            initialConditions.set([i + N, 0], vel);
+        }
         return solver.solve(initialConditions);
     }, [structuralSystem]);
 
     const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
-        const node = structuralSystem.nodes.find(n => n.id == nodeId)!;
+        const node = getNodeState(nodeId, time);
         return {
-            x: node.x + solution.get_w(node.u_dof, time),
-            z: node.z + solution.get_w(node.v_dof, time)
+            x: node.x + node.u,
+            z: node.z + node.v
         };
     }, [structuralSystem, solution]);
 
@@ -77,10 +86,12 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         for (let step = 0; step <= N; step++) {
             const xi = step / N;
             const local_x_dist = xi * L;
+
             const n1 = 1 - 3 * xi ** 2 + 2 * xi ** 3;
             const n2 = L * (xi - 2 * xi ** 2 + xi ** 3);
             const n3 = 3 * xi ** 2 - 2 * xi ** 3;
             const n4 = L * (-(xi ** 2) + xi ** 3);
+
             const local_v = n1 * v_local_i + n2 * phi_i + n3 * v_local_j + n4 * phi_j;
             const local_u = u_local_i * (1 - xi) + u_local_j * xi;
             const finalX = ni.x + (local_x_dist + local_u) * cosA - local_v * sinA;

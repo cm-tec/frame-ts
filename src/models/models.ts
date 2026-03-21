@@ -6,6 +6,12 @@ export type Node = {
     restrained_u: boolean;
     restrained_v: boolean;
     restrained_phi: boolean;
+    u0: number;
+    v0: number;
+    phi0: number;
+    du0: number;
+    dv0: number;
+    dphi0: number;
 };
 
 export type Element = {

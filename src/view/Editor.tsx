@@ -150,7 +150,7 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
-        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, mass: 0, restrained_u: false, restrained_v: false, restrained_phi: false }]);
+        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, mass: 0, restrained_u: false, restrained_v: false, restrained_phi: false, u0: 0, v0: 0, phi0: 0, du0: 0, dv0: 0, dphi0: 0 }]);
     };
 
     const getNode = (id: number) => nodes.find(n => n.id == id);
@@ -268,6 +268,48 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNode(row.id)}>
                                                 <IconTrash size={14} />
                                             </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
+                    <div>
+                        <Text fw={600} mb="xs">Initial Conditions</Text>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1">Id</Table.Th>
+                                    <Table.Th>u₀</Table.Th>
+                                    <Table.Th>v₀</Table.Th>
+                                    <Table.Th>φ₀</Table.Th>
+                                    <Table.Th>u̇₀</Table.Th>
+                                    <Table.Th>v̇₀</Table.Th>
+                                    <Table.Th>φ̇₀</Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {nodes.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1">{row.id}</Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.u0} onChange={(e) => updateNode(row.id, { u0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_u} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.v0} onChange={(e) => updateNode(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_v} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.phi0} onChange={(e) => updateNode(row.id, { phi0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_phi} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.du0} onChange={(e) => updateNode(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_u} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.dv0} onChange={(e) => updateNode(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_v} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.dphi0} onChange={(e) => updateNode(row.id, { dphi0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_phi} />
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}
