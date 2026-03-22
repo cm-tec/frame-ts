@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
+import { useAnimationStore } from '../store/animationStore';
 
 // --- Required Chart.js Imports/Registration ---
-// (This block is fine and should be kept)
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -13,7 +13,6 @@ import {
     Tooltip,
     Legend,
     Chart,
-    animator,
 } from 'chart.js';
 import { row, type Matrix } from 'mathjs';
 
@@ -48,19 +47,15 @@ Chart.register(verticalLinePlugin);
 
 // --- Style Constants ---
 const colors = [
-    'rgb(255, 99, 132)',  // Line 1: Red
-    'rgb(54, 162, 235)',  // Line 2: Blue
-    'rgb(75, 192, 192)',  // Line 3: Teal
-    'rgb(255, 205, 86)',  // Line 4: Yellow
+    'rgb(255, 99, 132)',
+    'rgb(54, 162, 235)',
+    'rgb(75, 192, 192)',
+    'rgb(255, 205, 86)',
 ];
 
-
 const prepareChartData = (matrix: Matrix) => {
-
     const t = row(matrix, 0);
-
     const tArray = (t.toArray().flat() as number[]).map(x => +x.toFixed(2));
-
     const datasets = (matrix.toArray() as number[][])
         .slice(1)
         .map((rowData, i) => ({
@@ -72,70 +67,49 @@ const prepareChartData = (matrix: Matrix) => {
             tension: 0.2,
             pointRadius: 0
         }));
-
     return { datasets };
 };
 
 // --- React Component ---
-const MatrixLineChart = ({ matrixData, currentTime, yAxis }: { matrixData: Matrix, currentTime: number, yAxis: string }) => {
-    // Use useMemo to prevent recalculation unless data or index changes
-    const chartData = useMemo(() => {
-        return prepareChartData(matrixData);
-    }, [matrixData]);
+const MatrixLineChart = ({ matrixData, yAxis }: { matrixData: Matrix, yAxis: string }) => {
+    const chartRef = useRef<Chart<'line'>>(null);
 
+    useEffect(() => {
+        return useAnimationStore.subscribe(state => {
+            const chart = chartRef.current;
+            if (!chart) return;
+            const t = state.time;
+            (chart.options.plugins as any).title.text = `Current time: ${t.toFixed(2)}s`;
+            (chart.options.plugins as any).verticalLinePlugin.xValue = t;
+            chart.update('none');
+        });
+    }, []);
 
+    const chartData = useMemo(() => prepareChartData(matrixData), [matrixData]);
 
-
-
-    // Define chart options
-    const options = {
+    const options = useMemo(() => ({
         responsive: true,
         scales: {
             x: {
-                type: 'linear' as const,  // must be linear to interpolate
+                type: 'linear' as const,
                 title: { display: true, text: 'Time' },
                 min: matrixData.get([0, 0]),
                 max: matrixData.get([0, matrixData.size()[1] - 1])
             },
             y: {
-                title: {
-                    display: true,
-                    text: yAxis,
-                },
+                title: { display: true, text: yAxis },
             }
         },
         plugins: {
-            legend: {
-                display: false,
-                position: 'top' as const,
-            },
-            title: {
-                display: true,
-                text: `Current time: ${currentTime.toFixed(2)}s`,
-            },
-
-            verticalLinePlugin: {
-                xValue: currentTime,  // <-- updates the vertical line
-                color: "gray"
-            }
+            legend: { display: false, position: 'top' as const },
+            title: { display: true, text: `Current time: 0.00s` },
+            verticalLinePlugin: { xValue: 0, color: "gray" }
         },
-        elements: {
-            point: {
-                radius: 0
-            }
-        },
-        animation: {
-            duration: 0, // initial render has no animation
-            // You can also customize updates:
-            onComplete: () => { /* optional callback */ }
-        },
-    };
+        elements: { point: { radius: 0 } },
+        animation: { duration: 0 },
+    }), [matrixData, yAxis]);
 
-    return (
-
-        <Line options={options} data={chartData} />
-
-    );
+    return <Line ref={chartRef} options={options} data={chartData} />;
 };
 
 export default MatrixLineChart;

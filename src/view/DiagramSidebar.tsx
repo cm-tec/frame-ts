@@ -1,6 +1,5 @@
+import React, { useMemo, useState } from 'react';
 import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput, SimpleGrid } from '@mantine/core';
-import { useMemo, useState } from 'react';
-import { useAnimationStore } from '../store/animationStore';
 import MatrixLineChart from "./Chart";
 import type { StructuralSystem } from '../solver/StructuralSystem';
 
@@ -9,29 +8,18 @@ interface DiagramSidebarProps {
     solution: any;
 }
 
-const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, time, label }: any) => {
-
-    // This heavy calculation NOW only runs when t1, t2, n, or the DOF changes.
-    // It NO LONGER runs when 'time' changes.
+const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, label }: any) => {
     const historyData = useMemo(() => {
-        console.log(`Recalculating history for DOF ${dofIdx}`);
         return solution.get_w_history(dofIdx, t1, Math.max(1, numPoints), t2 - t1);
     }, [dofIdx, t1, t2, numPoints, solution]);
 
-    return (
-        <MatrixLineChart
-            matrixData={historyData}
-            currentTime={time}
-            yAxis={label}
-        />
-    );
+    return <MatrixLineChart matrixData={historyData} yAxis={label} />;
 };
 
-export function DiagramSidebar({
+export const DiagramSidebar = React.memo(function DiagramSidebar({
     structuralSystem,
     solution,
 }: DiagramSidebarProps) {
-    const time = useAnimationStore(s => s.time);
     // New states for explicit time range and point count
     const [t1, setT1] = useState<number>(0);
     const [t2, setT2] = useState<number>(10);
@@ -41,8 +29,8 @@ export function DiagramSidebar({
         console.log("Construct DOF-Options in DiagramSidebar")
         const options: { value: string; label: string }[] = [];
         structuralSystem.nodes.forEach(node => {
-            options.push({ value: node.u_dof.toString(), label: `N${node.id} - U` });
-            options.push({ value: node.v_dof.toString(), label: `N${node.id} - V` });
+            if (!node.restrained_u) options.push({ value: node.u_dof.toString(), label: `N${node.id} - U` });
+            if (!node.restrained_v) options.push({ value: node.v_dof.toString(), label: `N${node.id} - V` });
         });
         return options;
     }, [structuralSystem]);
@@ -137,7 +125,6 @@ export function DiagramSidebar({
                                     t2={t2}
                                     numPoints={numPoints}
                                     solution={solution}
-                                    time={time}
                                     label={label}
                                 />
                             </Box>
@@ -153,4 +140,4 @@ export function DiagramSidebar({
             </Flex>
         </Box>
     );
-}
+});

@@ -10,8 +10,13 @@ import { DiagramSidebar } from "./DiagramSidebar";
 import { useAnimationStore } from "../store/animationStore";
 
 function TimeDisplay() {
-    const time = useAnimationStore(s => s.time);
-    return <Text fw={500} size="sm" w={60}>{time.toFixed(2)} s</Text>;
+    const ref = useRef<HTMLParagraphElement>(null);
+    useEffect(() => {
+        return useAnimationStore.subscribe(state => {
+            if (ref.current) ref.current.textContent = `${state.time.toFixed(2)} s`;
+        });
+    }, []);
+    return <Text ref={ref} fw={500} size="sm" w={60}>{useAnimationStore.getState().time.toFixed(2)} s</Text>;
 }
 
 export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
