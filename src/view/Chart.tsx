@@ -105,7 +105,7 @@ const MatrixLineChart = ({ matrixData, yAxis }: { matrixData: Matrix, yAxis: str
             title: { display: true, text: `Current time: 0.00s` },
             verticalLinePlugin: { xValue: 0, color: "gray" }
         },
-        elements: { point: { radius: 0 } },
+        elements: { point: { radius: 0 }, line: { borderWidth: 1 } },
         animation: { duration: 0 },
     }), [matrixData, yAxis]);
 
