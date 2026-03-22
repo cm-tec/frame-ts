@@ -97,10 +97,11 @@ export class SystemSolver {
             const l = hypot(n_j.x - n_i.x, n_j.z - n_i.z);
 
             const k_e = multiply(R_e_T, multiply(k_element(e.ea, l), R_e));
+            const c_e = multiply(R_e_T, multiply(c_element(e.c), R_e));
 
             k = add(k, expand_matrix(k_e, [e.u_i_dof, e.v_i_dof, e.u_j_dof, e.v_j_dof]));
 
-            c = add(c, expand_matrix(c_element(e.c), [e.u_i_dof, e.v_i_dof, e.u_j_dof, e.v_j_dof]));
+            c = add(c, expand_matrix(c_e, [e.u_i_dof, e.v_i_dof, e.u_j_dof, e.v_j_dof]));
         }
 
         for (const n of system.nodes) {
@@ -122,9 +123,6 @@ export class SystemSolver {
             }
         }
 
-        //console.log(k);
-        //console.log(c);
-        //console.log(m);
 
         this.k_11 = subset(k, index(non_restrained, non_restrained));
         this.k_12 = subset(k, index(restrained, non_restrained));
@@ -162,6 +160,9 @@ export class SystemSolver {
 
         let eigenVectors = getEigenvectors(a);
         let eigenValues = getEigenvalues(a);
+
+        console.log(eigenVectors);
+        console.log(eigenValues);
 
         let coefficients = lusolve(eigenVectors, initialConditions);
 
@@ -246,5 +247,35 @@ export class SystemSolution {
         //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re));
 
         return multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re).get([0, 0])
+    }
+
+    get_dw(dof: number, t: number): number {
+        if (this.restrained.includes(dof)) {
+            return 0;
+        }
+        let i = this.NDOF + this.non_restrained.indexOf(dof);
+
+        let e = map(multiply(this.eigenValues, t), exp);
+        let ec = dotMultiply(this.coefficients, e);
+
+        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re));
+
+        return multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re).get([0, 0])
+    }
+
+    // Get the displacement of a dof over time
+    get_dw_history(dof: number, t0: number = 0, N: number = 1000, T: number = 10): Matrix {
+
+        let dt = T / N;
+        let w = matrix(zeros([2, N]));
+
+        let t = t0;
+
+        for (let n = 0; n < N; n++) {
+            t = n * dt
+            w.set([0, n], t);
+            w.set([1, n], this.get_dw(dof, t));
+        }
+        return w;
     }
 }
