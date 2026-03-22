@@ -11,54 +11,38 @@ function get_rotation_matrix_of_element(v: [number, number]) {
     const theta = atan2(dz, dx);
     const t = rotationMatrix(theta) as math.Matrix;
 
-    const T_e = identity(6) as math.Matrix;
+    const T_e = identity(4) as math.Matrix;
 
     T_e.subset(index([0, 1], [0, 1]), t);
-    T_e.subset(index([3, 4], [3, 4]), t);
+    T_e.subset(index([2, 3], [2, 3]), t);
 
     return T_e;
 }
 
 
-function k_element(EA: number, EI: number, l: number) {
+function k_element(EA: number, l: number) {
     const k_axial = multiply(EA / l, matrix(
         [
-            [1, 0, 0, -1, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [-1, 0, 0, 1, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0],
+            [1, 0, -1, 0],
+            [0, 0, 0, 0],
+            [-1, 0, 1, 0],
+            [0, 0, 0, 0],
         ]
     ));
 
-    const k_flexural = multiply(2 * EI / l ** 3, matrix(
-        [
-            [0, 0, 0, 0, 0, 0],
-            [0, 6, -3 * l, 0, -6, -3 * l],
-            [0, -3 * l, 2 * l ** 2, 0, 3 * l, l ** 2],
-            [0, 0, 0, 0, 0, 0],
-            [0, -6, 3 * l, 0, 6, 3 * l],
-            [0, -3 * l, l ** 2, 0, 3 * l, 2 * l ** 2],
-        ]
-    ));
-
-    return add(k_axial, k_flexural);
+    return k_axial;
 }
 
 function c_element(c: number) {
     return matrix(
         [
-            [c, 0, 0, -c, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 1, 0, 0, 0],
-            [-c, 0, 0, c, 0, 0],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 1],
+            [c, 0, -c, 0],
+            [0, 0, 0, 0],
+            [-c, 0, c, 0],
+            [0, 0, 0, 0],
         ]
     )
 }
-
 
 
 export class SystemSolver {
@@ -112,19 +96,16 @@ export class SystemSolver {
 
             const l = hypot(n_j.x - n_i.x, n_j.z - n_i.z);
 
-            const k_e = multiply(R_e_T, multiply(k_element(e.ea, e.ei, l), R_e));
+            const k_e = multiply(R_e_T, multiply(k_element(e.ea, l), R_e));
 
-            k = add(k, expand_matrix(k_e, [e.u_i_dof, e.v_i_dof, e.phi_i_dof, e.u_j_dof, e.v_j_dof, e.phi_j_dof]));
+            k = add(k, expand_matrix(k_e, [e.u_i_dof, e.v_i_dof, e.u_j_dof, e.v_j_dof]));
 
-            c = add(c, expand_matrix(c_element(e.c), [e.u_i_dof, e.v_i_dof, e.phi_i_dof, e.u_j_dof, e.v_j_dof, e.phi_j_dof]));
+            c = add(c, expand_matrix(c_element(e.c), [e.u_i_dof, e.v_i_dof, e.u_j_dof, e.v_j_dof]));
         }
 
         for (const n of system.nodes) {
             m.set([n.u_dof, n.u_dof], n.mass);
             m.set([n.v_dof, n.v_dof], n.mass);
-
-            const tinyInertia = n.mass > 0 ? (n.mass) / 12 : 0;
-            m.set([n.phi_dof, n.phi_dof], tinyInertia);
 
             if (n.restrained_u) {
                 restrained.push(n.u_dof);
@@ -132,10 +113,6 @@ export class SystemSolver {
 
             if (n.restrained_v) {
                 restrained.push(n.v_dof);
-            }
-
-            if (n.restrained_phi) {
-                restrained.push(n.phi_dof);
             }
         }
 

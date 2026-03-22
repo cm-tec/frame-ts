@@ -32,11 +32,10 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         const initialConditions = matrix(zeros([2 * N, 1]));
         for (let i = 0; i < N; i++) {
             const dof = solver.non_restrained[i];
-            const node = structuralSystem.nodes.find(n => n.u_dof === dof || n.v_dof === dof || n.phi_dof === dof)!;
+            const node = structuralSystem.nodes.find(n => n.u_dof === dof || n.v_dof === dof)!;
             let disp = 0, vel = 0;
-            if (node.u_dof === dof)        { disp = node.u0;   vel = node.du0; }
-            else if (node.v_dof === dof)   { disp = node.v0;   vel = node.dv0; }
-            else if (node.phi_dof === dof) { disp = node.phi0; vel = node.dphi0; }
+            if (node.u_dof === dof) { disp = node.u0; vel = node.du0; }
+            else if (node.v_dof === dof) { disp = node.v0; vel = node.dv0; }
             initialConditions.set([i, 0], disp);
             initialConditions.set([i + N, 0], vel);
         }
@@ -58,48 +57,17 @@ export default function SolutionVisualization({ structuralSystem }: { structural
             z: node.z,
             u: solution.get_w(node.u_dof, time),
             v: solution.get_w(node.v_dof, time),
-            phi: solution.get_w(node.phi_dof, time)
         };
     }, [structuralSystem, solution]);
 
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id == elementId)!;
 
-        const ni = getNodeState(element.node_i, time);
-        const nj = getNodeState(element.node_j, time);
+        const points: Array<{ x: number; z: number }> = [
+            getNodePosition(element.node_i, time),
+            getNodePosition(element.node_j, time)
+        ];
 
-        const dx = nj.x - ni.x;
-        const dz = nj.z - ni.z;
-        const L = Math.hypot(dx, dz);
-        const angle = Math.atan2(dz, dx);
-        const cosA = Math.cos(angle);
-        const sinA = Math.sin(angle);
-
-        const v_local_i = -ni.u * sinA + ni.v * cosA;
-        const v_local_j = -nj.u * sinA + nj.v * cosA;
-        const phi_i = ni.phi;
-        const phi_j = nj.phi;
-        const u_local_i = ni.u * cosA + ni.v * sinA;
-        const u_local_j = nj.u * cosA + nj.v * sinA;
-
-        const N = 50;
-        const points: Array<{ x: number; z: number }> = [];
-
-        for (let step = 0; step <= N; step++) {
-            const xi = step / N;
-            const local_x_dist = xi * L;
-
-            const n1 = 1 - 3 * xi ** 2 + 2 * xi ** 3;
-            const n2 = L * (xi - 2 * xi ** 2 + xi ** 3);
-            const n3 = 3 * xi ** 2 - 2 * xi ** 3;
-            const n4 = L * (-(xi ** 2) + xi ** 3);
-
-            const local_v = n1 * v_local_i + n2 * phi_i + n3 * v_local_j + n4 * phi_j;
-            const local_u = u_local_i * (1 - xi) + u_local_j * xi;
-            const finalX = ni.x + (local_x_dist + local_u) * cosA - local_v * sinA;
-            const finalZ = ni.z + (local_x_dist + local_u) * sinA + local_v * cosA;
-            points.push({ x: finalX, z: finalZ });
-        }
         return points;
     }, [structuralSystem, solution, getNodeState]);
 

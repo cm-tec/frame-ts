@@ -48,13 +48,107 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
                 ctx.fillStrokeShape(shape);
             }} />
         )}
-        {node.restrained_phi
-            ? <Rect visible={showNode} x={-CIRCLE_RADIUS * 1.75 / 2} y={-CIRCLE_RADIUS * 1.75 / 2} width={CIRCLE_RADIUS * 1.75} height={CIRCLE_RADIUS * 1.75} fill={colors.nodeFill} stroke={colors.stroke} />
-            : <Circle visible={showNode} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
-        }
+
+
+        <Circle visible={showNode} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
+
         <Text visible={showNode} x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={20} fill={colors.text} align="center" verticalAlign="middle" />
     </>;
 }
+
+// ─── Grid layer ───────────────────────────────────────────────────────────────
+
+function niceInterval(range: number, targetCount = 7): number {
+    if (range === 0) return 1;
+    const raw = range / targetCount;
+    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const norm = raw / mag;
+    if (norm < 1.5) return mag;
+    if (norm < 3.5) return 2 * mag;
+    if (norm < 7.5) return 5 * mag;
+    return 10 * mag;
+}
+
+function formatGridLabel(val: number, interval: number): string {
+    const decimals = Math.max(0, -Math.floor(Math.log10(interval)));
+    return val.toFixed(decimals);
+}
+
+interface GridLayerProps {
+    canvasWidth: number;
+    canvasHeight: number;
+    minX: number;
+    minZ: number;
+    contentWidth: number;
+    contentHeight: number;
+    toCanvasX: (x: number) => number;
+    toCanvasZ: (z: number) => number;
+}
+
+const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWidth, contentHeight, toCanvasX, toCanvasZ }: GridLayerProps) => {
+    if (canvasWidth === 0 || canvasHeight === 0) return null;
+
+    const effWidth = contentWidth === 0 ? 10 : contentWidth;
+    const effHeight = contentHeight === 0 ? 10 : contentHeight;
+
+    // World-space extents including margins
+    const padX = MARGIN_X / (1 - 2 * MARGIN_X) * effWidth;
+    const padZ = MARGIN_Z / (1 - 2 * MARGIN_Z) * effHeight;
+    const worldLeft = minX - padX;
+    const worldRight = minX + effWidth + padX;
+    const worldTop = minZ - padZ;
+    const worldBottom = minZ + effHeight + padZ;
+
+    const xInterval = niceInterval(worldRight - worldLeft);
+    const zInterval = niceInterval(worldBottom - worldTop);
+
+    const xLines: number[] = [];
+    const xStart = Math.ceil(worldLeft / xInterval) * xInterval;
+    for (let x = xStart; x <= worldRight + xInterval * 0.01; x += xInterval)
+        xLines.push(Math.round(x / xInterval) * xInterval);
+
+    const zLines: number[] = [];
+    const zStart = Math.ceil(worldTop / zInterval) * zInterval;
+    for (let z = zStart; z <= worldBottom + zInterval * 0.01; z += zInterval)
+        zLines.push(Math.round(z / zInterval) * zInterval);
+
+    // Label every other line when there are many, otherwise all
+    const xLabelStep = xLines.length > 8 ? 2 : 1;
+    const zLabelStep = zLines.length > 8 ? 2 : 1;
+
+    const gridColor = '#e8e8e8';
+    const labelColor = '#b0b0b0';
+    const labelFontSize = 11;
+
+    return (
+        <Layer listening={false}>
+            {xLines.map((x, i) => {
+                const cx = toCanvasX(x);
+                const showLabel = i % xLabelStep === 0;
+                return (
+                    <React.Fragment key={`gx-${x}`}>
+                        <Line points={[cx, 0, cx, canvasHeight]} stroke={gridColor} strokeWidth={1} />
+                        {showLabel && (
+                            <Text x={cx + 3} y={canvasHeight - labelFontSize - 4} text={formatGridLabel(x, xInterval)} fontSize={labelFontSize} fill={labelColor} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+            {zLines.map((z, i) => {
+                const cz = toCanvasZ(z);
+                const showLabel = i % zLabelStep === 0;
+                return (
+                    <React.Fragment key={`gz-${z}`}>
+                        <Line points={[0, cz, canvasWidth, cz]} stroke={gridColor} strokeWidth={1} />
+                        {showLabel && (
+                            <Text x={4} y={cz - labelFontSize - 2} text={formatGridLabel(z, zInterval)} fontSize={labelFontSize} fill={labelColor} />
+                        )}
+                    </React.Fragment>
+                );
+            })}
+        </Layer>
+    );
+});
 
 // ─── Static layer (ghost undeformed system) ───────────────────────────────────
 
@@ -156,7 +250,10 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
             const positions = getElementPositionsRef.current(element.id, t);
             line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
             if (labelGroup) {
-                const mid = positions[Math.floor(positions.length / 2)];
+                const mid = {
+                    x: (positions[0].x + positions[1].x) / 2,
+                    z: (positions[0].z + positions[1].z) / 2
+                };
                 labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
                 labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
             }
@@ -183,6 +280,16 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
             <Stage width={canvasWidth} height={canvasHeight}>
+                <GridLayer
+                    canvasWidth={canvasWidth}
+                    canvasHeight={canvasHeight}
+                    minX={minX}
+                    minZ={minZ}
+                    contentWidth={contentWidth}
+                    contentHeight={contentHeight}
+                    toCanvasX={toCanvasX}
+                    toCanvasZ={toCanvasZ}
+                />
                 <StaticLayer
                     structuralSystem={structuralSystem}
                     showUndeformedSystem={showUndeformedSystem}
@@ -196,7 +303,11 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     {structuralSystem.elements.map(el => {
                         const initialPositions = getElementPositions(el.id, 0);
                         const initialPoints = initialPositions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
-                        const mid = initialPositions[Math.floor(initialPositions.length / 2)];
+
+                        const mid = {
+                            x: (initialPositions[0].x + initialPositions[1].x) / 2,
+                            z: (initialPositions[0].z + initialPositions[1].z) / 2
+                        };
 
                         return (
                             <React.Fragment key={el.id}>

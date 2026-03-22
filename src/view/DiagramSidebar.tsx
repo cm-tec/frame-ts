@@ -43,7 +43,6 @@ export function DiagramSidebar({
         structuralSystem.nodes.forEach(node => {
             options.push({ value: node.u_dof.toString(), label: `N${node.id} - U` });
             options.push({ value: node.v_dof.toString(), label: `N${node.id} - V` });
-            options.push({ value: node.phi_dof.toString(), label: `N${node.id} - φ` });
         });
         return options;
     }, [structuralSystem]);

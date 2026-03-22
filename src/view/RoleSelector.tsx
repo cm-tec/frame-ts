@@ -1,5 +1,4 @@
-import { Combobox, Input, InputBase, ScrollArea, Select, useCombobox } from "@mantine/core";
-import { useState } from "react";
+import { Select } from "@mantine/core";
 import { Support } from "./Support";
 
 export default function SupportSelector({ currentValue, onChange }: { currentValue: Support, onChange: (newValue: Support) => void }) {

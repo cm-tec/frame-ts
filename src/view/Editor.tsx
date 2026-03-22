@@ -5,7 +5,7 @@ import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'reac
 import { max, min } from 'mathjs';
 
 import { type Node, type Element } from "../models/models";
-import './Editor.css';
+
 
 const CIRCLE_RADIUS = 20;
 const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
@@ -96,23 +96,15 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
                 }}
             />
         )}
-        {node.restrained_phi
-            ? <Rect
-                x={circleX - CIRCLE_RADIUS * 1.75 / 2}
-                y={circleY - CIRCLE_RADIUS * 1.75 / 2}
-                width={CIRCLE_RADIUS * 1.75}
-                height={CIRCLE_RADIUS * 1.75}
-                fill="white"
-                stroke="black"
-            />
-            : <Circle
-                x={circleX}
-                y={circleY}
-                radius={CIRCLE_RADIUS}
-                fill="white"
-                stroke="black"
-            />
-        }
+
+        <Circle
+            x={circleX}
+            y={circleY}
+            radius={CIRCLE_RADIUS}
+            fill="white"
+            stroke="black"
+        />
+
         <KonvaText
             x={textX}
             y={textY}
@@ -238,7 +230,6 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     <Table.Th>Mass</Table.Th>
                                     <Table.Th>u</Table.Th>
                                     <Table.Th>v</Table.Th>
-                                    <Table.Th>phi</Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -262,9 +253,6 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                             <Checkbox checked={row.restrained_v} onChange={(e) => updateNode(row.id, { restrained_v: e.currentTarget.checked })} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <Checkbox checked={row.restrained_phi} onChange={(e) => updateNode(row.id, { restrained_phi: e.currentTarget.checked })} />
-                                        </Table.Td>
-                                        <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNode(row.id)}>
                                                 <IconTrash size={14} />
                                             </ActionIcon>
@@ -283,10 +271,8 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     <Table.Th bg="gray.1">Id</Table.Th>
                                     <Table.Th>u₀</Table.Th>
                                     <Table.Th>v₀</Table.Th>
-                                    <Table.Th>φ₀</Table.Th>
                                     <Table.Th>u̇₀</Table.Th>
                                     <Table.Th>v̇₀</Table.Th>
-                                    <Table.Th>φ̇₀</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
@@ -300,16 +286,10 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                             <NumberInput value={row.v0} onChange={(e) => updateNode(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_v} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.phi0} onChange={(e) => updateNode(row.id, { phi0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_phi} />
-                                        </Table.Td>
-                                        <Table.Td>
                                             <NumberInput value={row.du0} onChange={(e) => updateNode(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_u} />
                                         </Table.Td>
                                         <Table.Td>
                                             <NumberInput value={row.dv0} onChange={(e) => updateNode(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_v} />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <NumberInput value={row.dphi0} onChange={(e) => updateNode(row.id, { dphi0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_phi} />
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}
@@ -331,7 +311,6 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     <Table.Th>Node i</Table.Th>
                                     <Table.Th>Node j</Table.Th>
                                     <Table.Th>EA</Table.Th>
-                                    <Table.Th>EI</Table.Th>
                                     <Table.Th>c</Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
@@ -348,9 +327,6 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                         </Table.Td>
                                         <Table.Td>
                                             <NumberInput value={row.ea} onChange={(e) => updateElement(row.id, { ea: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <NumberInput value={row.ei} onChange={(e) => updateElement(row.id, { ei: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
                                             <NumberInput value={row.c} onChange={(e) => updateElement(row.id, { c: Number(e) || 0 })} variant="unstyled" hideControls />

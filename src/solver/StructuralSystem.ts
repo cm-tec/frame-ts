@@ -4,17 +4,14 @@ interface StructuralNode extends Node {
     id: number;
     u_dof: number;
     v_dof: number;
-    phi_dof: number;
 }
 
 interface StructuralElement extends Element {
     id: number;
     u_i_dof: number;
     v_i_dof: number;
-    phi_i_dof: number;
     u_j_dof: number;
     v_j_dof: number;
-    phi_j_dof: number;
 }
 
 
@@ -30,8 +27,8 @@ export class StructuralSystem {
         this.elements = [];
 
         for (const n of nodes) {
-            this.nodes.push({ ...n, u_dof: this.ndofs, v_dof: this.ndofs + 1, phi_dof: this.ndofs + 2 });
-            this.ndofs += 3;
+            this.nodes.push({ ...n, u_dof: this.ndofs, v_dof: this.ndofs + 1 });
+            this.ndofs += 2;
         }
 
 
@@ -47,10 +44,8 @@ export class StructuralSystem {
                 ...e,
                 u_i_dof: n_i.u_dof,
                 v_i_dof: n_i.v_dof,
-                phi_i_dof: n_i.phi_dof,
                 u_j_dof: n_j.u_dof,
                 v_j_dof: n_j.v_dof,
-                phi_j_dof: n_j.phi_dof
             });
         }
     }

@@ -15,14 +15,14 @@ export default function App() {
   const [editMode, setEditMode] = useState<boolean>(false);
 
   const [nodes, setNodes] = useState<Node[]>([
-    { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, restrained_phi: true, u0: 0, v0: 0, phi0: 0, du0: 0, dv0: 0, dphi0: 0 },
-    { id: 2, x: 1, z: 0, mass: 1, restrained_u: false, restrained_v: false, restrained_phi: false, u0: 0, v0: 0.2, phi0: 0, du0: 0, dv0: 0, dphi0: 0 },
-    { id: 3, x: 1, z: 1, mass: 1, restrained_u: false, restrained_v: false, restrained_phi: false, u0: 0, v0: 0, phi0: 0, du0: 0, dv0: 0, dphi0: 0 },
+    { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
+    { id: 2, x: 0.5, z: 0.5, mass: 1, restrained_u: false, restrained_v: false, u0: 0, v0: 0, du0: 0, dv0: 0, },
+    { id: 3, x: 1, z: 0, mass: 1, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0, },
   ]);
 
   const [elements, setElements] = useState<Element[]>([
-    { id: 1, node_i: 1, node_j: 2, ea: 1, ei: 2, c: 1 },
-    { id: 2, node_i: 2, node_j: 3, ea: 1, ei: 100, c: 1 },
+    { id: 1, node_i: 1, node_j: 2, ea: 1, c: 1 },
+    { id: 2, node_i: 2, node_j: 3, ea: 1, c: 1 },
   ]);
 
   const structuralSystem = useMemo(() => new StructuralSystem(nodes, elements), [nodes, elements]);
