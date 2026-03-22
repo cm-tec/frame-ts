@@ -16,20 +16,54 @@ interface StructuralSystemViewerProps {
     showBearings: boolean;
 }
 
-const CIRCLE_RADIUS = 20;
+// ─── Visual theme ─────────────────────────────────────────────────────────────
+const THEME = {
+    // Sizes
+    nodeRadius: 16,
+    elementStrokeWidth: 7,
+    elementLabelFontSize: 13,
+    nodeFontSize: 14,
+    bearingStrokeWidth: 1.5,
+    elementLabelCornerRadius: 6,
+
+    // Active system colors
+    nodeStroke: '#2d2d2d',
+    nodeFill: '#ffffff',
+    nodeText: '#2d2d2d',
+    supportFill: '#c0c0c0',
+    elementStroke: '#2d2d2d',
+    elementLabelFill: '#ffffff',
+    elementLabelStroke: '#2d2d2d',
+    elementLabelText: '#2d2d2d',
+
+    // Ghost (undeformed) system colors
+    ghostNodeStroke: '#c0c0c0',
+    ghostNodeFill: '#f5f5f5',
+    ghostNodeText: '#c0c0c0',
+    ghostSupportFill: '#e0e0e0',
+    ghostElementStroke: '#c8c8c8',
+    ghostElementStrokeWidth: 5,
+    ghostElementDash: [8, 5] as number[],
+
+    // Grid colors
+    gridLine: '#efefef',
+    gridLabel: '#c8c8c8',
+    gridLabelFontSize: 11,
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
+const CIRCLE_RADIUS = THEME.nodeRadius;
 const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
 
-const defaultColors = { supportFill: 'lightgray', nodeFill: 'red', stroke: 'black', text: 'black' };
-const ghostColors = { supportFill: '#e7e7e7', nodeFill: '#ffffff', stroke: '#aeaeae', text: '#848484' };
-type NodeColors = typeof defaultColors;
+type NodeColors = { supportFill: string; nodeFill: string; stroke: string; text: string };
 
 // Renders at origin — caller positions via a Group wrapper
 function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean }) {
     return <>
         {node.restrained_u && (
-            <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
+            <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(-2 * CIRCLE_RADIUS, -1.4 * CIRCLE_RADIUS);
@@ -39,7 +73,7 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
             }} />
         )}
         {node.restrained_v && (
-            <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={1} sceneFunc={(ctx, shape) => {
+            <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(-1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
@@ -50,9 +84,9 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
         )}
 
 
-        <Circle visible={showNode} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} />
+        <Circle visible={showNode} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
 
-        <Text visible={showNode} x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={20} fill={colors.text} align="center" verticalAlign="middle" />
+        <Text visible={showNode} x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={THEME.nodeFontSize} fontStyle="bold" fill={colors.text} align="center" verticalAlign="middle" />
     </>;
 }
 
@@ -116,10 +150,6 @@ const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWi
     const xLabelStep = xLines.length > 8 ? 2 : 1;
     const zLabelStep = zLines.length > 8 ? 2 : 1;
 
-    const gridColor = '#e8e8e8';
-    const labelColor = '#b0b0b0';
-    const labelFontSize = 11;
-
     return (
         <Layer listening={false}>
             {xLines.map((x, i) => {
@@ -127,9 +157,9 @@ const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWi
                 const showLabel = i % xLabelStep === 0;
                 return (
                     <React.Fragment key={`gx-${x}`}>
-                        <Line points={[cx, 0, cx, canvasHeight]} stroke={gridColor} strokeWidth={1} />
+                        <Line points={[cx, 0, cx, canvasHeight]} stroke={THEME.gridLine} strokeWidth={1} />
                         {showLabel && (
-                            <Text x={cx + 3} y={canvasHeight - labelFontSize - 4} text={formatGridLabel(x, xInterval)} fontSize={labelFontSize} fill={labelColor} />
+                            <Text x={cx + 3} y={canvasHeight - THEME.gridLabelFontSize - 4} text={formatGridLabel(x, xInterval)} fontSize={THEME.gridLabelFontSize} fill={THEME.gridLabel} />
                         )}
                     </React.Fragment>
                 );
@@ -139,9 +169,9 @@ const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWi
                 const showLabel = i % zLabelStep === 0;
                 return (
                     <React.Fragment key={`gz-${z}`}>
-                        <Line points={[0, cz, canvasWidth, cz]} stroke={gridColor} strokeWidth={1} />
+                        <Line points={[0, cz, canvasWidth, cz]} stroke={THEME.gridLine} strokeWidth={1} />
                         {showLabel && (
-                            <Text x={4} y={cz - labelFontSize - 2} text={formatGridLabel(z, zInterval)} fontSize={labelFontSize} fill={labelColor} />
+                            <Text x={4} y={cz - THEME.gridLabelFontSize - 2} text={formatGridLabel(z, zInterval)} fontSize={THEME.gridLabelFontSize} fill={THEME.gridLabel} />
                         )}
                     </React.Fragment>
                 );
@@ -168,12 +198,12 @@ const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, showNo
             const ni = nodeMap.get(el.node_i);
             const nj = nodeMap.get(el.node_j);
             if (!ni || !nj) return null;
-            return <Line key={el.id} stroke={ghostColors.stroke} strokeWidth={10}
+            return <Line key={el.id} stroke={THEME.ghostElementStroke} strokeWidth={THEME.ghostElementStrokeWidth} dash={THEME.ghostElementDash}
                 points={[toCanvasX(ni.x), toCanvasZ(ni.z), toCanvasX(nj.x), toCanvasZ(nj.z)]} />;
         })}
         {showUndeformedSystem && structuralSystem.nodes.map(node => (
             <Group key={node.id} x={toCanvasX(node.x)} y={toCanvasZ(node.z)}>
-                <NodeShape node={node} colors={ghostColors} showNode={showNodes} showBearing={showBearings} />
+                <NodeShape node={node} colors={{ stroke: THEME.ghostNodeStroke, nodeFill: THEME.ghostNodeFill, supportFill: THEME.ghostSupportFill, text: THEME.ghostNodeText }} showNode={showNodes} showBearing={showBearings} />
             </Group>
         ))}
     </Layer>
@@ -313,15 +343,15 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                             <React.Fragment key={el.id}>
                                 <Line
                                     ref={n => { n ? elementLineRefs.current.set(el.id, n) : elementLineRefs.current.delete(el.id); }}
-                                    stroke="gray" strokeWidth={10} points={initialPoints}
+                                    stroke={THEME.elementStroke} strokeWidth={THEME.elementStrokeWidth} points={initialPoints}
                                 />
                                 <Group
                                     ref={n => { n ? elementLabelGroupRefs.current.set(el.id, n) : elementLabelGroupRefs.current.delete(el.id); }}
                                     x={toCanvasX(mid.x) - TEXT_BOX_SIZE / 2}
                                     y={toCanvasZ(mid.z) - TEXT_BOX_SIZE / 2}
                                 >
-                                    <Rect width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill="white" stroke="black" strokeWidth={1} cornerRadius={10} />
-                                    <Text width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${el.id}`} fontSize={20} fill="black" align="center" verticalAlign="middle" />
+                                    <Rect width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill={THEME.elementLabelFill} stroke={THEME.elementLabelStroke} strokeWidth={1} cornerRadius={THEME.elementLabelCornerRadius} />
+                                    <Text width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${el.id}`} fontSize={THEME.elementLabelFontSize} fontStyle="bold" fill={THEME.elementLabelText} align="center" verticalAlign="middle" />
                                 </Group>
                             </React.Fragment>
                         );
@@ -335,7 +365,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                                 x={toCanvasX(pos.x)}
                                 y={toCanvasZ(pos.z)}
                             >
-                                <NodeShape node={node} colors={defaultColors} showNode={showNodes} showBearing={showBearings} />
+                                <NodeShape node={node} colors={{ stroke: THEME.nodeStroke, nodeFill: THEME.nodeFill, supportFill: THEME.supportFill, text: THEME.nodeText }} showNode={showNodes} showBearing={showBearings} />
                             </Group>
                         );
                     })}
