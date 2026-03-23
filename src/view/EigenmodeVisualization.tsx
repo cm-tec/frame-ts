@@ -1,0 +1,234 @@
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import Konva from "konva";
+import { SystemSolver } from "../solver/SystemSolver";
+import { ActionIcon, Box, Divider, Flex, Group, NumberInput, Paper, Slider, Table, Text } from '@mantine/core';
+import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
+import type { StructuralSystem } from "../solver/StructuralSystem";
+import { matrix, zeros } from "mathjs";
+import StructuralSystemViewer from "./StructuralSystemViewer";
+import { useAnimationStore } from "../store/animationStore";
+
+export default function EigenmodeVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
+    const [selectedMode, setSelectedMode] = useState(0);
+    const [isRunning, setIsRunning] = useState(false);
+    const [speed, setSpeed] = useState(1);
+    const [scale, setScale] = useState(1);
+    const [animKey, setAnimKey] = useState(0);
+
+    const animRef = useRef<Konva.Animation | null>(null);
+    const speedRef = useRef(speed);
+    useEffect(() => { speedRef.current = speed; }, [speed]);
+
+    const solution = useMemo(() => {
+        const solver = new SystemSolver(structuralSystem);
+        const N = solver.non_restrained.length;
+        return solver.solve(matrix(zeros([2 * N, 1])));
+    }, [structuralSystem]);
+
+    // Extract physical modes from eigenvalues. Complex conjugate pairs share a mode shape;
+    // we keep only entries with im >= 0 (positive-frequency side of each pair).
+    // lambda = sigma +- i omega_d
+    // omega_n = |lambda| = sqrt(sigma^2 + omega_d^2)
+    // zeta = -sigma / omega_n
+    // period = 2 pi/omega_d
+    const modes = useMemo(() => {
+        const n = solution.eigenValues.size()[0];
+        const result: { stateSpaceIndex: number; omegaN: number; omegaD: number; omegaR: number | null; zeta: number; period: number }[] = [];
+
+        for (let i = 0; i < n; i++) {
+            const lambda = solution.eigenValues.get([i, 0]);
+            if (lambda.im < 0) continue; // skip conjugate
+
+            const sigma = lambda.re;
+            const omegaD = lambda.im;
+            const omegaN = Math.sqrt(sigma * sigma + omegaD * omegaD);
+            const zeta = omegaN > 0 ? -sigma / omegaN : 0;
+            const period = omegaD > 0 ? (2 * Math.PI / omegaD) : Infinity;
+            const omegaR = zeta < Math.SQRT1_2 ? omegaN * Math.sqrt(1 - 2 * zeta * zeta) : null;
+            result.push({ stateSpaceIndex: i, omegaN, omegaD, omegaR, zeta, period });
+        }
+
+        result.sort((a, b) => a.omegaN - b.omegaN);
+        return result;
+    }, [solution]);
+
+    // Auto-scale: sample mode at quarter-period to approximate peak amplitude,
+    // then scale so max displacement is ~15% of structure extent.
+    const autoScale = useMemo(() => {
+        const mode = modes[selectedMode];
+        if (!mode) return 1;
+
+        const xs = structuralSystem.nodes.map(n => n.x);
+        const zs = structuralSystem.nodes.map(n => n.z);
+        const extent = Math.max(
+            Math.max(...xs) - Math.min(...xs),
+            Math.max(...zs) - Math.min(...zs),
+            1
+        );
+
+        const tSample = mode.omegaD > 0 ? Math.PI / (2 * mode.omegaD) : 1;
+        const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, tSample);
+
+        let maxDisp = 0;
+        for (let i = 0; i < solution.NDOF; i++) {
+            maxDisp = Math.max(maxDisp, Math.abs(disp.get([i])));
+        }
+
+        return maxDisp > 0 ? (extent * 0.15) / maxDisp : 1;
+    }, [solution, modes, selectedMode, structuralSystem]);
+
+    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
+        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
+        const mode = modes[selectedMode];
+        if (!mode) return { x: node.x, z: node.z };
+
+        const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
+        const factor = autoScale * scale;
+
+        const ui = solution.non_restrained.indexOf(node.u_dof);
+        const vi = solution.non_restrained.indexOf(node.v_dof);
+
+        return {
+            x: node.x + (ui >= 0 ? disp.get([ui]) * factor : 0),
+            z: node.z + (vi >= 0 ? disp.get([vi]) * factor : 0),
+        };
+    }, [structuralSystem, solution, modes, selectedMode, autoScale, scale]);
+
+    const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
+        const element = structuralSystem.elements.find(e => e.id === elementId)!;
+        return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
+    }, [structuralSystem, getNodePosition]);
+
+    useEffect(() => {
+        const anim = new Konva.Animation((frame) => {
+            if (!frame) return;
+            useAnimationStore.setState({ time: speedRef.current * frame.time / 1000 });
+        });
+        animRef.current = anim;
+        return () => { anim.stop(); };
+    }, [animKey]);
+
+    useEffect(() => {
+        if (!animRef.current) return;
+        if (isRunning) animRef.current.start();
+        else animRef.current.stop();
+    }, [isRunning]);
+
+    const restart = useCallback(() => {
+        useAnimationStore.setState({ time: 0 });
+        setIsRunning(false);
+        setAnimKey(k => k + 1);
+    }, []);
+
+    const selectMode = useCallback((i: number) => {
+        setSelectedMode(i);
+        restart();
+    }, [restart]);
+
+    const currentMode = modes[selectedMode];
+
+    return (
+        <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
+            <Flex style={{ flex: 1, overflow: 'hidden' }}>
+
+                <Box style={{ width: "70%", height: "100%", backgroundColor: "var(--mantine-color-gray-0)" }}>
+                    <StructuralSystemViewer
+                        structuralSystem={structuralSystem}
+                        getNodePosition={getNodePosition}
+                        getElementPositions={getElementPositions}
+                        showUndeformedSystem={true}
+                        showNodes={true}
+                        showBearings={true}
+                    />
+                </Box>
+
+                <Box style={{ width: "30%", height: "100%", overflowY: 'auto', backgroundColor: '#f8f9fa', borderLeft: '1px solid #dee2e6' }}>
+                    <Flex direction="column" gap="md" p="md">
+                        <Text size="xs" fw={700} c="dimmed">EIGENMODES</Text>
+
+                        <Table highlightOnHover withTableBorder withColumnBorders fz="xs">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th>Mode</Table.Th>
+                                    <Table.Th>ωₙ (rad/s)</Table.Th>
+                                    <Table.Th>ωd (rad/s)</Table.Th>
+                                    <Table.Th>ωr (rad/s)</Table.Th>
+                                    <Table.Th>ζ</Table.Th>
+                                    <Table.Th>T (s)</Table.Th>
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {modes.map((mode, i) => (
+                                    <Table.Tr
+                                        key={i}
+                                        style={{
+                                            cursor: 'pointer',
+                                            backgroundColor: selectedMode === i ? 'var(--mantine-color-blue-1)' : undefined,
+                                        }}
+                                        onClick={() => selectMode(i)}
+                                    >
+                                        <Table.Td fw={selectedMode === i ? 700 : 400}>{i + 1}</Table.Td>
+                                        <Table.Td>{mode.omegaN.toFixed(3)}</Table.Td>
+                                        <Table.Td>{mode.omegaD.toFixed(3)}</Table.Td>
+                                        <Table.Td>{mode.omegaR !== null ? mode.omegaR.toFixed(3) : '—'}</Table.Td>
+                                        <Table.Td>{mode.zeta.toFixed(3)}</Table.Td>
+                                        <Table.Td>{mode.period === Infinity ? '—' : mode.period.toFixed(3)}</Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+
+                        <Divider />
+
+                        <Box>
+                            <Text size="xs" fw={700} c="dimmed" mb="xs">AMPLITUDE SCALE ×{scale.toFixed(1)}</Text>
+                            <Slider
+                                value={scale}
+                                onChange={setScale}
+                                min={0.1}
+                                max={5}
+                                step={0.1}
+                                label={(v) => `×${v.toFixed(1)}`}
+                            />
+                        </Box>
+                    </Flex>
+                </Box>
+            </Flex>
+
+            <Paper px="xl" py="xs" shadow="xl" withBorder style={{ zIndex: 100, borderRadius: 0, flexShrink: 0 }}>
+                <Group justify="space-between" align="center">
+
+                    <Text size="sm" fw={500}>
+                        {currentMode
+                            ? `Mode ${selectedMode + 1} — ωₙ = ${currentMode.omegaN.toFixed(3)} rad/s, ζ = ${currentMode.zeta.toFixed(3)}`
+                            : 'No modes'}
+                    </Text>
+
+                    <Group gap="xs">
+                        <ActionIcon
+                            onClick={() => setIsRunning(r => !r)}
+                            color={isRunning ? 'orange' : 'green'}
+                            variant="light"
+                            size="lg"
+                        >
+                            {isRunning ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
+                        </ActionIcon>
+                        <ActionIcon onClick={restart} variant="default" size="lg" aria-label="Restart">
+                            <IconRotateClockwise size={20} />
+                        </ActionIcon>
+                    </Group>
+
+                    <Group gap="xs" align="center">
+                        <Text size="sm">Speed</Text>
+                        <NumberInput
+                            value={speed}
+                            onChange={(v) => setSpeed(Number(v) || 1)}
+                            w={60} size="sm" step={0.1} min={0.1} hideControls
+                        />
+                    </Group>
+
+                </Group>
+            </Paper>
+        </Flex>
+    );
+}
