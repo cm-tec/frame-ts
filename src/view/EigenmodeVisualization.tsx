@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Konva from "konva";
 import { SystemSolver } from "../solver/SystemSolver";
-import { ActionIcon, Box, Divider, Flex, Group, NumberInput, Paper, Slider, Table, Text } from '@mantine/core';
-import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
+import { Box, Divider, Flex, Slider, Table, Text } from '@mantine/core';
 import type { StructuralSystem } from "../solver/StructuralSystem";
 import { matrix, zeros } from "mathjs";
 import StructuralSystemViewer from "./StructuralSystemViewer";
 import { useAnimationStore } from "../store/animationStore";
+import { PlaybackBar } from "./PlaybackBar";
 
 export default function EigenmodeVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [selectedMode, setSelectedMode] = useState(0);
@@ -14,6 +14,9 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
     const [speed, setSpeed] = useState(1);
     const [scale, setScale] = useState(1);
     const [animKey, setAnimKey] = useState(0);
+    const [showUndeformedSystem, setShowUndeformedSystem] = useState(true);
+    const [showNodes, setShowNodes] = useState(true);
+    const [showBearings, setShowBearings] = useState(true);
 
     const animRef = useRef<Konva.Animation | null>(null);
     const speedRef = useRef(speed);
@@ -125,8 +128,6 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
         restart();
     }, [restart]);
 
-    const currentMode = modes[selectedMode];
-
     return (
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
             <Flex style={{ flex: 1, overflow: 'hidden' }}>
@@ -136,9 +137,9 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
-                        showUndeformedSystem={true}
-                        showNodes={true}
-                        showBearings={true}
+                        showUndeformedSystem={showUndeformedSystem}
+                        showNodes={showNodes}
+                        showBearings={showBearings}
                     />
                 </Box>
 
@@ -195,40 +196,24 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
                 </Box>
             </Flex>
 
-            <Paper px="xl" py="xs" shadow="xl" withBorder style={{ zIndex: 100, borderRadius: 0, flexShrink: 0 }}>
-                <Group justify="space-between" align="center">
-
+            <PlaybackBar
+                speed={speed}
+                onSpeedChange={setSpeed}
+                isRunning={isRunning}
+                onToggle={() => setIsRunning(r => !r)}
+                onRestart={restart}
+                showUndeformedSystem={showUndeformedSystem}
+                onShowUndeformedChange={setShowUndeformedSystem}
+                showNodes={showNodes}
+                onShowNodesChange={setShowNodes}
+                showBearings={showBearings}
+                onShowBearingsChange={setShowBearings}
+                leftExtra={modes[selectedMode] &&
                     <Text size="sm" fw={500}>
-                        {currentMode
-                            ? `Mode ${selectedMode + 1} — ωₙ = ${currentMode.omegaN.toFixed(3)} rad/s, ζ = ${currentMode.zeta.toFixed(3)}`
-                            : 'No modes'}
+                        Mode {selectedMode + 1}
                     </Text>
-
-                    <Group gap="xs">
-                        <ActionIcon
-                            onClick={() => setIsRunning(r => !r)}
-                            color={isRunning ? 'orange' : 'green'}
-                            variant="light"
-                            size="lg"
-                        >
-                            {isRunning ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
-                        </ActionIcon>
-                        <ActionIcon onClick={restart} variant="default" size="lg" aria-label="Restart">
-                            <IconRotateClockwise size={20} />
-                        </ActionIcon>
-                    </Group>
-
-                    <Group gap="xs" align="center">
-                        <Text size="sm">Speed</Text>
-                        <NumberInput
-                            value={speed}
-                            onChange={(v) => setSpeed(Number(v) || 1)}
-                            w={60} size="sm" step={0.1} min={0.1} hideControls
-                        />
-                    </Group>
-
-                </Group>
-            </Paper>
+                }
+            />
         </Flex>
     );
 }

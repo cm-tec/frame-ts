@@ -1,23 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import Konva from "konva";
 import { SystemSolver } from "../solver/SystemSolver";
-import { ActionIcon, Box, Checkbox, Divider, Flex, Group, NumberInput, Paper, Text } from '@mantine/core';
-import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
+import { Box, Flex } from '@mantine/core';
 import type { StructuralSystem } from "../solver/StructuralSystem";
 import { matrix, zeros } from "mathjs";
 import StructuralSystemViewer from "./StructuralSystemViewer";
 import { DiagramSidebar } from "./DiagramSidebar";
 import { useAnimationStore } from "../store/animationStore";
-
-function TimeDisplay() {
-    const ref = useRef<HTMLParagraphElement>(null);
-    useEffect(() => {
-        return useAnimationStore.subscribe(state => {
-            if (ref.current) ref.current.textContent = `${state.time.toFixed(2)} s`;
-        });
-    }, []);
-    return <Text ref={ref} fw={500} size="sm" w={60}>{useAnimationStore.getState().time.toFixed(2)} s</Text>;
-}
+import { PlaybackBar } from "./PlaybackBar";
 
 export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [speed, setSpeed] = useState(1);
@@ -100,8 +90,6 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         else animRef.current.stop();
     }, [isRunning]);
 
-    const pauseAnimation = () => setIsRunning(false);
-    const resumeAnimation = () => setIsRunning(true);
     const restartAnimation = () => {
         useAnimationStore.setState({ time: 0 });
         setIsRunning(false);
@@ -129,66 +117,19 @@ export default function SolutionVisualization({ structuralSystem }: { structural
                 />
             </Flex>
 
-            <Paper px="xl" py="xs" shadow="xl" withBorder style={{ zIndex: 100, borderRadius: 0, flexShrink: 0 }}>
-                <Group justify="space-between" align="center">
-
-                    <Group gap="xs" align="center">
-                        <TimeDisplay />
-                        <Divider orientation="vertical" color="gray.3" />
-                        <Text size="sm">Speed</Text>
-                        <NumberInput
-                            value={speed}
-                            onChange={(v) => setSpeed(Number(v) || 1)}
-                            w={60}
-                            size="sm"
-                            step={0.1}
-                            min={0.1}
-                            hideControls
-                        />
-                    </Group>
-
-                    <Group gap="xs">
-                        <ActionIcon
-                            onClick={isRunning ? pauseAnimation : resumeAnimation}
-                            color={isRunning ? 'orange' : 'green'}
-                            variant="light"
-                            size="lg"
-                            aria-label={isRunning ? "Pause" : "Resume"}
-                        >
-                            {isRunning ? <IconPlayerPause size={20} /> : <IconPlayerPlay size={20} />}
-                        </ActionIcon>
-                        <ActionIcon
-                            onClick={restartAnimation}
-                            variant="default"
-                            size="lg"
-                            aria-label="Restart"
-                        >
-                            <IconRotateClockwise size={20} />
-                        </ActionIcon>
-                    </Group>
-
-                    <Group gap="xs" align="center">
-                        <Checkbox
-                            label="Show Undeformed"
-                            checked={showUndeformedSystem}
-                            onChange={(e) => setShowUndeformedSystem(e.currentTarget.checked)}
-                            size="sm"
-                        />
-                        <Checkbox
-                            label="Show Nodes"
-                            checked={showNodes}
-                            onChange={(e) => setShowNodes(e.currentTarget.checked)}
-                            size="sm"
-                        />
-                        <Checkbox
-                            label="Show Bearings"
-                            checked={showBearings}
-                            onChange={(e) => setShowBearings(e.currentTarget.checked)}
-                            size="sm"
-                        />
-                    </Group>
-                </Group>
-            </Paper>
+            <PlaybackBar
+                speed={speed}
+                onSpeedChange={setSpeed}
+                isRunning={isRunning}
+                onToggle={() => setIsRunning(r => !r)}
+                onRestart={restartAnimation}
+                showUndeformedSystem={showUndeformedSystem}
+                onShowUndeformedChange={setShowUndeformedSystem}
+                showNodes={showNodes}
+                onShowNodesChange={setShowNodes}
+                showBearings={showBearings}
+                onShowBearingsChange={setShowBearings}
+            />
         </Flex>
     );
 }
