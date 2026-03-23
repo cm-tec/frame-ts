@@ -161,9 +161,6 @@ export class SystemSolver {
         let eigenVectors = getEigenvectors(a);
         let eigenValues = getEigenvalues(a);
 
-        console.log(eigenVectors);
-        console.log(eigenValues);
-
         let coefficients = lusolve(eigenVectors, initialConditions);
 
         return new SystemSolution(
@@ -278,4 +275,19 @@ export class SystemSolution {
         }
         return w;
     }
+
+    // Get the displacements of all dofs for eigenmode n at certain time t
+    get_w_total_of_eigenmode(eigenmode: number, t: number): Matrix {
+        if (eigenmode < 0 || eigenmode >= this.eigenValues.size()[0])
+            throw new Error(`Eigenmode ${eigenmode} out of range`);
+
+        const lambda = this.eigenValues.get([eigenmode, 0]);
+
+        const eigenvector = subset(this.eigenVectors, index(range(0, this.NDOF * 2), eigenmode))
+
+        const e = exp(multiply(lambda, t) as any);
+
+        return multiply(eigenvector, e).map((v, _) => v.re)
+    }
+
 }
