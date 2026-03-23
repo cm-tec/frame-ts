@@ -1,4 +1,4 @@
-import { add, all, atan2, complex, create, dot, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, ones, phi, range, rotationMatrix, row, sqrt, subset, transpose, zeros, type MathJsInstance, type Matrix } from "mathjs";
+import { add, eigs, atan2, complex, create, dot, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, ones, phi, range, rotationMatrix, row, sqrt, subset, transpose, zeros, type MathJsInstance, type Matrix } from "mathjs";
 import { assert } from "vitest";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import type { StructuralSystem } from "./StructuralSystem";
@@ -170,6 +170,49 @@ export class SystemSolver {
             this.restrained,
             this.non_restrained
         );
+    }
+
+    isKinematic(threshold: number = 1e-9): boolean {
+        return this.getKinematicModes(threshold).length > 0;
+    }
+
+    getKinematicModes(threshold: number = 1e-9): Matrix[] {
+        return eigs(this.k_11).eigenvectors
+            .filter(ev => Math.abs(ev.value as number) < threshold)
+            .map(ev => ev.vector as Matrix);
+    }
+
+    solveKinematic(threshold: number = 1e-9): KinematicSystemSolution {
+        return new KinematicSystemSolution(
+            this.getKinematicModes(threshold),
+            this.restrained,
+            this.non_restrained
+        );
+    }
+}
+
+
+export class KinematicSystemSolution {
+    NDOF: number;
+    modes: Matrix[];
+    restrained: number[];
+    non_restrained: number[];
+
+    constructor(modes: Matrix[], restrained: number[], non_restrained: number[]) {
+        this.modes = modes;
+        this.restrained = restrained;
+        this.non_restrained = non_restrained;
+        this.NDOF = non_restrained.length;
+    }
+
+    get_w(modeIndex: number, dof: number): number {
+        if (this.restrained.includes(dof)) return 0;
+
+        const i = this.non_restrained.indexOf(dof);
+
+        if (i < 0) throw Error();
+
+        return this.modes[modeIndex].get([i]);
     }
 }
 

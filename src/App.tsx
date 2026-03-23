@@ -1,5 +1,6 @@
 import SolutionVisualization from "./view/SolutionVisualization";
 import EigenmodeVisualization from "./view/EigenmodeVisualization";
+import KinematicSystemVisualization from "./view/KinematicSystemVisualization";
 import Editor from "./view/Editor";
 
 import '@mantine/core/styles.css';
@@ -9,6 +10,7 @@ import { useMemo, useState } from "react";
 
 import { type Node, type Element } from "./models/models";
 import { StructuralSystem } from "./solver/StructuralSystem";
+import { SystemSolver } from "./solver/SystemSolver";
 
 
 export default function App() {
@@ -28,6 +30,7 @@ export default function App() {
   ]);
 
   const structuralSystem = useMemo(() => new StructuralSystem(nodes, elements), [nodes, elements]);
+  const isKinematic = useMemo(() => new SystemSolver(structuralSystem).isKinematic(), [structuralSystem]);
 
   return (
     <MantineProvider>
@@ -35,7 +38,7 @@ export default function App() {
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
             <Text fw={700} size="lg">Truss</Text>
-            {!editMode && (
+            {!editMode && !isKinematic && (
               <SegmentedControl
                 value={view}
                 onChange={(v) => setView(v as 'response' | 'eigenmodes')}
@@ -53,8 +56,9 @@ export default function App() {
         </AppShell.Header>
         <AppShell.Main>
           {editMode && <Editor nodes={nodes} setNodes={setNodes} elements={elements} setElements={setElements} />}
-          {!editMode && view === 'response' && <SolutionVisualization structuralSystem={structuralSystem} />}
-          {!editMode && view === 'eigenmodes' && <EigenmodeVisualization structuralSystem={structuralSystem} />}
+          {!editMode && isKinematic && <KinematicSystemVisualization structuralSystem={structuralSystem} />}
+          {!editMode && !isKinematic && view === 'response' && <SolutionVisualization structuralSystem={structuralSystem} />}
+          {!editMode && !isKinematic && view === 'eigenmodes' && <EigenmodeVisualization structuralSystem={structuralSystem} />}
         </AppShell.Main>
       </AppShell>
     </MantineProvider>
