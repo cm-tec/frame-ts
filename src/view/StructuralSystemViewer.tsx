@@ -19,29 +19,29 @@ interface StructuralSystemViewerProps {
 // ─── Visual theme ─────────────────────────────────────────────────────────────
 const THEME = {
     // Sizes
-    nodeRadius: 16,
-    elementStrokeWidth: 7,
+    nodeRadius: 14,
+    elementStrokeWidth: 6,
     elementLabelFontSize: 13,
     nodeFontSize: 14,
     bearingStrokeWidth: 1.5,
     elementLabelCornerRadius: 6,
 
     // Active system colors
-    nodeStroke: '#2d2d2d',
+    nodeStroke: '#1e293b',
     nodeFill: '#ffffff',
-    nodeText: '#2d2d2d',
-    supportFill: '#c0c0c0',
-    elementStroke: '#2d2d2d',
+    nodeText: '#1e293b',
+    supportFill: '#475569',
+    elementStroke: '#ff349a',
     elementLabelFill: '#ffffff',
-    elementLabelStroke: '#2d2d2d',
-    elementLabelText: '#2d2d2d',
+    elementLabelStroke: '#e2e8f0',
+    elementLabelText: '#1e293b',
 
     // Ghost (undeformed) system colors
-    ghostNodeStroke: '#c0c0c0',
-    ghostNodeFill: '#f5f5f5',
-    ghostNodeText: '#c0c0c0',
-    ghostSupportFill: '#e0e0e0',
-    ghostElementStroke: '#c8c8c8',
+    ghostNodeStroke: '#cbd5e1',
+    ghostNodeFill: '#f8fafc',
+    ghostNodeText: '#cbd5e1',
+    ghostSupportFill: '#e2e8f0',
+    ghostElementStroke: '#e2e8f0',
     ghostElementStrokeWidth: 5,
     ghostElementDash: [8, 5] as number[],
 
@@ -52,8 +52,8 @@ const THEME = {
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
-const CIRCLE_RADIUS = THEME.nodeRadius;
-const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
+
+const TEXT_BOX_SIZE = THEME.nodeRadius * 2;
 const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
 
@@ -66,8 +66,8 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(-2 * CIRCLE_RADIUS, -1.4 * CIRCLE_RADIUS);
-                ctx.lineTo(-2 * CIRCLE_RADIUS, 1.4 * CIRCLE_RADIUS);
+                ctx.lineTo(-2 * THEME.nodeRadius, -1.4 * THEME.nodeRadius);
+                ctx.lineTo(-2 * THEME.nodeRadius, 1.4 * THEME.nodeRadius);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
@@ -76,15 +76,15 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(-1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
-                ctx.lineTo(1.4 * CIRCLE_RADIUS, 2 * CIRCLE_RADIUS);
+                ctx.lineTo(-1.4 * THEME.nodeRadius, 2 * THEME.nodeRadius);
+                ctx.lineTo(1.4 * THEME.nodeRadius, 2 * THEME.nodeRadius);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
         )}
 
 
-        <Circle visible={showNode} radius={CIRCLE_RADIUS} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
+        <Circle visible={showNode} radius={THEME.nodeRadius} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
 
         <Text visible={showNode} x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={THEME.nodeFontSize} fontStyle="bold" fill={colors.text} align="center" verticalAlign="middle" />
     </>;
