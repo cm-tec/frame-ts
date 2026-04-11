@@ -9,8 +9,8 @@ import { matrix } from 'mathjs';
 test('bernoulli beam', () => {
     const system = new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, restrained_phi: false },
-            { id: 2, x: 1, z: 0, mass: 1, restrained_u: false, restrained_v: true, restrained_phi: false },
+            { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true },
+            { id: 2, x: 1, z: 0, mass: 1, restrained_u: false, restrained_v: true },
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: 1, ei: 1, c: 1 },

@@ -1,4 +1,4 @@
-import { add, eigs, atan2, complex, create, dot, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, ones, phi, range, rotationMatrix, row, sqrt, subset, transpose, zeros, type MathJsInstance, type Matrix } from "mathjs";
+import { add, eigs, atan2, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, range, rotationMatrix, row, subset, transpose, zeros, type Matrix } from "mathjs";
 import { assert } from "vitest";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import type { StructuralSystem } from "./StructuralSystem";
