@@ -108,9 +108,6 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
                         <Text size="xs" fw={700} c="dimmed">KINEMATIC MODES</Text>
 
                         <Table highlightOnHover withTableBorder withColumnBorders fz="xs">
-                            <Table.Thead>
-                                <Table.Tr><Table.Th>Mode</Table.Th></Table.Tr>
-                            </Table.Thead>
                             <Table.Tbody>
                                 {solution.modes.map((_, i) => (
                                     <Table.Tr
