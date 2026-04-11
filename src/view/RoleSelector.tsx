@@ -7,7 +7,7 @@ export default function SupportSelector({ currentValue, onChange }: { currentVal
         <Select
             data={Object.values(Support)}
             value={currentValue.toString()}
-            onChange={(v) => onChange(Support[v])}
+            onChange={(v) => { if (v !== null) onChange(Support[v as keyof typeof Support]); }}
         />
     );
 }

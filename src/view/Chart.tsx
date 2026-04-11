@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { useAnimationStore } from '../store/animationStore';
 
@@ -28,7 +28,7 @@ ChartJS.register(
 
 const verticalLinePlugin = {
     id: 'verticalLinePlugin',
-    afterDraw: (chart: { scales?: any; ctx?: any; chartArea?: any; }, args: any, options: { xValue: any; color: string; }) => {
+    afterDraw: (chart: { scales?: any; ctx?: any; chartArea?: any; }, _args: any, options: { xValue: any; color: string; }) => {
         const { ctx, chartArea: { top, bottom } } = chart;
         const x = chart.scales.x.getPixelForValue(options.xValue);
 

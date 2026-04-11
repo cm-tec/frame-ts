@@ -1,4 +1,4 @@
-import { all, concat, eigs, equal, flatten, zeros, type Matrix } from "mathjs";
+import { concat, eigs, flatten, matrix, reshape, type Matrix } from "mathjs";
 
 
 export function getEigenvectors(m: Matrix): Matrix {
@@ -6,10 +6,10 @@ export function getEigenvectors(m: Matrix): Matrix {
 
     let eigen = eigs(m).eigenvectors;
 
-    let r = eigen.at(0)?.vector.reshape([ncols, 1]);
+    let r = reshape(eigen.at(0)!.vector as Matrix, [ncols, 1]) as Matrix;
 
     for (let i = 1; i < ncols; i++) {
-        r = concat(r, eigen.at(i)?.vector.reshape([ncols, 1]),);
+        r = concat(r, reshape(eigen.at(i)!.vector as Matrix, [ncols, 1])) as Matrix;
     }
 
     return r;
@@ -21,11 +21,8 @@ export function getEigenvalues(m: Matrix): Matrix {
 
     let eigen = eigs(m).eigenvectors;
 
-    let r = zeros(nrows);
-
-    return r.map((v, i) => {
-        return eigen.at(i)?.value;
-    }).reshape([nrows, 1])
+    const values = eigen.slice(0, nrows).map(e => e.value as number);
+    return reshape(matrix(values), [nrows, 1]) as Matrix;
 }
 
 

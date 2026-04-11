@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Stage, Layer, Circle, Line } from 'react-konva';
 import Konva from 'konva';
 

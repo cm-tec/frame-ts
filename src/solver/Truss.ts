@@ -16,7 +16,7 @@ N_6 = zeta ((zeta/L)^2 - zeta/L)
 import { add, matrix, multiply } from "mathjs";
 
 
-function k_element(EA: number, EI: number, l: number) {
+export function k_element(EA: number, EI: number, l: number) {
     const k_axial = multiply(EA / l, matrix(
         [
             [1, 0, 0, -1, 0, 0],
