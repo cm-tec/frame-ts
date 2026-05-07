@@ -219,6 +219,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+    const [equalScale, setEqualScale] = useState(false);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -252,13 +253,28 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     const { width: canvasWidth, height: canvasHeight } = stageSize;
 
+    const equalScaleParams = useMemo(() => {
+        if (!equalScale || canvasWidth === 0 || canvasHeight === 0) return null;
+        const sx = (1 - 2 * MARGIN_X) * canvasWidth / contentWidth;
+        const sz = (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
+        return {
+            scale: Math.min(sx, sz),
+            cx: minX + contentWidth / 2,
+            cz: minZ + contentHeight / 2,
+        };
+    }, [equalScale, canvasWidth, canvasHeight, contentWidth, contentHeight, minX, minZ]);
+
     const toCanvasX = useCallback((x: number) => {
+        if (equalScaleParams)
+            return canvasWidth / 2 + (x - equalScaleParams.cx) * equalScaleParams.scale;
         return MARGIN_X * canvasWidth + (x - minX) * (1 - 2 * MARGIN_X) * canvasWidth / contentWidth;
-    }, [canvasWidth, minX, contentWidth]);
+    }, [canvasWidth, minX, contentWidth, equalScaleParams]);
 
     const toCanvasZ = useCallback((z: number) => {
+        if (equalScaleParams)
+            return canvasHeight / 2 + (z - equalScaleParams.cz) * equalScaleParams.scale;
         return MARGIN_Z * canvasHeight + (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
-    }, [canvasHeight, minZ, contentHeight]);
+    }, [canvasHeight, minZ, contentHeight, equalScaleParams]);
 
     // Refs to keep callbacks fresh without restarting subscriptions
     const toCanvasXRef = useRef(toCanvasX);
@@ -311,7 +327,19 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     }, [toCanvasX, toCanvasZ, applyPositions]);
 
     return (
-        <div ref={containerRef} style={{ width: "100%", height: "100%" }}>
+        <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+            <button
+                onClick={() => setEqualScale(v => !v)}
+                style={{
+                    position: "absolute", top: 8, right: 8, zIndex: 10,
+                    padding: "3px 8px", fontSize: 12, fontWeight: "bold",
+                    background: equalScale ? "#1e293b" : "#f1f5f9",
+                    color: equalScale ? "#f1f5f9" : "#1e293b",
+                    border: "1px solid #94a3b8", borderRadius: 4, cursor: "pointer",
+                }}
+            >
+                1:1
+            </button>
             <Stage width={canvasWidth} height={canvasHeight}>
                 <GridLayer
                     canvasWidth={canvasWidth}
