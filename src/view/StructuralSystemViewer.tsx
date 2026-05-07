@@ -56,6 +56,8 @@ const THEME = {
 const TEXT_BOX_SIZE = THEME.nodeRadius * 2;
 const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
+const CONTENT_MIN_DIM = 1.0;
+const CONTENT_MAX_RATIO = 5;
 
 type NodeColors = { supportFill: string; nodeFill: string; stroke: string; text: string };
 
@@ -232,9 +234,15 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     const { minX, minZ, contentWidth, contentHeight } = useMemo(() => {
         const xs = structuralSystem.nodes.map(n => n.x);
         const zs = structuralSystem.nodes.map(n => n.z);
-        const minX = min(xs), maxX = max(xs);
-        const minZ = min(zs), maxZ = max(zs);
-        return { minX, minZ, contentWidth: maxX - minX, contentHeight: maxZ - minZ };
+        const rawMinX = min(xs), rawMaxX = max(xs);
+        const rawMinZ = min(zs), rawMaxZ = max(zs);
+        const rawW = rawMaxX - rawMinX;
+        const rawH = rawMaxZ - rawMinZ;
+        const contentWidth = Math.max(rawW, rawH / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
+        const contentHeight = Math.max(rawH, rawW / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
+        const minX = rawMinX - (contentWidth - rawW) / 2;
+        const minZ = rawMinZ - (contentHeight - rawH) / 2;
+        return { minX, minZ, contentWidth, contentHeight };
     }, [structuralSystem]);
 
     const nodeMap = useMemo(
@@ -245,15 +253,10 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     const { width: canvasWidth, height: canvasHeight } = stageSize;
 
     const toCanvasX = useCallback((x: number) => {
-        if (contentWidth === 0) return canvasWidth / 2;
         return MARGIN_X * canvasWidth + (x - minX) * (1 - 2 * MARGIN_X) * canvasWidth / contentWidth;
     }, [canvasWidth, minX, contentWidth]);
 
     const toCanvasZ = useCallback((z: number) => {
-        if (contentHeight === 0) {
-            if (z === minZ) return canvasHeight / 2;
-            return canvasHeight / 2 + (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / 10;
-        }
         return MARGIN_Z * canvasHeight + (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
     }, [canvasHeight, minZ, contentHeight]);
 
