@@ -10,6 +10,8 @@ import { type Node, type Element } from "../models/models";
 const CIRCLE_RADIUS = 20;
 const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 const SIDEBAR_WIDTH = 420;
+const CONTENT_MIN_DIM = 1.0;
+const CONTENT_MAX_RATIO = 5;
 
 interface ElementShapeProps {
     element: Element;
@@ -169,23 +171,42 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
     const marginX = 0.05;
     const marginZ = 0.1;
 
+    const [equalScale, setEqualScale] = useState(false);
+
     const { minX, minZ, contentWidth, contentHeight } = useMemo(() => {
         const xs = nodes.map(n => n.x);
         const zs = nodes.map(n => n.z);
-        const minX = min(xs);
-        const maxX = max(xs);
-        const minZ = min(zs);
-        const maxZ = max(zs);
-        return { minX, minZ, contentWidth: maxX - minX, contentHeight: maxZ - minZ };
+        const rawMinX = min(xs), rawMaxX = max(xs);
+        const rawMinZ = min(zs), rawMaxZ = max(zs);
+        const rawW = rawMaxX - rawMinX;
+        const rawH = rawMaxZ - rawMinZ;
+        const contentWidth = Math.max(rawW, rawH / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
+        const contentHeight = Math.max(rawH, rawW / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
+        const minX = rawMinX - (contentWidth - rawW) / 2;
+        const minZ = rawMinZ - (contentHeight - rawH) / 2;
+        return { minX, minZ, contentWidth, contentHeight };
     }, [nodes]);
 
+    const equalScaleParams = useMemo(() => {
+        if (!equalScale || canvasSize.width === 0 || canvasSize.height === 0) return null;
+        const sx = (1 - 2 * marginX) * canvasSize.width / contentWidth;
+        const sz = (1 - 2 * marginZ) * canvasSize.height / contentHeight;
+        return {
+            scale: Math.min(sx, sz),
+            cx: minX + contentWidth / 2,
+            cz: minZ + contentHeight / 2,
+        };
+    }, [equalScale, canvasSize.width, canvasSize.height, contentWidth, contentHeight, minX, minZ]);
+
     const toCanvasX = (x: number) => {
-        if (contentWidth == 0) return canvasSize.width / 2;
+        if (equalScaleParams)
+            return canvasSize.width / 2 + (x - equalScaleParams.cx) * equalScaleParams.scale;
         return marginX * canvasSize.width + (x - minX) * (1 - 2 * marginX) * canvasSize.width / contentWidth;
     };
 
     const toCanvasZ = (z: number) => {
-        if (contentHeight == 0) return canvasSize.height / 2;
+        if (equalScaleParams)
+            return canvasSize.height / 2 + (z - equalScaleParams.cz) * equalScaleParams.scale;
         return marginZ * canvasSize.height + (z - minZ) * (1 - 2 * marginZ) * canvasSize.height / contentHeight;
     };
 
@@ -193,7 +214,15 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
         <Flex h="calc(100vh - var(--app-shell-header-height, 50px))">
 
             {/* Canvas */}
-            <Box ref={canvasContainerRef} style={{ flex: 1, background: 'var(--mantine-color-gray-0)' }}>
+            <Box ref={canvasContainerRef} style={{ flex: 1, background: 'var(--mantine-color-gray-0)', position: 'relative' }}>
+                <Button
+                    size="xs"
+                    variant={equalScale ? 'filled' : 'default'}
+                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}
+                    onClick={() => setEqualScale(v => !v)}
+                >
+                    1:1
+                </Button>
                 <Stage height={canvasSize.height} width={canvasSize.width}>
                     <Layer>
                         {elements.map(element => {
