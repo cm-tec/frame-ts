@@ -321,10 +321,10 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
         return useAnimationStore.subscribe(state => applyPositions(state.time));
     }, [applyPositions]);
 
-    // Reposition when canvas is resized (toCanvasX/Z change)
+    // Reposition after any render that resets Konva point props to their initial value
     useEffect(() => {
         applyPositions(useAnimationStore.getState().time);
-    }, [toCanvasX, toCanvasZ, applyPositions]);
+    }, [toCanvasX, toCanvasZ, applyPositions, showUndeformedSystem, showNodes, showBearings]);
 
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
