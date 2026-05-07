@@ -50,7 +50,7 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
         if (!solution.modes[selectedMode]) return { x: node.x, z: node.z };
 
-        const factor = autoScale * scale * Math.sin(time);
+        const factor = autoScale * scale * Math.cos(time);
         return {
             x: node.x + solution.get_w(selectedMode, node.u_dof) * factor,
             z: node.z + solution.get_w(selectedMode, node.v_dof) * factor,
