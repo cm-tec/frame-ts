@@ -9,7 +9,7 @@ function get_rotation_matrix_of_element(v: [number, number]) {
     const dz = v[1];
 
     const theta = atan2(dz, dx);
-    const t = rotationMatrix(theta) as math.Matrix;
+    const t = transpose(rotationMatrix(theta)) as math.Matrix;
 
     const T_e = identity(4) as math.Matrix;
 
