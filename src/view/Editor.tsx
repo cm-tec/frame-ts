@@ -12,9 +12,24 @@ const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 const SIDEBAR_WIDTH = 420;
 const CONTENT_MIN_DIM = 1.0;
 const CONTENT_MAX_RATIO = 5;
-const GRID_LINE_COLOR = '#e8e8e8';
-const GRID_LABEL_COLOR = '#b0b0b0';
-const GRID_LABEL_FONT_SIZE = 11;
+const BLUEPRINT = {
+    background: '#0a2540',
+    gridLine: 'rgba(255,255,255,0.10)',
+    gridLabel: 'rgba(255,255,255,0.35)',
+    gridLabelSize: 11,
+    element: 'rgba(255,255,255,0.6)',
+    elementLabel: 'rgba(255,255,255,0.85)',
+    elementLabelBg: 'rgba(10,37,64,0.7)',
+    node: '#0a2540',
+    nodeStroke: 'rgba(255,255,255,0.9)',
+    nodeText: 'rgba(255,255,255,0.9)',
+    bearing: 'rgba(255,255,255,0.15)',
+    bearingStroke: 'rgba(255,255,255,0.8)',
+};
+
+const GRID_LINE_COLOR = BLUEPRINT.gridLine;
+const GRID_LABEL_COLOR = BLUEPRINT.gridLabel;
+const GRID_LABEL_FONT_SIZE = BLUEPRINT.gridLabelSize;
 
 function niceInterval(range: number, targetCount = 7): number {
     if (range === 0) return 1;
@@ -49,14 +64,14 @@ function ElementShape({ element, node_i, node_j, toCanvasX, toCanvasZ }: Element
     const textY = z_i + (z_j - z_i) / 2 - TEXT_BOX_SIZE / 2;
 
     return <>
-        <Line stroke="gray" strokeWidth={10} points={[x_i, z_i, x_j, z_j]} />
+        <Line stroke={BLUEPRINT.element} strokeWidth={10} points={[x_i, z_i, x_j, z_j]} />
         <Rect
             x={textX}
             y={textY}
             width={TEXT_BOX_SIZE}
             height={TEXT_BOX_SIZE}
-            fill="white"
-            stroke="black"
+            fill={BLUEPRINT.elementLabelBg}
+            stroke={BLUEPRINT.element}
             strokeWidth={1}
             cornerRadius={10}
         />
@@ -67,7 +82,7 @@ function ElementShape({ element, node_i, node_j, toCanvasX, toCanvasZ }: Element
             height={TEXT_BOX_SIZE}
             text={`${element.id}`}
             fontSize={20}
-            fill="black"
+            fill={BLUEPRINT.elementLabel}
             align="center"
             verticalAlign="middle"
         />
@@ -89,8 +104,8 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
     return <>
         {node.restrained_u && (
             <Shape
-                stroke="black"
-                fill="lightgray"
+                stroke={BLUEPRINT.bearingStroke}
+                fill={BLUEPRINT.bearing}
                 strokeWidth={1}
                 sceneFunc={(context, shape) => {
                     context.beginPath();
@@ -104,8 +119,8 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
         )}
         {node.restrained_v && (
             <Shape
-                stroke="black"
-                fill="lightgray"
+                stroke={BLUEPRINT.bearingStroke}
+                fill={BLUEPRINT.bearing}
                 strokeWidth={1}
                 sceneFunc={(context, shape) => {
                     context.beginPath();
@@ -122,8 +137,8 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
             x={circleX}
             y={circleY}
             radius={CIRCLE_RADIUS}
-            fill="white"
-            stroke="black"
+            fill={BLUEPRINT.node}
+            stroke={BLUEPRINT.nodeStroke}
         />
 
         <KonvaText
@@ -133,7 +148,7 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
             height={TEXT_BOX_SIZE}
             text={`${node.id}`}
             fontSize={20}
-            fill="black"
+            fill={BLUEPRINT.nodeText}
             align="center"
             verticalAlign="middle"
         />
@@ -233,7 +248,7 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
         <Flex h="calc(100vh - var(--app-shell-header-height, 50px))">
 
             {/* Canvas */}
-            <Box ref={canvasContainerRef} style={{ flex: 1, background: 'var(--mantine-color-gray-0)', position: 'relative' }}>
+            <Box ref={canvasContainerRef} style={{ flex: 1, background: BLUEPRINT.background, position: 'relative' }}>
                 <Button
                     size="xs"
                     variant={equalScale ? 'filled' : 'default'}
