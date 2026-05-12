@@ -1,4 +1,4 @@
-import { add, eigs, atan2, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, range, rotationMatrix, row, subset, transpose, zeros, type Matrix } from "mathjs";
+import { add, eigs, atan2, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, range, re, rotationMatrix, row, subset, transpose, zeros, type Matrix } from "mathjs";
 import { assert } from "vitest";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import type { StructuralSystem } from "./StructuralSystem";
@@ -271,7 +271,7 @@ export class SystemSolution {
 
         let ec = dotMultiply(this.coefficients, e);
 
-        return multiply(this.eigenVectors, ec).map((v, _) => v.re)
+        return multiply(this.eigenVectors, ec).map((v, _) => re(v) as unknown as number)
     }
 
     // Get the displacement of a specific dof at certain time t
@@ -284,9 +284,9 @@ export class SystemSolution {
         let e = map(multiply(this.eigenValues, t), exp);
         let ec = dotMultiply(this.coefficients, e);
 
-        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re));
+        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number));
 
-        return multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re).get([0, 0])
+        return multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number).get([0, 0])
     }
 
     get_dw(dof: number, t: number): number {
@@ -298,9 +298,9 @@ export class SystemSolution {
         let e = map(multiply(this.eigenValues, t), exp);
         let ec = dotMultiply(this.coefficients, e);
 
-        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re));
+        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number));
 
-        return multiply(row(this.eigenVectors, i), ec).map((v, _) => v.re).get([0, 0])
+        return multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number).get([0, 0])
     }
 
     // Get the displacement of a dof over time
@@ -330,7 +330,7 @@ export class SystemSolution {
 
         const e = exp(multiply(lambda, t) as any);
 
-        return multiply(eigenvector, e).map((v, _) => v.re)
+        return multiply(eigenvector, e).map((v, _) => re(v) as unknown as number)
     }
 
 }

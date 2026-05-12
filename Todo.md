@@ -1,0 +1,1 @@
+Extract initial conditions from Nodes, they are passed seperately to the Solver
