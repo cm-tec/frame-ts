@@ -258,7 +258,7 @@ export class SystemSolution {
         let t = t0;
 
         for (let n = 0; n < N; n++) {
-            t = n * dt
+            t = t0 + n * dt
             w.set([0, n], t);
             w.set([1, n], this.get_w(dof, t));
         }
@@ -312,7 +312,7 @@ export class SystemSolution {
         let t = t0;
 
         for (let n = 0; n < N; n++) {
-            t = n * dt
+            t = t0 + n * dt
             w.set([0, n], t);
             w.set([1, n], this.get_dw(dof, t));
         }
