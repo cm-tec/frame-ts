@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { StructuralSystem } from './StructuralSystem';
-import { SystemSolver } from './SystemSolver';
+import { c_element, k_element, SystemSolver } from './SystemSolver';
 import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
 
 function makeForces(ndofs: number, entries: [dof: number, value: number][]): math.Matrix {
@@ -10,6 +10,9 @@ function makeForces(ndofs: number, entries: [dof: number, value: number][]): mat
 }
 
 function areMatricesClose(A: math.Matrix, B: math.Matrix, epsilon = 1e-9) {
+    const sameShape = A.size().length === B.size().length && A.size().every((d, i) => d === B.size()[i]);
+    if (!sameShape) return false;
+    if (A.valueOf().flat().length === 0) return true;
     const diff = subtract(A, B);
     const absDiff = abs(diff);
     const maxDiff = max(absDiff) as number;
@@ -17,11 +20,11 @@ function areMatricesClose(A: math.Matrix, B: math.Matrix, epsilon = 1e-9) {
 }
 
 
-function getBeam(ea: number = 7, ei: number = 11, c: number = 13): StructuralSystem {
+function getBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: 0, z: 1, mass: 1, restraint: { u: false, v: true, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
@@ -29,25 +32,142 @@ function getBeam(ea: number = 7, ei: number = 11, c: number = 13): StructuralSys
     );
 }
 
-test('assembly of stiffness matrix k', () => {
-    const [ea, ei, c] = [7, 11, 13];
-    const system = getBeam(ea, ei, c);
+
+function getRotatedBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: 0 },
+            { id: 2, x: 3/5, z: 4/5, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+        ]
+    );
+}
+
+function getCantilever(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+        ]
+    );
+}
+
+function getCantileverThroughReleases(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: true, v: true, theta: true } },
+        ]
+    );
+}
+
+test('assembly of matrices for beam', () => {
+    const [ea, ei, c, m] = [7, 11, 13, 17];
+    const system = getBeam(ea, ei, c, m);
 
 
     const solver = new SystemSolver(system);
 
     expect(solver.ndof_restrained).toBe(3);
-    expect(solver.ndof_non_restrained).toBe(1);
+    expect(solver.ndof_non_restrained).toBe(3);
+    expect(solver.restrained).toStrictEqual([0, 1, 4]);
+    expect(solver.non_restrained).toStrictEqual([2, 3, 5]);
+
+    expect(areMatricesClose(solver.k_11, matrix([[4*ei, 0, 2*ei], [0, ea, 0], [2*ei, 0, 4*ei]]))).toBe(true);
+    expect(areMatricesClose(solver.k_22, matrix([[ea, 0, 0], [0, 12*ei, -12*ei], [0, -12*ei, 12*ei]]))).toBe(true);
+    expect(areMatricesClose(solver.c_11, matrix([[0, 0, 0], [0, c, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.c_22, matrix([[c, 0, 0], [0, 0, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix([[10, 0, 0], [0, m, 0], [0, 0, 10]]))).toBe(true);
+    expect(areMatricesClose(solver.m_22, matrix([[m, 0, 0], [0, m, 0], [0, 0, m]]))).toBe(true);
+});
+
+
+
+test('assembly of matrices for cantilever', () => {
+    const [ea, ei, c, m] = [7, 11, 13, 17];
+    const system = getCantilever(ea, ei, c, m);
+
+
+    const solver = new SystemSolver(system);
+
+    expect(solver.ndof_restrained).toBe(3);
+    expect(solver.ndof_non_restrained).toBe(3);
     expect(solver.restrained).toStrictEqual([0, 1, 2]);
+    expect(solver.non_restrained).toStrictEqual([3, 4, 5]);
+
+    expect(areMatricesClose(solver.k_11, matrix([[ea, 0, 0], [0, 12*ei, -6*ei], [0, -6*ei, 4*ei]]))).toBe(true);
+    expect(areMatricesClose(solver.k_22, matrix([[ea, 0, 0], [0, 12*ei, 6*ei], [0, 6*ei, 4*ei]]))).toBe(true);
+    expect(areMatricesClose(solver.c_11, matrix([[c, 0, 0], [0, 0, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.c_22, matrix([[c, 0, 0], [0, 0, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix([[m, 0, 0], [0, m, 0], [0, 0, 10]]))).toBe(true);
+    expect(areMatricesClose(solver.m_22, matrix([[m, 0, 0], [0, m, 0], [0, 0, 10]]))).toBe(true);
+});
+
+
+test('assembly of matrices with releases', () => {
+    const [ea, ei, c, m] = [7, 11, 13, 17];
+    let system = getCantileverThroughReleases(ea, ei, c, m);
+
+
+    let solver = new SystemSolver(system);
+
+    expect(solver.ndof_restrained).toBe(6);
+    expect(solver.ndof_non_restrained).toBe(0);
+    expect(solver.restrained).toStrictEqual([0, 1, 2, 3, 4, 5]);
+    expect(solver.non_restrained).toStrictEqual([]);
+
+    expect(areMatricesClose(solver.k_11, matrix())).toBe(true);
+    expect(areMatricesClose(solver.k_22, matrix(zeros([6,6])))).toBe(true);
+    expect(areMatricesClose(solver.c_11, matrix())).toBe(true);
+    expect(areMatricesClose(solver.c_22, matrix(zeros([6,6])))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix())).toBe(true);
+
+
+    system = new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: true }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: true, theta: true } },
+        ]
+    );
+    solver = new SystemSolver(system);
+
+    expect(solver.ndof_restrained).toBe(5);
+    expect(solver.ndof_non_restrained).toBe(1);
+    expect(solver.restrained).toStrictEqual([0, 1, 2, 4, 5]);
     expect(solver.non_restrained).toStrictEqual([3]);
 
-    expect(solver.k_11).toStrictEqual(matrix([[7]]));
-    expect(areMatricesClose(solver.k_22, matrix([[0, 0, 0], [0, 7, 0], [0, 0, 0]]))).toBe(true);
-    expect(areMatricesClose(solver.c_11, matrix([[11]]))).toBe(true);
-    expect(areMatricesClose(solver.c_22, matrix([[0, 0, 0], [0, 11, 0], [0, 0, 0]]))).toBe(true);
-    expect(areMatricesClose(solver.m_11, matrix([[3]]))).toBe(true);
-    expect(areMatricesClose(solver.m_22, matrix([[2, 0, 0], [0, 2, 0], [0, 0, 3]]))).toBe(true);
+    expect(areMatricesClose(solver.k_11, matrix([[ea]]))).toBe(true);
+    expect(areMatricesClose(solver.k_22, matrix([
+        [ea, 0, 0, 0, 0],
+        [0,  0, 0, 0, 0],
+        [0,  0, 0, 0, 0],
+        [0,  0, 0, 0, 0],
+        [0,  0, 0, 0, 0]
+    ]))).toBe(true);
+    expect(areMatricesClose(solver.c_11, matrix([[c]]))).toBe(true);
+    expect(areMatricesClose(solver.c_22, matrix([
+        [c, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0]
+    ]))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix([[m]]))).toBe(true);
+
 });
+
+
 /*
 
 test('sdof — dof counts and matrix assembly', () => {

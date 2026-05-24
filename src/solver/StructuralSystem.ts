@@ -24,17 +24,17 @@ export class StructuralSystem {
         this.nodes = [];
         this.elements = [];
 
-        for (const n of rawNodes) {
-            const dofs: [number, number, number] = [-1, -1, -1];
+        let dofCounter = 0;
 
-            if (!n.restraint.u) dofs[0] = this.ndof_active++;
-            if (!n.restraint.v) dofs[1] = this.ndof_active++;
-            if (!n.restraint.theta) dofs[2] = this.ndof_active++;
+        for (const n of rawNodes) {
+            const dofs: [number, number, number] = [dofCounter, dofCounter+1, dofCounter+2];
 
             this.nodes.push({
                 ...n,
                 dofs
             });
+
+            dofCounter += 3;
         }
 
         // 2. Map Elements by merging the node DOF arrays
@@ -46,7 +46,6 @@ export class StructuralSystem {
 
             this.elements.push({
                 ...e,
-                // Flattening both 3-element arrays into a single 6-element array
                 dofs: [...n_i.dofs, ...n_j.dofs]
             });
         }
