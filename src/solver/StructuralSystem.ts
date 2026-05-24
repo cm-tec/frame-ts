@@ -1,12 +1,12 @@
 import { type Node, type Element } from "../models/models";
 
-interface StructuralNode extends Node {
+export interface StructuralNode extends Node {
     id: number;
     u_dof: number;
     v_dof: number;
 }
 
-interface StructuralElement extends Element {
+export interface StructuralElement extends Element {
     id: number;
     u_i_dof: number;
     v_i_dof: number;
@@ -17,9 +17,9 @@ interface StructuralElement extends Element {
 
 
 export class StructuralSystem {
-    ndofs: number;
-    nodes: StructuralNode[];
-    elements: StructuralElement[];
+    readonly ndofs: number;
+    readonly nodes: StructuralNode[];
+    readonly elements: StructuralElement[];
 
     constructor(nodes: Node[], elements: Element[]) {
         this.ndofs = 0;

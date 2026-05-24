@@ -25,7 +25,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
         const N = solver.non_restrained.length;
-        return solver.solve(matrix(zeros([2 * N, 1])));
+        return solver.solveDynamic(matrix(zeros([2 * N, 1])));
     }, [structuralSystem]);
 
     // Extract physical modes from eigenvalues. Complex conjugate pairs share a mode shape;

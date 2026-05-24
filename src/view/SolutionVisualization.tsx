@@ -48,7 +48,7 @@ export default function SolutionVisualization({ structuralSystem }: { structural
             initialConditions.set([i, 0], disp);
             initialConditions.set([i + N, 0], vel);
         }
-        return solver.solve(initialConditions);
+        return solver.solveDynamic(initialConditions);
     }, [structuralSystem]);
 
     const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {

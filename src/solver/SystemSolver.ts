@@ -1,7 +1,9 @@
-import { add, eigs, atan2, dotMultiply, equal, exp, hypot, identity, index, inv, lusolve, map, matrix, multiply, range, re, rotationMatrix, row, subset, transpose, zeros, type Matrix } from "mathjs";
-import { assert } from "vitest";
+import { add, eigs, atan2, hypot, identity, index, inv, lusolve, matrix, multiply, rotationMatrix, subset, transpose, zeros, type Matrix } from "mathjs";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import type { StructuralSystem } from "./StructuralSystem";
+import { DynamicSolution } from "./DynamicSolution";
+import { KinematicSolution } from "./KinematicSolution";
+import { StaticSolution } from "./StaticSolution";
 
 
 function get_rotation_matrix_of_element(v: [number, number]) {
@@ -63,9 +65,6 @@ export class SystemSolver {
     k_11: Matrix;
     k_12: Matrix;
     k_22: Matrix;
-
-    f_1: Matrix;
-    f_2: Matrix;
 
     constructor(system: StructuralSystem) {
         let k = matrix(zeros(system.ndofs, system.ndofs));
@@ -136,9 +135,6 @@ export class SystemSolver {
         this.m_12 = subset(m, index(restrained, non_restrained));
         this.m_22 = subset(m, index(restrained, restrained));
 
-        this.f_1 = matrix(zeros([non_restrained.length, 1]));
-        this.f_2 = matrix(zeros([restrained.length, 1]));
-
         this.ndof_non_restrained = non_restrained.length;
         this.ndof_restrained = restrained.length;
 
@@ -147,10 +143,9 @@ export class SystemSolver {
     }
 
 
-
-    solve(initialConditions: Matrix): SystemSolution {
+    solveDynamic(initialConditions: Matrix): DynamicSolution {
         if (this.ndof_non_restrained === 0) {
-            return new SystemSolution(
+            return new DynamicSolution(
                 matrix(zeros([0, 0])),
                 matrix(zeros([0, 1])),
                 matrix(zeros([0, 1])),
@@ -158,6 +153,7 @@ export class SystemSolver {
                 this.non_restrained
             );
         }
+
         let m_inv = inv(this.m_11);
 
         let a11 = zeros([this.ndof_non_restrained, this.ndof_non_restrained]) as Matrix;
@@ -172,13 +168,33 @@ export class SystemSolver {
 
         let coefficients = lusolve(eigenVectors, initialConditions);
 
-        return new SystemSolution(
+        return new DynamicSolution(
             eigenVectors,
             eigenValues,
-            coefficients,
+            coefficients as Matrix,
             this.restrained,
             this.non_restrained
         );
+    }
+
+    // forces: (ndofs × 1) global force vector, indexed by DOF number
+    solveStatic(forces: Matrix): StaticSolution {
+        if (this.ndof_non_restrained === 0) {
+            return new StaticSolution(
+                matrix(zeros([0, 1])),
+                matrix(zeros([this.ndof_restrained, 1])),
+                this.restrained,
+                this.non_restrained
+            );
+        }
+
+        const f_1 = subset(forces, index(this.non_restrained, [0])) as Matrix;
+
+        const u_1 = lusolve(this.k_11, f_1) as Matrix;
+
+        const r = multiply(this.k_12, u_1) as Matrix;
+
+        return new StaticSolution(u_1, r, this.restrained, this.non_restrained);
     }
 
     isKinematic(threshold: number = 1e-9): boolean {
@@ -192,155 +208,11 @@ export class SystemSolver {
             .map(ev => ev.vector as Matrix);
     }
 
-    solveKinematic(threshold: number = 1e-9): KinematicSystemSolution {
-        return new KinematicSystemSolution(
+    solveKinematic(threshold: number = 1e-9): KinematicSolution {
+        return new KinematicSolution(
             this.getKinematicModes(threshold),
             this.restrained,
             this.non_restrained
         );
     }
-}
-
-
-export class KinematicSystemSolution {
-    NDOF: number;
-    modes: Matrix[];
-    restrained: number[];
-    non_restrained: number[];
-
-    constructor(modes: Matrix[], restrained: number[], non_restrained: number[]) {
-        this.modes = modes;
-        this.restrained = restrained;
-        this.non_restrained = non_restrained;
-        this.NDOF = non_restrained.length;
-    }
-
-    get_w(modeIndex: number, dof: number): number {
-        if (this.restrained.includes(dof)) return 0;
-
-        const i = this.non_restrained.indexOf(dof);
-
-        if (i < 0) throw Error();
-
-        return this.modes[modeIndex].get([i]);
-    }
-}
-
-
-export class SystemSolution {
-    NDOF: number;
-
-    eigenVectors: Matrix;
-    eigenValues: Matrix;
-
-    coefficients: Matrix;
-
-    restrained: number[];
-    non_restrained: number[];
-
-    constructor(
-        eigenVectors: Matrix,
-        eigenValues: Matrix,
-        coefficients: Matrix,
-        restrained: number[],
-        non_restrained: number[]
-    ) {
-        assert(equal(eigenValues.size(), coefficients.size()))
-
-
-        this.NDOF = eigenVectors.size().at(0)! / 2;
-
-        this.eigenVectors = eigenVectors;
-        this.eigenValues = eigenValues;
-
-        this.coefficients = coefficients;
-
-        this.restrained = restrained;
-        this.non_restrained = non_restrained;
-    }
-
-    // Get the displacement of a dof over time
-    get_w_history(dof: number, t0: number = 0, N: number = 1000, T: number = 10): Matrix {
-
-        let dt = T / N;
-        let w = matrix(zeros([2, N]));
-
-        let t = t0;
-
-        for (let n = 0; n < N; n++) {
-            t = t0 + n * dt
-            w.set([0, n], t);
-            w.set([1, n], this.get_w(dof, t));
-        }
-        return w;
-    }
-
-    // Get the displacements of all dofs at certain time t
-    get_w_total(t: number): Matrix {
-        let e = map(multiply(this.eigenValues, t), exp);
-
-        let ec = dotMultiply(this.coefficients, e);
-
-        return multiply(this.eigenVectors, ec).map((v, _) => re(v) as unknown as number)
-    }
-
-    // Get the displacement of a specific dof at certain time t
-    get_w(dof: number, t: number): number {
-        if (this.restrained.includes(dof)) {
-            return 0;
-        }
-        let i = this.non_restrained.indexOf(dof);
-
-        let e = map(multiply(this.eigenValues, t), exp);
-        let ec = dotMultiply(this.coefficients, e);
-
-        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number));
-
-        return multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number).get([0, 0])
-    }
-
-    get_dw(dof: number, t: number): number {
-        if (this.restrained.includes(dof)) {
-            return 0;
-        }
-        let i = this.NDOF + this.non_restrained.indexOf(dof);
-
-        let e = map(multiply(this.eigenValues, t), exp);
-        let ec = dotMultiply(this.coefficients, e);
-
-        //console.log(multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number));
-
-        return multiply(row(this.eigenVectors, i), ec).map((v, _) => re(v) as unknown as number).get([0, 0])
-    }
-
-    // Get the displacement of a dof over time
-    get_dw_history(dof: number, t0: number = 0, N: number = 1000, T: number = 10): Matrix {
-
-        let dt = T / N;
-        let w = matrix(zeros([2, N]));
-
-        let t = t0;
-
-        for (let n = 0; n < N; n++) {
-            t = t0 + n * dt
-            w.set([0, n], t);
-            w.set([1, n], this.get_dw(dof, t));
-        }
-        return w;
-    }
-
-    // Get the displacements of all dofs for eigenmode n at certain time t
-    get_w_total_of_eigenmode(eigenmode: number, t: number): Matrix {
-        if (eigenmode < 0 || eigenmode >= this.eigenValues.size()[0])
-            throw new Error(`Eigenmode ${eigenmode} out of range`);
-
-        const lambda = this.eigenValues.get([eigenmode, 0]);
-
-        const eigenvector = subset(this.eigenVectors, index(range(0, this.NDOF * 2), eigenmode))
-
-        const e = exp(multiply(lambda, t) as any);
-
-        return multiply(eigenvector, e).map((v, _) => re(v) as unknown as number)
-    }
-
 }
