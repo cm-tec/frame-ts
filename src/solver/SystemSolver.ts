@@ -149,6 +149,15 @@ export class SystemSolver {
 
 
     solve(initialConditions: Matrix): SystemSolution {
+        if (this.ndof_non_restrained === 0) {
+            return new SystemSolution(
+                matrix(zeros([0, 0])),
+                matrix(zeros([0, 1])),
+                matrix(zeros([0, 1])),
+                this.restrained,
+                this.non_restrained
+            );
+        }
         let m_inv = inv(this.m_11);
 
         let a11 = zeros([this.ndof_non_restrained, this.ndof_non_restrained]) as Matrix;
@@ -177,6 +186,7 @@ export class SystemSolver {
     }
 
     getKinematicModes(threshold: number = 1e-9): Matrix[] {
+        if (this.ndof_non_restrained === 0) return [];
         return eigs(this.k_11).eigenvectors
             .filter(ev => Math.abs(ev.value as number) < threshold)
             .map(ev => ev.vector as Matrix);
