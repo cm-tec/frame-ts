@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import { ActionIcon, Checkbox, Divider, Group, NumberInput, Paper, Text } from '@mantine/core';
 import { IconPlayerPlay, IconPlayerPause, IconRotateClockwise } from '@tabler/icons-react';
-import { useAnimationStore } from "../store/animationStore";
+import { useAnimationStore } from "../../store/animationStore";
 
 function TimeDisplay() {
     const ref = useRef<HTMLParagraphElement>(null);

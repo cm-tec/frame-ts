@@ -3,9 +3,9 @@ import Konva from 'konva';
 import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node } from "../models/models";
-import type { StructuralSystem } from '../solver/StructuralSystem';
-import { useAnimationStore } from '../store/animationStore';
+import { type Node } from "../../models/models";
+import type { StructuralSystem } from '../../solver/StructuralSystem';
+import { useAnimationStore } from '../../store/animationStore';
 
 interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;

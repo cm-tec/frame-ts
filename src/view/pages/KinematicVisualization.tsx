@@ -1,32 +1,26 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import Konva from "konva";
-import { SystemSolver } from "../solver/SystemSolver";
+import { useState, useMemo, useCallback } from "react";
+import { SystemSolver } from "../../solver/SystemSolver";
 import { Box, Divider, Flex, Slider, Table, Text } from '@mantine/core';
-import type { StructuralSystem } from "../solver/StructuralSystem";
-import StructuralSystemViewer from "./StructuralSystemViewer";
-import { useAnimationStore } from "../store/animationStore";
-import { PlaybackBar } from "./PlaybackBar";
+import type { StructuralSystem } from "../../solver/StructuralSystem";
+import StructuralSystemViewer from "../components/StructuralSystemViewer";
+import { PlaybackBar } from "../components/PlaybackBar";
+import { useAnimation } from "../hooks/useAnimation";
 
-export default function KinematicSystemVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
+export default function KinematicVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [selectedMode, setSelectedMode] = useState(0);
-    const [isRunning, setIsRunning] = useState(false);
     const [speed, setSpeed] = useState(1);
     const [scale, setScale] = useState(1);
-    const [animKey, setAnimKey] = useState(0);
     const [showUndeformedSystem, setShowUndeformedSystem] = useState(true);
     const [showNodes, setShowNodes] = useState(true);
     const [showBearings, setShowBearings] = useState(true);
 
-    const animRef = useRef<Konva.Animation | null>(null);
-    const speedRef = useRef(speed);
-    useEffect(() => { speedRef.current = speed; }, [speed]);
+    const { isRunning, setIsRunning, restart } = useAnimation(speed);
 
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
         return solver.solveKinematic();
     }, [structuralSystem]);
 
-    // Auto-scale so max displacement is ~15% of structure extent
     const autoScale = useMemo(() => {
         if (!solution.modes[selectedMode]) return 1;
 
@@ -63,27 +57,6 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
         return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
     }, [structuralSystem, getNodePosition]);
 
-    useEffect(() => {
-        const anim = new Konva.Animation((frame) => {
-            if (!frame) return;
-            useAnimationStore.setState({ time: speedRef.current * frame.time / 1000 });
-        });
-        animRef.current = anim;
-        return () => { anim.stop(); };
-    }, [animKey]);
-
-    useEffect(() => {
-        if (!animRef.current) return;
-        if (isRunning) animRef.current.start();
-        else animRef.current.stop();
-    }, [isRunning]);
-
-    const restart = useCallback(() => {
-        useAnimationStore.setState({ time: 0 });
-        setIsRunning(false);
-        setAnimKey(k => k + 1);
-    }, []);
-
     const selectMode = useCallback((i: number) => {
         setSelectedMode(i);
         restart();
@@ -92,7 +65,6 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
     return (
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
             <Flex style={{ flex: 1, overflow: 'hidden' }}>
-
                 <Box style={{ width: "70%", height: "100%", backgroundColor: "var(--mantine-color-gray-0)" }}>
                     <StructuralSystemViewer
                         structuralSystem={structuralSystem}
@@ -126,36 +98,19 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
 
                         <Box>
                             <Text size="xs" fw={700} c="dimmed" mb="xs">AMPLITUDE SCALE ×{scale.toFixed(1)}</Text>
-                            <Slider
-                                value={scale}
-                                onChange={setScale}
-                                min={0.1}
-                                max={5}
-                                step={0.1}
-                                label={(v) => `×${v.toFixed(1)}`}
-                            />
+                            <Slider value={scale} onChange={setScale} min={0.1} max={5} step={0.1} label={(v) => `×${v.toFixed(1)}`} />
                         </Box>
                     </Flex>
                 </Box>
             </Flex>
 
             <PlaybackBar
-                speed={speed}
-                onSpeedChange={setSpeed}
-                isRunning={isRunning}
-                onToggle={() => setIsRunning(r => !r)}
-                onRestart={restart}
-                showUndeformedSystem={showUndeformedSystem}
-                onShowUndeformedChange={setShowUndeformedSystem}
-                showNodes={showNodes}
-                onShowNodesChange={setShowNodes}
-                showBearings={showBearings}
-                onShowBearingsChange={setShowBearings}
-                leftExtra={
-                    <Text size="sm" fw={500}>
-                        Kinematic Mode {selectedMode + 1} of {solution.modes.length}
-                    </Text>
-                }
+                speed={speed} onSpeedChange={setSpeed}
+                isRunning={isRunning} onToggle={() => setIsRunning(r => !r)} onRestart={restart}
+                showUndeformedSystem={showUndeformedSystem} onShowUndeformedChange={setShowUndeformedSystem}
+                showNodes={showNodes} onShowNodesChange={setShowNodes}
+                showBearings={showBearings} onShowBearingsChange={setShowBearings}
+                leftExtra={<Text size="sm" fw={500}>Kinematic Mode {selectedMode + 1} of {solution.modes.length}</Text>}
             />
         </Flex>
     );

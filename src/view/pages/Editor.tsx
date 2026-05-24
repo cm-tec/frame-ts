@@ -4,7 +4,7 @@ import { IconTrash } from '@tabler/icons-react';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node, type Element, type InitialConditions } from "../models/models";
+import { type Node, type Element, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
 
 
 const CIRCLE_RADIUS = 20;
@@ -156,15 +156,18 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
 }
 
 interface EditorProps {
+    view: 'dynamic' | 'static';
     nodes: Node[];
     setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
     elements: Element[];
     setElements: React.Dispatch<React.SetStateAction<Element[]>>;
     initialConditions: InitialConditions;
     setInitialConditions: React.Dispatch<React.SetStateAction<InitialConditions>>;
+    loads: Loads;
+    setLoads: React.Dispatch<React.SetStateAction<Loads>>;
 }
 
-export default function Editor({ nodes, setNodes, elements, setElements, initialConditions, setInitialConditions }: EditorProps) {
+export default function Editor({ view, nodes, setNodes, elements, setElements, initialConditions, setInitialConditions, loads, setLoads }: EditorProps) {
 
     const updateNode = (id: number, patch: Partial<Omit<Node, 'id'>>) =>
         setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
@@ -175,6 +178,28 @@ export default function Editor({ nodes, setNodes, elements, setElements, initial
             ...prev,
             [nodeId]: { ...IC_DEFAULTS, ...prev[nodeId], ...patch },
         }));
+
+    const NODAL_LOAD_DEFAULTS: Omit<NodalLoad, 'id' | 'node_id'> = { magnitude: 0, angle: 0, frequency: 0, phase_shift: 0 };
+    const ELEMENT_LOAD_DEFAULTS: Omit<ElementLoad, 'id' | 'element_id'> = { q_i: 0, q_j: 0, angle: 0, frequency: 0, phase_shift: 0 };
+    const nextLoadId = (list: { id: number }[]) => list.length ? Math.max(...list.map(l => l.id)) + 1 : 1;
+
+    const addNodalLoad = () => setLoads(prev => ({
+        ...prev,
+        nodes: [...prev.nodes, { id: nextLoadId(prev.nodes), node_id: nodes[0]?.id ?? 0, ...NODAL_LOAD_DEFAULTS }],
+    }));
+    const updateNodalLoad = (id: number, patch: Partial<NodalLoad>) =>
+        setLoads(prev => ({ ...prev, nodes: prev.nodes.map(l => l.id === id ? { ...l, ...patch } : l) }));
+    const deleteNodalLoad = (id: number) =>
+        setLoads(prev => ({ ...prev, nodes: prev.nodes.filter(l => l.id !== id) }));
+
+    const addElementLoad = () => setLoads(prev => ({
+        ...prev,
+        elements: [...prev.elements, { id: nextLoadId(prev.elements), element_id: elements[0]?.id ?? 0, ...ELEMENT_LOAD_DEFAULTS }],
+    }));
+    const updateElementLoad = (id: number, patch: Partial<ElementLoad>) =>
+        setLoads(prev => ({ ...prev, elements: prev.elements.map(l => l.id === id ? { ...l, ...patch } : l) }));
+    const deleteElementLoad = (id: number) =>
+        setLoads(prev => ({ ...prev, elements: prev.elements.filter(l => l.id !== id) }));
 
     const deleteNode = (id: number) =>
         setNodes(r => r.filter(row => row.id !== id));
@@ -390,6 +415,7 @@ export default function Editor({ nodes, setNodes, elements, setElements, initial
                         </Table>
                     </div>
 
+                    {view === 'dynamic' && (
                     <div>
                         <Text fw={600} mb="xs">Initial Conditions</Text>
                         <Table highlightOnHover withColumnBorders verticalSpacing="0">
@@ -426,6 +452,103 @@ export default function Editor({ nodes, setNodes, elements, setElements, initial
                             </Table.Tbody>
                         </Table>
                     </div>
+                    )}
+
+                    {view === 'static' && (<>
+                    <div>
+                        <Group justify="space-between" mb="xs">
+                            <Text fw={600}>Nodal Loads</Text>
+                            <Button size="xs" variant="light" onClick={addNodalLoad}>Add</Button>
+                        </Group>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1">Node</Table.Th>
+                                    <Table.Th>F₀</Table.Th>
+                                    <Table.Th>α (°)</Table.Th>
+                                    <Table.Th>f (Hz)</Table.Th>
+                                    <Table.Th>φ (°)</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {loads.nodes.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1">
+                                            <NumberInput value={row.node_id} onChange={(e) => updateNodalLoad(row.id, { node_id: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.magnitude} onChange={(e) => updateNodalLoad(row.id, { magnitude: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.angle} onChange={(e) => updateNodalLoad(row.id, { angle: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.frequency} onChange={(e) => updateNodalLoad(row.id, { frequency: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.phase_shift} onChange={(e) => updateNodalLoad(row.id, { phase_shift: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNodalLoad(row.id)}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
+                    <div>
+                        <Group justify="space-between" mb="xs">
+                            <Text fw={600}>Element Loads</Text>
+                            <Button size="xs" variant="light" onClick={addElementLoad}>Add</Button>
+                        </Group>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1">Elem</Table.Th>
+                                    <Table.Th>qᵢ</Table.Th>
+                                    <Table.Th>qⱼ</Table.Th>
+                                    <Table.Th>α (°)</Table.Th>
+                                    <Table.Th>f (Hz)</Table.Th>
+                                    <Table.Th>φ (°)</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {loads.elements.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1">
+                                            <NumberInput value={row.element_id} onChange={(e) => updateElementLoad(row.id, { element_id: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.q_i} onChange={(e) => updateElementLoad(row.id, { q_i: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.q_j} onChange={(e) => updateElementLoad(row.id, { q_j: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.angle} onChange={(e) => updateElementLoad(row.id, { angle: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.frequency} onChange={(e) => updateElementLoad(row.id, { frequency: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.phase_shift} onChange={(e) => updateElementLoad(row.id, { phase_shift: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteElementLoad(row.id)}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+                    </>)}
 
                     <Divider />
 

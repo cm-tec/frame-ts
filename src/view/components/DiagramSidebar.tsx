@@ -1,15 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput, SimpleGrid, Modal } from '@mantine/core';
 import MatrixLineChart from "./Chart";
-import type { StructuralSystem } from '../solver/StructuralSystem';
-import { useVisualizationStore } from '../store/visualizationStore';
+import type { StructuralSystem } from '../../solver/StructuralSystem';
+import type { DynamicSolution } from '../../solver/DynamicSolution';
+import { useVisualizationStore } from '../../store/visualizationStore';
 
 interface DiagramSidebarProps {
     structuralSystem: StructuralSystem;
-    solution: any;
+    solution: DynamicSolution;
 }
 
-const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, label, type }: any) => {
+const MemoizedChart = ({ dofIdx, t1, t2, numPoints, solution, label, type }: { dofIdx: number; t1: number; t2: number; numPoints: number; solution: DynamicSolution; label: string; type: string }) => {
     const historyData = useMemo(() => {
         const fn = type === 'velocity' ? solution.get_dw_history : solution.get_w_history;
         return fn.call(solution, dofIdx, t1, Math.max(1, numPoints), t2 - t1);
@@ -25,7 +26,6 @@ export const DiagramSidebar = React.memo(function DiagramSidebar({
     const { t1, setT1, t2, setT2, numPoints, setNumPoints, activeDiagramViews, setActiveDiagramViews } = useVisualizationStore();
 
     const diagramOptions = useMemo(() => {
-        console.log("Construct DOF-Options in DiagramSidebar")
         const displacement: { value: string; label: string }[] = [];
         const velocity: { value: string; label: string }[] = [];
         structuralSystem.nodes.forEach(node => {

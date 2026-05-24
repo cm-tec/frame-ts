@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
-import { useAnimationStore } from '../store/animationStore';
+import { useAnimationStore } from '../../store/animationStore';
 
 // --- Required Chart.js Imports/Registration ---
 import {
