@@ -4,7 +4,7 @@ import { IconTrash } from '@tabler/icons-react';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node, type Element } from "../models/models";
+import { type Node, type Element, type InitialConditions } from "../models/models";
 
 
 const CIRCLE_RADIUS = 20;
@@ -160,12 +160,21 @@ interface EditorProps {
     setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
     elements: Element[];
     setElements: React.Dispatch<React.SetStateAction<Element[]>>;
+    initialConditions: InitialConditions;
+    setInitialConditions: React.Dispatch<React.SetStateAction<InitialConditions>>;
 }
 
-export default function Editor({ nodes, setNodes, elements, setElements }: EditorProps) {
+export default function Editor({ nodes, setNodes, elements, setElements, initialConditions, setInitialConditions }: EditorProps) {
 
     const updateNode = (id: number, patch: Partial<Omit<Node, 'id'>>) =>
         setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
+
+    const IC_DEFAULTS: InitialConditions[number] = { u0: 0, du0: 0, v0: 0, dv0: 0, theta0: 0, dtheta0: 0 };
+    const updateInitialCondition = (nodeId: number, patch: Partial<InitialConditions[number]>) =>
+        setInitialConditions(prev => ({
+            ...prev,
+            [nodeId]: { ...IC_DEFAULTS, ...prev[nodeId], ...patch },
+        }));
 
     const deleteNode = (id: number) =>
         setNodes(r => r.filter(row => row.id !== id));
@@ -182,7 +191,6 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
             id: nextId, x: 0, z: 0, mass: 0,
             restraint: { u: false, v: false, theta: true },
             angle: 0,
-            u0: 0, v0: 0, phi0: 0, du0: 0, dv0: 0, dphi0: 0 
         }]);
     };
 
@@ -395,23 +403,26 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
-                                {nodes.map((row) => (
+                                {nodes.map((row) => {
+                                    const ic = { ...IC_DEFAULTS, ...initialConditions[row.id] };
+                                    return (
                                     <Table.Tr key={row.id}>
                                         <Table.Td bg="gray.1">{row.id}</Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.u0} onChange={(e) => updateNode(row.id, { u0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
+                                            <NumberInput value={ic.u0} onChange={(e) => updateInitialCondition(row.id, { u0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.v0} onChange={(e) => updateNode(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
+                                            <NumberInput value={ic.v0} onChange={(e) => updateInitialCondition(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.du0} onChange={(e) => updateNode(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
+                                            <NumberInput value={ic.du0} onChange={(e) => updateInitialCondition(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.dv0} onChange={(e) => updateNode(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
+                                            <NumberInput value={ic.dv0} onChange={(e) => updateInitialCondition(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
                                         </Table.Td>
                                     </Table.Tr>
-                                ))}
+                                    );
+                                })}
                             </Table.Tbody>
                         </Table>
                     </div>

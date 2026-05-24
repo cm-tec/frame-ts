@@ -9,8 +9,9 @@ import { DiagramSidebar } from "./DiagramSidebar";
 import { useAnimationStore } from "../store/animationStore";
 import { useVisualizationStore } from "../store/visualizationStore";
 import { PlaybackBar } from "./PlaybackBar";
+import type { InitialConditions } from "../models/models";
 
-export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
+export default function SolutionVisualization({ structuralSystem, initialConditions }: { structuralSystem: StructuralSystem; initialConditions: InitialConditions }) {
     const {
         speed, setSpeed,
         showUndeformedSystem, setShowUndeformedSystem,
@@ -38,18 +39,22 @@ export default function SolutionVisualization({ structuralSystem }: { structural
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
         const N = solver.non_restrained.length;
-        const initialConditions = matrix(zeros([2 * N, 1]));
+        const ic = matrix(zeros([2 * N, 1]));
         for (let i = 0; i < N; i++) {
             const dof = solver.non_restrained[i];
-            const node = structuralSystem.nodes.find(n => n.dofs[0] === dof || n.dofs[1] === dof)!;
+            const node = structuralSystem.nodes.find(n => n.dofs.includes(dof));
+            if (!node) continue;
+            const nodeIc = initialConditions[node.id];
+            if (!nodeIc) continue;
             let disp = 0, vel = 0;
-            if (node.dofs[0] === dof) { disp = node.u0; vel = node.du0; }
-            else if (node.dofs[1] === dof) { disp = node.v0; vel = node.dv0; }
-            initialConditions.set([i, 0], disp);
-            initialConditions.set([i + N, 0], vel);
+            if (node.dofs[0] === dof)      { disp = nodeIc.u0;     vel = nodeIc.du0; }
+            else if (node.dofs[1] === dof) { disp = nodeIc.v0;     vel = nodeIc.dv0; }
+            else if (node.dofs[2] === dof) { disp = nodeIc.theta0; vel = nodeIc.dtheta0; }
+            ic.set([i, 0], disp);
+            ic.set([i + N, 0], vel);
         }
-        return solver.solveDynamic(initialConditions);
-    }, [structuralSystem]);
+        return solver.solveDynamic(ic);
+    }, [structuralSystem, initialConditions]);
 
     const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
         const node = getNodeState(nodeId, time);

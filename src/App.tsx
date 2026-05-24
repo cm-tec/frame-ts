@@ -8,7 +8,7 @@ import '@mantine/core/styles.css';
 import { AppShell, Button, Group, MantineProvider, SegmentedControl, Text } from '@mantine/core';
 import { useMemo, useState } from "react";
 
-import { type Node, type Element } from "./models/models";
+import { type Node, type Element, type InitialConditions } from "./models/models";
 import { StructuralSystem } from "./solver/StructuralSystem";
 import { SystemSolver } from "./solver/SystemSolver";
 
@@ -19,10 +19,15 @@ export default function App() {
   const [view, setView] = useState<'response' | 'eigenmodes'>('response');
 
   const [nodes, setNodes] = useState<Node[]>([
-    { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0,  u0: 0, v0: 0, du0: 0, dv0: 0 },
-    { id: 2, x: 0, z: -20, mass: 80, restraint: { u: true, v: false, theta: true }, angle: 0, u0: 0, v0: -1, du0: 0, dv0: 0, },
-    { id: 3, x: 0, z: -10, mass: 8, restraint: { u: true, v: false, theta: true }, angle: 0, u0: 0, v0: 1, du0: 0, dv0: 0, },
+    { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0 },
+    { id: 2, x: 0, z: -20, mass: 80, restraint: { u: true, v: false, theta: true }, angle: 0 },
+    { id: 3, x: 0, z: -10, mass: 8, restraint: { u: true, v: false, theta: true }, angle: 0 },
   ]);
+
+  const [initialConditions, setInitialConditions] = useState<InitialConditions>({
+    2: { u0: 0, v0: -1, theta0: 0, du0: 0, dv0: 0, dtheta0: 0 },
+    3: { u0: 0, v0: 1,  theta0: 0, du0: 0, dv0: 0, dtheta0: 0 },
+  });
 
   const [elements, setElements] = useState<Element[]>([
     {
@@ -63,9 +68,9 @@ export default function App() {
           </Group>
         </AppShell.Header>
         <AppShell.Main>
-          {editMode && <Editor nodes={nodes} setNodes={setNodes} elements={elements} setElements={setElements} />}
+          {editMode && <Editor nodes={nodes} setNodes={setNodes} elements={elements} setElements={setElements} initialConditions={initialConditions} setInitialConditions={setInitialConditions} />}
           {!editMode && isKinematic && <KinematicSystemVisualization structuralSystem={structuralSystem} />}
-          {!editMode && !isKinematic && view === 'response' && <SolutionVisualization structuralSystem={structuralSystem} />}
+          {!editMode && !isKinematic && view === 'response' && <SolutionVisualization structuralSystem={structuralSystem} initialConditions={initialConditions} />}
           {!editMode && !isKinematic && view === 'eigenmodes' && <EigenmodeVisualization structuralSystem={structuralSystem} />}
         </AppShell.Main>
       </AppShell>

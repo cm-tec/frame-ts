@@ -7,11 +7,14 @@ export type Node = {
     angle: number;
 
     restraint: { u: boolean; v: boolean; theta: boolean };
+};
 
-    u0: number;
-    v0: number;
-    du0: number;
-    dv0: number;
+export type InitialConditions = {
+    [nodeId: number]: { 
+        u0: number; du0: number;
+        v0: number; dv0: number;
+        theta0: number; dtheta0: number
+    };
 };
 
 export type Element = {
