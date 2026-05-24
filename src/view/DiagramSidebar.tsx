@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Box, Flex, Text, MultiSelect, Group, CloseButton, Divider, NumberInput, SimpleGrid, Modal } from '@mantine/core';
 import MatrixLineChart from "./Chart";
 import type { StructuralSystem } from '../solver/StructuralSystem';
+import { useVisualizationStore } from '../store/visualizationStore';
 
 interface DiagramSidebarProps {
     structuralSystem: StructuralSystem;
@@ -21,9 +22,7 @@ export const DiagramSidebar = React.memo(function DiagramSidebar({
     structuralSystem,
     solution,
 }: DiagramSidebarProps) {
-    const [t1, setT1] = useState<number>(0);
-    const [t2, setT2] = useState<number>(10);
-    const [numPoints, setNumPoints] = useState<number>(100);
+    const { t1, setT1, t2, setT2, numPoints, setNumPoints, activeDiagramViews, setActiveDiagramViews } = useVisualizationStore();
 
     const diagramOptions = useMemo(() => {
         console.log("Construct DOF-Options in DiagramSidebar")
@@ -45,7 +44,6 @@ export const DiagramSidebar = React.memo(function DiagramSidebar({
         ];
     }, [structuralSystem]);
 
-    const [activeDiagramViews, setActiveDiagramViews] = useState<string[]>([]);
     const [expandedChart, setExpandedChart] = useState<{ dofIdx: number; type: string; label: string } | null>(null);
 
     const handleRemove = (idToRemove: string) => {

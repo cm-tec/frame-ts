@@ -7,15 +7,29 @@ import { matrix, zeros } from "mathjs";
 import StructuralSystemViewer from "./StructuralSystemViewer";
 import { DiagramSidebar } from "./DiagramSidebar";
 import { useAnimationStore } from "../store/animationStore";
+import { useVisualizationStore } from "../store/visualizationStore";
 import { PlaybackBar } from "./PlaybackBar";
 
 export default function SolutionVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
-    const [speed, setSpeed] = useState(1);
+    const {
+        speed, setSpeed,
+        showUndeformedSystem, setShowUndeformedSystem,
+        showNodes, setShowNodes,
+        showBearings, setShowBearings,
+        syncDofKey,
+    } = useVisualizationStore();
+
     const [isRunning, setIsRunning] = useState(false);
-    const [showUndeformedSystem, setShowUndeformedSystem] = useState(false);
-    const [showNodes, setShowNodes] = useState(true);
-    const [showBearings, setShowBearings] = useState(true);
     const [animKey, setAnimKey] = useState(0);
+
+    // Keep chart selection in sync with DOF layout
+    useEffect(() => {
+        const key = structuralSystem.nodes
+            .flatMap(n => [n.restrained_u ? null : n.u_dof, n.restrained_v ? null : n.v_dof])
+            .filter(v => v !== null)
+            .join(',');
+        syncDofKey(key);
+    }, [structuralSystem]);
 
     const animRef = useRef<Konva.Animation | null>(null);
     const speedRef = useRef(speed);
