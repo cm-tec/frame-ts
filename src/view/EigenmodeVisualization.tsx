@@ -88,8 +88,8 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
         const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
         const factor = autoScale * scale;
 
-        const ui = solution.non_restrained.indexOf(node.u_dof);
-        const vi = solution.non_restrained.indexOf(node.v_dof);
+        const ui = solution.non_restrained.indexOf(node.dofs[0]);
+        const vi = solution.non_restrained.indexOf(node.dofs[1]);
 
         return {
             x: node.x + (ui >= 0 ? disp.get([ui]) * factor : 0),

@@ -25,7 +25,7 @@ export default function SolutionVisualization({ structuralSystem }: { structural
     // Keep chart selection in sync with DOF layout
     useEffect(() => {
         const key = structuralSystem.nodes
-            .flatMap(n => [n.restrained_u ? null : n.u_dof, n.restrained_v ? null : n.v_dof])
+            .flatMap(n => [n.restraint.u ? null : n.dofs[0], n.restraint.v ? null : n.dofs[1]])
             .filter(v => v !== null)
             .join(',');
         syncDofKey(key);
@@ -41,10 +41,10 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         const initialConditions = matrix(zeros([2 * N, 1]));
         for (let i = 0; i < N; i++) {
             const dof = solver.non_restrained[i];
-            const node = structuralSystem.nodes.find(n => n.u_dof === dof || n.v_dof === dof)!;
+            const node = structuralSystem.nodes.find(n => n.dofs[0] === dof || n.dofs[1] === dof)!;
             let disp = 0, vel = 0;
-            if (node.u_dof === dof) { disp = node.u0; vel = node.du0; }
-            else if (node.v_dof === dof) { disp = node.v0; vel = node.dv0; }
+            if (node.dofs[0] === dof) { disp = node.u0; vel = node.du0; }
+            else if (node.dofs[1] === dof) { disp = node.v0; vel = node.dv0; }
             initialConditions.set([i, 0], disp);
             initialConditions.set([i + N, 0], vel);
         }
@@ -64,8 +64,8 @@ export default function SolutionVisualization({ structuralSystem }: { structural
         return {
             x: node.x,
             z: node.z,
-            u: solution.get_w(node.u_dof, time),
-            v: solution.get_w(node.v_dof, time),
+            u: solution.get_w(node.dofs[0], time),
+            v: solution.get_w(node.dofs[1], time),
         };
     }, [structuralSystem, solution]);
 

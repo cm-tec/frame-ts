@@ -29,13 +29,13 @@ export const DiagramSidebar = React.memo(function DiagramSidebar({
         const displacement: { value: string; label: string }[] = [];
         const velocity: { value: string; label: string }[] = [];
         structuralSystem.nodes.forEach(node => {
-            if (!node.restrained_u) {
-                displacement.push({ value: `${node.u_dof}-displacement`, label: `N${node.id} - U` });
-                velocity.push({ value: `${node.u_dof}-velocity`, label: `N${node.id} - U` });
+            if (!node.restraint.u) {
+                displacement.push({ value: `${node.dofs[0]}-displacement`, label: `N${node.id} - U` });
+                velocity.push({ value: `${node.dofs[0]}-velocity`, label: `N${node.id} - U` });
             }
-            if (!node.restrained_v) {
-                displacement.push({ value: `${node.v_dof}-displacement`, label: `N${node.id} - V` });
-                velocity.push({ value: `${node.v_dof}-velocity`, label: `N${node.id} - V` });
+            if (!node.restraint.v) {
+                displacement.push({ value: `${node.dofs[1]}-displacement`, label: `N${node.id} - V` });
+                velocity.push({ value: `${node.dofs[1]}-velocity`, label: `N${node.id} - V` });
             }
         });
         return [

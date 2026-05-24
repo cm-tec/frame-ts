@@ -19,14 +19,22 @@ export default function App() {
   const [view, setView] = useState<'response' | 'eigenmodes'>('response');
 
   const [nodes, setNodes] = useState<Node[]>([
-    { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-    { id: 2, x: 0, z: -20, mass: 80, restrained_u: true, restrained_v: false, u0: 0, v0: -1, du0: 0, dv0: 0, },
-    { id: 3, x: 0, z: -10, mass: 8, restrained_u: true, restrained_v: false, u0: 0, v0: 1, du0: 0, dv0: 0, },
+    { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0,  u0: 0, v0: 0, du0: 0, dv0: 0 },
+    { id: 2, x: 0, z: -20, mass: 80, restraint: { u: true, v: false, theta: true }, angle: 0, u0: 0, v0: -1, du0: 0, dv0: 0, },
+    { id: 3, x: 0, z: -10, mass: 8, restraint: { u: true, v: false, theta: true }, angle: 0, u0: 0, v0: 1, du0: 0, dv0: 0, },
   ]);
 
   const [elements, setElements] = useState<Element[]>([
-    { id: 1, node_i: 2, node_j: 3, ea: 2000, c: 0 },
-    { id: 2, node_i: 3, node_j: 1, ea: 1250, c: 0.6 },
+    {
+      id: 1, node_i: 2, node_j: 3, ea: 2000, ei: 0, c: 0,
+      releases_i: { u: false, v: false, theta: true },
+      releases_j: { u: false, v: false, theta: true }
+    },
+    {
+      id: 2, node_i: 3, node_j: 1, ea: 1250, ei: 0, c: 0.6,
+      releases_i: { u: false, v: false, theta: true },
+      releases_j: { u: false, v: false, theta: true }
+    },
   ]);
 
   const structuralSystem = useMemo(() => new StructuralSystem(nodes, elements), [nodes, elements]);

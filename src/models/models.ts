@@ -7,6 +7,11 @@ export type Node = {
     angle: number;
 
     restraint: { u: boolean; v: boolean; theta: boolean };
+
+    u0: number;
+    v0: number;
+    du0: number;
+    dv0: number;
 };
 
 export type Element = {

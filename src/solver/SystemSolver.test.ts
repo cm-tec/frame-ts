@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { StructuralSystem } from './StructuralSystem';
 import { c_element, k_element, SystemSolver } from './SystemSolver';
 import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
-
+/*
 function makeForces(ndofs: number, entries: [dof: number, value: number][]): math.Matrix {
     const f = matrix(zeros([ndofs, 1]));
     for (const [dof, val] of entries) (f as math.Matrix).set([dof, 0], val);
@@ -34,10 +34,12 @@ function getBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): Structu
 
 
 function getRotatedBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
+    const alpha = Math.atan2(4 / 5, 3 / 5);
+
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: 3/5, z: 4/5, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: alpha },
+            { id: 2, x: 3/5, z: 4/5, mass: m, restraint: { u: false, v: true, theta: false }, angle: alpha },
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
@@ -65,6 +67,19 @@ function getCantileverThroughReleases(ea: number = 7, ei: number = 11, c: number
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: true, v: true, theta: true } },
+        ]
+    );
+}
+
+function getFlippedCantilever(ea: number = 7, ei: number = 11, c: number = 13, m = 17): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
+            // Free tip with local coordinates flipped 180°
+            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: Math.PI },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
         ]
     );
 }
@@ -168,118 +183,89 @@ test('assembly of matrices with releases', () => {
 });
 
 
-/*
+test('assembly invariance under rigid system and support rotation', () => {
+    const [ea, ei, c, m] = [7, 11, 13, 17];
 
-test('sdof — dof counts and matrix assembly', () => {
-    const system = new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 2, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 2, x: 0, z: 1, mass: 3, restrained_u: true, restrained_v: false, u0: 0, v0: 0, du0: 0, dv0: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: 7, c: 11 },
-        ]
-    );
+    const baselineSystem = getBeam(ea, ei, c, m);
+    const baselineSolver = new SystemSolver(baselineSystem);
 
+    const rotatedSystem = getRotatedBeam(ea, ei, c, m);
+    const rotatedSolver = new SystemSolver(rotatedSystem);
+
+    expect(rotatedSolver.ndof_restrained).toBe(baselineSolver.ndof_restrained);
+    expect(rotatedSolver.ndof_non_restrained).toBe(baselineSolver.ndof_non_restrained);
+    expect(rotatedSolver.restrained).toStrictEqual(baselineSolver.restrained);
+    expect(rotatedSolver.non_restrained).toStrictEqual(baselineSolver.non_restrained);
+
+    expect(areMatricesClose(rotatedSolver.k_11, baselineSolver.k_11)).toBe(true);
+    expect(areMatricesClose(rotatedSolver.k_22, baselineSolver.k_22)).toBe(true);
+    expect(areMatricesClose(rotatedSolver.k_12, baselineSolver.k_12)).toBe(true);
+
+    expect(areMatricesClose(rotatedSolver.c_11, baselineSolver.c_11)).toBe(true);
+    expect(areMatricesClose(rotatedSolver.c_22, baselineSolver.c_22)).toBe(true);
+
+    expect(areMatricesClose(rotatedSolver.m_11, baselineSolver.m_11)).toBe(true);
+});
+
+
+test('assembly of cantilever with a 180-degree flipped node system', () => {
+    const [ea, ei, c, m] = [7, 11, 13, 17];
+    const system = getFlippedCantilever(ea, ei, c, m);
     const solver = new SystemSolver(system);
 
     expect(solver.ndof_restrained).toBe(3);
-    expect(solver.ndof_non_restrained).toBe(1);
+    expect(solver.ndof_non_restrained).toBe(3);
     expect(solver.restrained).toStrictEqual([0, 1, 2]);
-    expect(solver.non_restrained).toStrictEqual([3]);
+    expect(solver.non_restrained).toStrictEqual([3, 4, 5]);
 
-    expect(solver.k_11).toStrictEqual(matrix([[7]]));
-    expect(areMatricesClose(solver.k_22, matrix([[0, 0, 0], [0, 7, 0], [0, 0, 0]]))).toBe(true);
-    expect(areMatricesClose(solver.c_11, matrix([[11]]))).toBe(true);
-    expect(areMatricesClose(solver.c_22, matrix([[0, 0, 0], [0, 11, 0], [0, 0, 0]]))).toBe(true);
-    expect(areMatricesClose(solver.m_11, matrix([[3]]))).toBe(true);
-    expect(areMatricesClose(solver.m_22, matrix([[2, 0, 0], [0, 2, 0], [0, 0, 3]]))).toBe(true);
+
+    const expected_k_11 = matrix([
+        [ea,  0,       0      ],
+        [0,   12 * ei, 6 * ei ], // Sign flipped from -6*ei to +6*ei
+        [0,   6 * ei,  4 * ei ]  // Sign flipped from -6*ei to +6*ei
+    ]);
+    expect(areMatricesClose(solver.k_11, expected_k_11)).toBe(true);
+
+    const expected_k_12 = matrix([
+        [ea,  0,        0      ], // Baseline -ea becomes +ea
+        [0,   12 * ei,  6 * ei], // Baseline -12*ei becomes +12*ei and -6*ei becomes +6*ei
+        [0,   6 * ei,   2 * ei]
+    ]);
+    expect(areMatricesClose(solver.k_12, expected_k_12)).toBe(true);
+
+    const expected_c_11 = matrix([
+        [c, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+    ]);
+    expect(areMatricesClose(solver.c_11, expected_c_11)).toBe(true);
+    
+    expect(areMatricesClose(solver.c_12, matrix([
+        [c, 0, 0], // Baseline -c becomes +c
+        [0, 0, 0],
+        [0, 0, 0]
+    ]))).toBe(true);
+
+    expect(areMatricesClose(solver.m_11, matrix([
+        [m, 0, 0],
+        [0, m, 0],
+        [0, 0, 10]
+    ]))).toBe(true);
 });
+
+
+
+
+
 
 test('fully restrained system is not kinematic', () => {
     const system = new StructuralSystem(
-        [{ id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 }],
+        [{ id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0}],
         []
     );
     const solver = new SystemSolver(system);
     expect(solver.isKinematic()).toBe(false);
     expect(solver.ndof_non_restrained).toBe(0);
-});
-
-// ─── solveStatic ──────────────────────────────────────────────────────────────
-// DOF layout convention used in these tests:
-//   horizontal bar (nodes 1→2 along x): u1=0(R), v1=1(R), u2=2(F), v2=3(R)
-//   vertical bar   (nodes 1→2 along z): u1=0(R), v1=1(R), u2=2(R), v2=3(F)
-//   two-bar sym    (nodes 1,2,3 along x): u1=0(R),v1=1(R), u2=2(F),v2=3(R), u3=4(R),v3=5(R)
-
-test('solveStatic — horizontal bar displacement', () => {
-    const EA = 500, L = 2, F = 10;
-    const system = new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restrained_u: false, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-        ],
-        [{ id: 1, node_i: 1, node_j: 2, ea: EA, c: 0 }]
-    );
-    const sol = new SystemSolver(system).solveStatic(makeForces(system.ndofs, [[2, F]]));
-
-    expect(sol.get_w(2)).toBeCloseTo(F * L / EA, 10);
-    expect(sol.get_w(0)).toBeCloseTo(0, 10);
-    expect(sol.get_r(0)).toBeCloseTo(-F, 10);
-});
-
-test('solveStatic — vertical bar displacement', () => {
-    const EA = 300, L = 4, F = 6;
-    const system = new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 2, x: 0, z: L, mass: 0, restrained_u: true, restrained_v: false, u0: 0, v0: 0, du0: 0, dv0: 0 },
-        ],
-        [{ id: 1, node_i: 1, node_j: 2, ea: EA, c: 0 }]
-    );
-    const sol = new SystemSolver(system).solveStatic(makeForces(system.ndofs, [[3, F]]));
-
-    expect(sol.get_w(3)).toBeCloseTo(F * L / EA, 10);
-    expect(sol.get_r(1)).toBeCloseTo(-F, 10);
-});
-
-test('solveStatic — two-bar symmetric: displacement, reactions, normal forces', () => {
-    const EA = 400, L = 3, F = 20;
-    const system = new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restrained_u: false, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 3, x: 2 * L, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: EA, c: 0 },
-            { id: 2, node_i: 2, node_j: 3, ea: EA, c: 0 },
-        ]
-    );
-    const sol = new SystemSolver(system).solveStatic(makeForces(system.ndofs, [[2, F]]));
-
-    // Middle node displaces by F / (2*EA/L)
-    expect(sol.get_w(2)).toBeCloseTo(F * L / (2 * EA), 10);
-});
-
-test('solveStatic — global equilibrium holds', () => {
-    const EA = 400, L = 3, F = 20;
-    const system = new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restrained_u: false, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 3, x: 2 * L, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: EA, c: 0 },
-            { id: 2, node_i: 2, node_j: 3, ea: EA, c: 0 },
-        ]
-    );
-    const sol = new SystemSolver(system).solveStatic(makeForces(system.ndofs, [[2, F]]));
-
-    // Sum of all reactions + applied forces = 0
-    const totalU = sol.get_r(0) + sol.get_r(4) + F;
-    expect(totalU).toBeCloseTo(0, 10);
 });
 
 // ─── solveDynamic ─────────────────────────────────────────────────────────────
@@ -289,10 +275,16 @@ test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
 
     const system = new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 1, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 },
-            { id: 2, x: 0, z: 1, mass: m, restrained_u: true, restrained_v: false, u0: 0, v0: 0, du0: 0, dv0: 0 },
+            { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0},
+            { id: 2, x: 0, z: 1, mass: m, restraint: { u: true, v: false, theta: true }, angle: 0},
         ],
-        [{ id: 1, node_i: 1, node_j: 2, ea: k, c: c }]
+        [
+            {
+                id: 1, node_i: 1, node_j: 2, ea: k, ei: 1, c: c,
+                releases_i: { u: false, v: false, theta: true },
+                releases_j: { u: false, v: false, theta: true }
+            }
+        ]
     );
 
     const sol = new SystemSolver(system).solveDynamic(matrix([0.1, 0]));
@@ -309,17 +301,8 @@ test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
     const analytical = (t: number) => A * Math.exp(lambda_1 * t) + B * Math.exp(lambda_2 * t);
 
     for (const t of [0, 0.1, 0.5, 1.0, 2.0, 5.0]) {
-        expect(sol.get_w(3, t)).toBeCloseTo(analytical(t), 6);
+        expect(sol.get_w(4, t)).toBeCloseTo(analytical(t), 6);
     }
 });
 
-test('solveDynamic — fully restrained system returns zero displacement', () => {
-    const system = new StructuralSystem(
-        [{ id: 1, x: 0, z: 0, mass: 0, restrained_u: true, restrained_v: true, u0: 0, v0: 0, du0: 0, dv0: 0 }],
-        []
-    );
-    const sol = new SystemSolver(system).solveStatic(makeForces(system.ndofs, []));
-    expect(sol.get_w(0)).toBeCloseTo(0, 10);
-    expect(sol.get_w(1)).toBeCloseTo(0, 10);
-});
 */

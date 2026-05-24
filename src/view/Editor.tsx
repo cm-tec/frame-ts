@@ -102,7 +102,7 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
     const textY = circleY - TEXT_BOX_SIZE / 2;
 
     return <>
-        {node.restrained_u && (
+        {node.restraint.u && (
             <Shape
                 stroke={BLUEPRINT.bearingStroke}
                 fill={BLUEPRINT.bearing}
@@ -117,7 +117,7 @@ function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
                 }}
             />
         )}
-        {node.restrained_v && (
+        {node.restraint.v && (
             <Shape
                 stroke={BLUEPRINT.bearingStroke}
                 fill={BLUEPRINT.bearing}
@@ -178,14 +178,23 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
 
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
-        setNodes((r) => [...r, { id: nextId, x: 0, z: 0, mass: 0, restrained_u: false, restrained_v: false, restrained_phi: false, u0: 0, v0: 0, phi0: 0, du0: 0, dv0: 0, dphi0: 0 }]);
+        setNodes((r) => [...r, {
+            id: nextId, x: 0, z: 0, mass: 0,
+            restraint: { u: false, v: false, theta: true },
+            angle: 0,
+            u0: 0, v0: 0, phi0: 0, du0: 0, dv0: 0, dphi0: 0 
+        }]);
     };
 
     const getNode = (id: number) => nodes.find(n => n.id == id);
 
     const addElement = () => {
         const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
-        setElements((r) => [...r, { id: nextId, node_i: 1, node_j: 2, ea: 1, ei: 1, c: 0 }]);
+        setElements((r) => [...r, {
+            id: nextId, node_i: 1, node_j: 2, ea: 1, ei: 0, c: 0,
+            releases_i: { u: false, v: false, theta: true },
+            releases_j: { u: false, v: false, theta: true }
+        }]);
     };
 
     const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -357,10 +366,10 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                             <NumberInput value={row.mass} onChange={(e) => updateNode(row.id, { mass: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
-                                            <Checkbox checked={row.restrained_u} onChange={(e) => updateNode(row.id, { restrained_u: e.currentTarget.checked })} />
+                                            <Checkbox checked={row.restraint.u} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, u: e.currentTarget.checked } })} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <Checkbox checked={row.restrained_v} onChange={(e) => updateNode(row.id, { restrained_v: e.currentTarget.checked })} />
+                                            <Checkbox checked={row.restraint.v} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, v: e.currentTarget.checked } })} />
                                         </Table.Td>
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNode(row.id)}>
@@ -390,16 +399,16 @@ export default function Editor({ nodes, setNodes, elements, setElements }: Edito
                                     <Table.Tr key={row.id}>
                                         <Table.Td bg="gray.1">{row.id}</Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.u0} onChange={(e) => updateNode(row.id, { u0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_u} />
+                                            <NumberInput value={row.u0} onChange={(e) => updateNode(row.id, { u0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.v0} onChange={(e) => updateNode(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_v} />
+                                            <NumberInput value={row.v0} onChange={(e) => updateNode(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.du0} onChange={(e) => updateNode(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_u} />
+                                            <NumberInput value={row.du0} onChange={(e) => updateNode(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={row.dv0} onChange={(e) => updateNode(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restrained_v} />
+                                            <NumberInput value={row.dv0} onChange={(e) => updateNode(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
                                         </Table.Td>
                                     </Table.Tr>
                                 ))}

@@ -64,7 +64,7 @@ type NodeColors = { supportFill: string; nodeFill: string; stroke: string; text:
 // Renders at origin — caller positions via a Group wrapper
 function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean }) {
     return <>
-        {node.restrained_u && (
+        {node.restraint.u && (
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
@@ -74,7 +74,7 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
                 ctx.fillStrokeShape(shape);
             }} />
         )}
-        {node.restrained_v && (
+        {node.restraint.v && (
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);

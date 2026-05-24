@@ -5,18 +5,33 @@ import { KinematicSolution } from "./KinematicSolution";
 import { DynamicSolution } from "./DynamicSolution";
 
 
-function get_rotation_matrix_of_element(v: [number, number]): Matrix {
+function get_rotation_matrix_of_element(v: [number, number], angle_i: number, angle_j: number): Matrix {
     const dx = v[0];
     const dz = v[1];
 
-    const theta = atan2(dz, dx);
-    const t = transpose(rotationMatrix(theta)) as Matrix;
+    // The absolute spatial angle of the element itself
+    const theta_element = atan2(dz, dx);
 
-    // 6x6 Identity matrix transformation for 2D beam elements
+    // Calculate relative angles for Node i and Node j transformations
+    const theta_i = theta_element - angle_i;
+    const theta_j = theta_element - angle_j;
+
+    // Generate the distinct 2x2 rotation components
+    // (Note: math.js rotationMatrix rotates counter-clockwise. Depending on your 
+    // exact local-to-global convention, you may or may not need the transpose here)
+    const t_i = transpose(rotationMatrix(theta_i)) as Matrix;
+    const t_j = transpose(rotationMatrix(theta_j)) as Matrix;
+
+    // Build the final 6x6 transformation matrix
     const T_e = identity(6) as Matrix;
-    T_e.subset(index([0, 1], [0, 1]), t); // Start node translations
-    T_e.subset(index([3, 4], [3, 4]), t); // End node translations
-    // Rotations (indices 2 and 5) stay 1 on the diagonal because 2D rotation doesn't change theta
+    
+    // Inject Node i's specific translation transformation
+    T_e.subset(index([0, 1], [0, 1]), t_i); 
+    
+    // Inject Node j's specific translation transformation
+    T_e.subset(index([3, 4], [3, 4]), t_j); 
+
+    // Rotations (indices 2 and 5) remain 1 on the diagonal 
     return T_e;
 }
 
@@ -141,7 +156,11 @@ export class SystemSolver {
             k_e = applyStaticCondensation(k_e, e.releases_i, e.releases_j);
             c_e = applyStaticCondensation(c_e, e.releases_i, e.releases_j);
 
-            const R_e = get_rotation_matrix_of_element([n_j.x - n_i.x, n_j.z - n_i.z])
+            const R_e = get_rotation_matrix_of_element(
+                [n_j.x - n_i.x, n_j.z - n_i.z],
+                n_i.angle,
+                n_j.angle
+            )
             const R_e_T = transpose(R_e);
 
             const k_e_global = multiply(R_e_T, multiply(k_e, R_e));
@@ -210,7 +229,7 @@ export class SystemSolver {
         );
     }
 
-    solveDynamically(initialConditions: Matrix): DynamicSolution {
+    solveDynamic(initialConditions: Matrix): DynamicSolution {
         if (this.ndof_non_restrained === 0) {
             return new DynamicSolution(
                 matrix(zeros([0, 0])), matrix(zeros([0, 1])), matrix(zeros([0, 1])),

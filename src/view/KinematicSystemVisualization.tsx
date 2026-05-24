@@ -39,7 +39,8 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
         );
 
         let maxDisp = 0;
-        for (let i = 0; i < solution.NDOF; i++) {
+        const modeSize = solution.modes[selectedMode].size()[0];
+        for (let i = 0; i < modeSize; i++) {
             maxDisp = Math.max(maxDisp, Math.abs(solution.modes[selectedMode].get([i])));
         }
 
@@ -52,8 +53,8 @@ export default function KinematicSystemVisualization({ structuralSystem }: { str
 
         const factor = autoScale * scale * Math.cos(time);
         return {
-            x: node.x + solution.get_w(selectedMode, node.u_dof) * factor,
-            z: node.z + solution.get_w(selectedMode, node.v_dof) * factor,
+            x: node.x + solution.get_w(selectedMode, node.dofs[0]) * factor,
+            z: node.z + solution.get_w(selectedMode, node.dofs[1]) * factor,
         };
     }, [structuralSystem, solution, selectedMode, autoScale, scale]);
 
