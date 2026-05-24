@@ -33,7 +33,14 @@ export default function App() {
     3: { u0: 0, v0:  1, theta0: 0, du0: 0, dv0: 0, dtheta0: 0 },
   });
 
-  const [loads, setLoads] = useState<Loads>({ nodes: [], elements: [] });
+  const [loads, setLoads] = useState<Loads>({
+    nodes: [
+      { id: 1, node_id: 2, magnitude: 10, angle: 0, frequency: 0, phase_shift: 0 },
+    ],
+    elements: [
+      { id: 1, element_id: 1, q_i: 5, q_j: 5, angle: 0, frequency: 0, phase_shift: 0 },
+    ],
+  });
 
   const structuralSystem = useMemo(() => new StructuralSystem(nodes, elements), [nodes, elements]);
   const isKinematic      = useMemo(() => new SystemSolver(structuralSystem).isKinematic(), [structuralSystem]);

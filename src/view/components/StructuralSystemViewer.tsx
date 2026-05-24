@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Konva from 'konva';
-import { Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
+import { Arrow, Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node } from "../../models/models";
+import { type Node, type Loads } from "../../models/models";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
+
+interface LoadVisualization {
+    loads: Loads;
+    scale: number;
+    showNodal: boolean;
+    showElement: boolean;
+}
 
 interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
@@ -14,6 +21,7 @@ interface StructuralSystemViewerProps {
     showUndeformedSystem: boolean;
     showNodes: boolean;
     showBearings: boolean;
+    loadVisualization?: LoadVisualization;
 }
 
 // ─── Visual theme ─────────────────────────────────────────────────────────────
@@ -211,10 +219,143 @@ const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, showNo
     </Layer>
 ));
 
+// ─── Load layer ───────────────────────────────────────────────────────────────
+
+const LOAD_FILL   = 'rgba(239, 68, 68, 0.15)';
+const LOAD_STROKE = 'rgba(239, 68, 68, 0.8)';
+const TICK_COUNT  = 5;
+const LOAD_GAP    = THEME.elementStrokeWidth / 2 + 16; // px gap between element/node and load symbol
+
+interface LoadLayerProps {
+    structuralSystem: StructuralSystem;
+    lv: LoadVisualization;
+    toCanvasX: (x: number) => number;
+    toCanvasZ: (z: number) => number;
+    canvasWidth: number;
+    canvasHeight: number;
+}
+
+function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, canvasHeight }: LoadLayerProps) {
+    const { loads, scale, showNodal, showElement } = lv;
+
+    // Auto-scale: map the largest load value to 15% of the shorter canvas axis
+    let maxVal = 1e-10;
+    if (showNodal)   loads.nodes.forEach(l => { maxVal = Math.max(maxVal, Math.abs(l.magnitude)); });
+    if (showElement) loads.elements.forEach(l => { maxVal = Math.max(maxVal, Math.abs(l.q_i), Math.abs(l.q_j)); });
+    const pxPerUnit = (0.15 * Math.min(canvasWidth, canvasHeight) / maxVal) * scale;
+
+    // Canvas load direction: angle=0 means downward (+z in world = +y in canvas)
+    const loadDir = (angleDeg: number) => {
+        const r = (angleDeg * Math.PI) / 180;
+        return { dx: Math.sin(r), dy: Math.cos(r) };
+    };
+
+    return (
+        <Layer listening={false}>
+            {showNodal && loads.nodes.map(load => {
+                const node = structuralSystem.nodes.find(n => n.id === load.node_id);
+                if (!node) return null;
+                const cx = toCanvasX(node.x);
+                const cy = toCanvasZ(node.z);
+                const { dx, dy } = loadDir(load.angle);
+                const sign = load.magnitude >= 0 ? 1 : -1;
+                const len = Math.abs(load.magnitude) * pxPerUnit;
+                // Arrow starts outside the node circle with a small gap
+                const tailX = cx + sign * dx * (THEME.nodeRadius + LOAD_GAP);
+                const tailY = cy + sign * dy * (THEME.nodeRadius + LOAD_GAP);
+                return (
+                    <Arrow
+                        key={load.id}
+                        points={[tailX, tailY, tailX + sign * dx * len, tailY + sign * dy * len]}
+                        fill={LOAD_STROKE}
+                        stroke={LOAD_STROKE}
+                        strokeWidth={2.5}
+                        pointerLength={10}
+                        pointerWidth={8}
+                        listening={false}
+                    />
+                );
+            })}
+
+            {showElement && loads.elements.map(load => {
+                const el = structuralSystem.elements.find(e => e.id === load.element_id);
+                if (!el) return null;
+                const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
+                const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
+                const cxi = toCanvasX(ni.x), cyi = toCanvasZ(ni.z);
+                const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
+                const { dx, dy } = loadDir(load.angle);
+
+                // World-space element direction to detect parallelism
+                const wlen = Math.hypot(nj.x - ni.x, nj.z - ni.z);
+                const angleRad = (load.angle * Math.PI) / 180;
+                const dot = ((nj.x - ni.x) / wlen) * Math.sin(angleRad)
+                          + ((nj.z - ni.z) / wlen) * Math.cos(angleRad);
+                const parallel = Math.abs(dot) > 0.85;
+
+                const sqi = load.q_i >= 0 ? 1 : -1;
+                const sqj = load.q_j >= 0 ? 1 : -1;
+                // Far edge pushed OUTWARD beyond the arrow tips by LOAD_GAP
+                const oxi = dx * (load.q_i * pxPerUnit + sqi * LOAD_GAP), oyi = dy * (load.q_i * pxPerUnit + sqi * LOAD_GAP);
+                const oxj = dx * (load.q_j * pxPerUnit + sqj * LOAD_GAP), oyj = dy * (load.q_j * pxPerUnit + sqj * LOAD_GAP);
+
+                // Interpolate tick endpoints directly from the four trapezoid corners
+                const nearXi = cxi + sqi * dx * LOAD_GAP, nearYi = cyi + sqi * dy * LOAD_GAP;
+                const nearXj = cxj + sqj * dx * LOAD_GAP, nearYj = cyj + sqj * dy * LOAD_GAP;
+                const farXi  = cxi + oxi,                 farYi  = cyi + oyi;
+                const farXj  = cxj + oxj,                 farYj  = cyj + oyj;
+
+                const ticks = Array.from({ length: TICK_COUNT }, (_, k) => {
+                    const t = k / (TICK_COUNT - 1);
+                    const q = load.q_i + t * (load.q_j - load.q_i);
+                    if (Math.abs(q) < 1e-10) return null;
+                    const farX  = farXi  + t * (farXj  - farXi);
+                    const farY  = farYi  + t * (farYj  - farYi);
+                    const nearX = nearXi + t * (nearXj - nearXi);
+                    const nearY = nearYi + t * (nearYj - nearYi);
+                    return (
+                        <Arrow
+                            key={k}
+                            points={[farX, farY, nearX, nearY]}
+                            fill={LOAD_STROKE}
+                            stroke={LOAD_STROKE}
+                            strokeWidth={1.5}
+                            pointerLength={6}
+                            pointerWidth={5}
+                            listening={false}
+                        />
+                    );
+                });
+
+                return (
+                    <React.Fragment key={load.id}>
+                        {!parallel && (
+                            <Line
+                                points={[
+                                    cxi + sqi * dx * LOAD_GAP, cyi + sqi * dy * LOAD_GAP,
+                                    cxi + oxi, cyi + oyi,
+                                    cxj + oxj, cyj + oyj,
+                                    cxj + sqj * dx * LOAD_GAP, cyj + sqj * dy * LOAD_GAP,
+                                ]}
+                                fill={LOAD_FILL}
+                                stroke={LOAD_STROKE}
+                                strokeWidth={1.5}
+                                closed
+                                listening={false}
+                            />
+                        )}
+                        {ticks}
+                    </React.Fragment>
+                );
+            })}
+        </Layer>
+    );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings,
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, loadVisualization,
 }: StructuralSystemViewerProps) {
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -360,6 +501,16 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     toCanvasX={toCanvasX}
                     toCanvasZ={toCanvasZ}
                 />
+                {loadVisualization && (
+                    <LoadLayer
+                        structuralSystem={structuralSystem}
+                        lv={loadVisualization}
+                        toCanvasX={toCanvasX}
+                        toCanvasZ={toCanvasZ}
+                        canvasWidth={canvasWidth}
+                        canvasHeight={canvasHeight}
+                    />
+                )}
                 <Layer>
                     {structuralSystem.elements.map(el => {
                         const initialPositions = getElementPositions(el.id, 0);

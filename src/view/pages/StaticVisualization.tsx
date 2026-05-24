@@ -4,24 +4,15 @@ import type { StructuralSystem } from "../../solver/StructuralSystem";
 import type { Loads } from "../../models/models";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 
-type InternalForceType = 'N' | 'V' | 'M';
-
-export default function StaticVisualization({ structuralSystem, loads: _loads }: {
+export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
     loads: Loads;
 }) {
     const [showNodes, setShowNodes] = useState(true);
     const [showBearings, setShowBearings] = useState(true);
-    const [activeForces, setActiveForces] = useState<Set<InternalForceType>>(new Set(['N']));
+    const [showNodal, setShowNodal] = useState(true);
+    const [showElement, setShowElement] = useState(true);
     const [scale, setScale] = useState(1);
-
-    const toggleForce = (type: InternalForceType) => {
-        setActiveForces(prev => {
-            const next = new Set(prev);
-            if (next.has(type)) next.delete(type); else next.add(type);
-            return next;
-        });
-    };
 
     const getNodePosition = useCallback((nodeId: number, _time: number): { x: number; z: number } => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
@@ -44,23 +35,27 @@ export default function StaticVisualization({ structuralSystem, loads: _loads }:
                         showUndeformedSystem={false}
                         showNodes={showNodes}
                         showBearings={showBearings}
+                        loadVisualization={{ loads, scale, showNodal, showElement }}
                     />
                 </Box>
 
                 <Box style={{ width: "30%", height: "100%", overflowY: 'auto', backgroundColor: '#f8f9fa', borderLeft: '1px solid #dee2e6' }}>
                     <Flex direction="column" gap="md" p="md">
-                        <Text size="xs" fw={700} c="dimmed">INTERNAL FORCES</Text>
+                        <Text size="xs" fw={700} c="dimmed">LOADS</Text>
 
                         <Flex direction="column" gap="xs">
-                            {(['N', 'V', 'M'] as InternalForceType[]).map(type => (
-                                <Checkbox
-                                    key={type}
-                                    label={type === 'N' ? 'Normal Force (N)' : type === 'V' ? 'Shear Force (V)' : 'Bending Moment (M)'}
-                                    checked={activeForces.has(type)}
-                                    onChange={() => toggleForce(type)}
-                                    size="sm"
-                                />
-                            ))}
+                            <Checkbox
+                                label="Nodal Loads"
+                                checked={showNodal}
+                                onChange={(e) => setShowNodal(e.currentTarget.checked)}
+                                size="sm"
+                            />
+                            <Checkbox
+                                label="Element Loads"
+                                checked={showElement}
+                                onChange={(e) => setShowElement(e.currentTarget.checked)}
+                                size="sm"
+                            />
                         </Flex>
 
                         <Divider />
@@ -75,18 +70,8 @@ export default function StaticVisualization({ structuralSystem, loads: _loads }:
 
             <Paper px="xl" py="xs" shadow="xl" withBorder style={{ zIndex: 100, borderRadius: 0, flexShrink: 0 }}>
                 <Group gap="xs" align="center">
-                    <Checkbox
-                        label="Show Nodes"
-                        checked={showNodes}
-                        onChange={(e) => setShowNodes(e.currentTarget.checked)}
-                        size="sm"
-                    />
-                    <Checkbox
-                        label="Show Bearings"
-                        checked={showBearings}
-                        onChange={(e) => setShowBearings(e.currentTarget.checked)}
-                        size="sm"
-                    />
+                    <Checkbox label="Show Nodes" checked={showNodes} onChange={(e) => setShowNodes(e.currentTarget.checked)} size="sm" />
+                    <Checkbox label="Show Bearings" checked={showBearings} onChange={(e) => setShowBearings(e.currentTarget.checked)} size="sm" />
                 </Group>
             </Paper>
         </Flex>
