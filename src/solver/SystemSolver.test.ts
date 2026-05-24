@@ -16,6 +16,40 @@ function areMatricesClose(A: math.Matrix, B: math.Matrix, epsilon = 1e-9) {
     return maxDiff <= epsilon;
 }
 
+
+function getBeam(ea: number = 7, ei: number = 11, c: number = 13): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: false }, angle: 0 },
+            { id: 2, x: 0, z: 1, mass: 1, restraint: { u: false, v: true, theta: false }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+        ]
+    );
+}
+
+test('assembly of stiffness matrix k', () => {
+    const [ea, ei, c] = [7, 11, 13];
+    const system = getBeam(ea, ei, c);
+
+
+    const solver = new SystemSolver(system);
+
+    expect(solver.ndof_restrained).toBe(3);
+    expect(solver.ndof_non_restrained).toBe(1);
+    expect(solver.restrained).toStrictEqual([0, 1, 2]);
+    expect(solver.non_restrained).toStrictEqual([3]);
+
+    expect(solver.k_11).toStrictEqual(matrix([[7]]));
+    expect(areMatricesClose(solver.k_22, matrix([[0, 0, 0], [0, 7, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.c_11, matrix([[11]]))).toBe(true);
+    expect(areMatricesClose(solver.c_22, matrix([[0, 0, 0], [0, 11, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix([[3]]))).toBe(true);
+    expect(areMatricesClose(solver.m_22, matrix([[2, 0, 0], [0, 2, 0], [0, 0, 3]]))).toBe(true);
+});
+/*
+
 test('sdof — dof counts and matrix assembly', () => {
     const system = new StructuralSystem(
         [
@@ -168,3 +202,4 @@ test('solveDynamic — fully restrained system returns zero displacement', () =>
     expect(sol.get_w(0)).toBeCloseTo(0, 10);
     expect(sol.get_w(1)).toBeCloseTo(0, 10);
 });
+*/

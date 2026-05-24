@@ -3,12 +3,10 @@ export type Node = {
     x: number;
     z: number;
     mass: number;
-    restrained_u: boolean;
-    restrained_v: boolean;
-    u0: number;
-    v0: number;
-    du0: number;
-    dv0: number;
+
+    angle: number;
+
+    restraint: { u: boolean; v: boolean; theta: boolean };
 };
 
 export type Element = {
@@ -16,5 +14,9 @@ export type Element = {
     node_i: number;
     node_j: number;
     ea: number;
+    ei: number;
     c: number;
+
+    releases_i: { u: boolean; v: boolean; theta: boolean };
+    releases_j: { u: boolean; v: boolean; theta: boolean };
 };
