@@ -90,7 +90,7 @@ export default function App() {
             <EigenmodeVisualization structuralSystem={structuralSystem} />
           )}
           {!editMode && !isKinematic && view === 'static' && (
-            <StaticVisualization structuralSystem={structuralSystem} initialConditions={initialConditions} loads={loads} />
+            <StaticVisualization structuralSystem={structuralSystem} loads={loads} />
           )}
         </AppShell.Main>
       </AppShell>

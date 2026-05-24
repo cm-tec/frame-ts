@@ -1,4 +1,4 @@
-import { matrix, zeros, type Matrix } from "mathjs";
+import { type Matrix } from "mathjs";
 
 
 export class StaticSolution {
