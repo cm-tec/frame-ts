@@ -224,7 +224,7 @@ const StaticLayer = React.memo(({ structuralSystem, showUndeformedSystem, showNo
 const LOAD_FILL   = 'rgba(239, 68, 68, 0.15)';
 const LOAD_STROKE = 'rgba(239, 68, 68, 0.8)';
 const TICK_COUNT  = 5;
-const LOAD_GAP    = THEME.elementStrokeWidth / 2 + 16; // px gap between element/node and load symbol
+const LOAD_GAP    = THEME.elementStrokeWidth / 2 + 18; // px gap between element/node and load symbol
 
 interface LoadLayerProps {
     structuralSystem: StructuralSystem;
@@ -286,6 +286,12 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
                 const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
                 const { dx, dy } = loadDir(load.angle);
 
+                const l = 10;
+                const dys = (nj.x-ni.x)/l;
+                const dxs = (nj.z-ni.z)/l;
+
+                
+
                 // World-space element direction to detect parallelism
                 const wlen = Math.hypot(nj.x - ni.x, nj.z - ni.z);
                 const angleRad = (load.angle * Math.PI) / 180;
@@ -295,15 +301,28 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
 
                 const sqi = load.q_i >= 0 ? 1 : -1;
                 const sqj = load.q_j >= 0 ? 1 : -1;
+               
+                const dxmi = sqi * dxs * LOAD_GAP;
+                const dxmj = sqj * dxs * LOAD_GAP;
+                const dymi = sqi * dys * LOAD_GAP;
+                const dymj = sqj * dys * LOAD_GAP;
+               
+               /*
+                const dxmi = 0;
+                const dxmj = 0;
+                const dymi = 0;
+                const dymj = 0;
+*/
+
                 // Far edge pushed OUTWARD beyond the arrow tips by LOAD_GAP
-                const oxi = dx * (load.q_i * pxPerUnit + sqi * LOAD_GAP), oyi = dy * (load.q_i * pxPerUnit + sqi * LOAD_GAP);
-                const oxj = dx * (load.q_j * pxPerUnit + sqj * LOAD_GAP), oyj = dy * (load.q_j * pxPerUnit + sqj * LOAD_GAP);
+                const oxi = dx * (load.q_i * pxPerUnit), oyi = dy * (load.q_i * pxPerUnit);
+                const oxj = dx * (load.q_j * pxPerUnit), oyj = dy * (load.q_j * pxPerUnit);
 
                 // Interpolate tick endpoints directly from the four trapezoid corners
-                const nearXi = cxi + sqi * dx * LOAD_GAP, nearYi = cyi + sqi * dy * LOAD_GAP;
-                const nearXj = cxj + sqj * dx * LOAD_GAP, nearYj = cyj + sqj * dy * LOAD_GAP;
-                const farXi  = cxi + oxi,                 farYi  = cyi + oyi;
-                const farXj  = cxj + oxj,                 farYj  = cyj + oyj;
+                const nearXi = cxi + dxmi, nearYi = cyi + dymi;
+                const nearXj = cxj + dxmj, nearYj = cyj + dymj;
+                const farXi  = cxi + oxi  + dxmi,  farYi  = cyi + oyi + dymi;
+                const farXj  = cxj + oxj  + dxmj,  farYj  = cyj + oyj + dymj;
 
                 const ticks = Array.from({ length: TICK_COUNT }, (_, k) => {
                     const t = k / (TICK_COUNT - 1);
@@ -332,10 +351,10 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
                         {!parallel && (
                             <Line
                                 points={[
-                                    cxi + sqi * dx * LOAD_GAP, cyi + sqi * dy * LOAD_GAP,
-                                    cxi + oxi, cyi + oyi,
-                                    cxj + oxj, cyj + oyj,
-                                    cxj + sqj * dx * LOAD_GAP, cyj + sqj * dy * LOAD_GAP,
+                                    nearXi, nearYi,
+                                    nearXj, nearYj,
+                                    farXj, farYj,
+                                    farXi, farYi,  
                                 ]}
                                 fill={LOAD_FILL}
                                 stroke={LOAD_STROKE}
