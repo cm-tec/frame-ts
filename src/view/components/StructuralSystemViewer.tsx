@@ -284,39 +284,34 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
                 const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
                 const cxi = toCanvasX(ni.x), cyi = toCanvasZ(ni.z);
                 const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
-                const { dx, dy } = loadDir(load.angle);
-
-                const l = 10;
-                const dys = (nj.x-ni.x)/l;
-                const dxs = (nj.z-ni.z)/l;
-
+                const elementAngleDeg = Math.atan2(cxj - cxi, cyj - cyi) * 180 / Math.PI;
                 
+                const { dx, dy } = loadDir(load.angle + elementAngleDeg - 90);
+
+
+
+                const l = Math.hypot(nj.x - ni.x, nj.z - ni.z);
+                const dxs = (nj.x-ni.x)/l;
+                const dys = (nj.z-ni.z)/l;
 
                 // World-space element direction to detect parallelism
-                const wlen = Math.hypot(nj.x - ni.x, nj.z - ni.z);
                 const angleRad = (load.angle * Math.PI) / 180;
-                const dot = ((nj.x - ni.x) / wlen) * Math.sin(angleRad)
-                          + ((nj.z - ni.z) / wlen) * Math.cos(angleRad);
+                const dot = dxs * Math.sin(angleRad) + dys * Math.cos(angleRad);
                 const parallel = Math.abs(dot) > 0.85;
 
                 const sqi = load.q_i >= 0 ? 1 : -1;
                 const sqj = load.q_j >= 0 ? 1 : -1;
                
-                const dxmi = sqi * dxs * LOAD_GAP;
-                const dxmj = sqj * dxs * LOAD_GAP;
-                const dymi = sqi * dys * LOAD_GAP;
-                const dymj = sqj * dys * LOAD_GAP;
+                const dxmi = sqi * dys * LOAD_GAP;
+                const dxmj = sqj * dys * LOAD_GAP;
+                const dymi = - sqi * dxs * LOAD_GAP;
+                const dymj = - sqj * dxs * LOAD_GAP;
                
-               /*
-                const dxmi = 0;
-                const dxmj = 0;
-                const dymi = 0;
-                const dymj = 0;
-*/
-
                 // Far edge pushed OUTWARD beyond the arrow tips by LOAD_GAP
-                const oxi = dx * (load.q_i * pxPerUnit), oyi = dy * (load.q_i * pxPerUnit);
-                const oxj = dx * (load.q_j * pxPerUnit), oyj = dy * (load.q_j * pxPerUnit);
+                const oxi = dx * (load.q_i * pxPerUnit), oyi = - dy * (load.q_i * pxPerUnit);
+                const oxj = dx * (load.q_j * pxPerUnit), oyj = - dy * (load.q_j * pxPerUnit);
+
+                console.log(oyi)
 
                 // Interpolate tick endpoints directly from the four trapezoid corners
                 const nearXi = cxi + dxmi, nearYi = cyi + dymi;
