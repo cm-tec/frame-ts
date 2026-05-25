@@ -42,7 +42,16 @@ export default function App() {
     ],
   });
 
-  const structuralSystem = useMemo(() => new StructuralSystem(nodes, elements), [nodes, elements]);
+  const validElements = useMemo(
+    () => elements.filter(e => nodes.some(n => n.id === e.node_i) && nodes.some(n => n.id === e.node_j)),
+    [nodes, elements],
+  );
+  const validLoads = useMemo(() => ({
+    nodes:    loads.nodes.filter(l => nodes.some(n => n.id === l.node_id)),
+    elements: loads.elements.filter(l => validElements.some(e => e.id === l.element_id)),
+  }), [nodes, loads, validElements]);
+
+  const structuralSystem = useMemo(() => new StructuralSystem(nodes, validElements), [nodes, validElements]);
   const isKinematic      = useMemo(() => new SystemSolver(structuralSystem).isKinematic(), [structuralSystem]);
 
   return (
@@ -94,13 +103,13 @@ export default function App() {
             <KinematicVisualization structuralSystem={structuralSystem} />
           )}
           {!editMode && !isKinematic && view === 'dynamic' && subView === 'response' && (
-            <DynamicVisualization structuralSystem={structuralSystem} initialConditions={initialConditions} loads={loads} />
+            <DynamicVisualization structuralSystem={structuralSystem} initialConditions={initialConditions} loads={validLoads} />
           )}
           {!editMode && !isKinematic && view === 'dynamic' && subView === 'eigenmodes' && (
             <EigenmodeVisualization structuralSystem={structuralSystem} />
           )}
           {!editMode && !isKinematic && view === 'static' && (
-            <StaticVisualization structuralSystem={structuralSystem} loads={loads} />
+            <StaticVisualization structuralSystem={structuralSystem} loads={validLoads} />
           )}
         </AppShell.Main>
       </AppShell>

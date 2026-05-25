@@ -233,8 +233,9 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
             {showElement && loads.elements.map(load => {
                 const el = structuralSystem.elements.find(e => e.id === load.element_id);
                 if (!el) return null;
-                const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
-                const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
+                const ni = structuralSystem.nodes.find(n => n.id === el.node_i);
+                const nj = structuralSystem.nodes.find(n => n.id === el.node_j);
+                if (!ni || !nj) return null;
                 
                 const cxi = toCanvasX(ni.x), cyi = toCanvasZ(ni.z);
                 const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
@@ -430,6 +431,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     const { contentCx, contentCz, contentWidth, contentHeight } = useMemo(() => {
         const xs = structuralSystem.nodes.map(n => n.x);
         const zs = structuralSystem.nodes.map(n => n.z);
+        if (xs.length === 0) return { contentCx: 0, contentCz: 0, contentWidth: CONTENT_MIN_DIM, contentHeight: CONTENT_MIN_DIM };
         const rawMinX = min(xs), rawMaxX = max(xs);
         const rawMinZ = min(zs), rawMaxZ = max(zs);
         const rawW = rawMaxX - rawMinX;
