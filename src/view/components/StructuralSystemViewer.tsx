@@ -351,7 +351,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
             const positions = getElementPositionsRef.current(el.id, t);
             line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
             if (labelGroup) {
-                const mid = { x: (positions[0].x + positions[1].x) / 2, z: (positions[0].z + positions[1].z) / 2 };
+                const mid = positions[Math.floor((positions.length - 1) / 2)];
                 labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
                 labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
             }
@@ -373,7 +373,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
             {structuralSystem.elements.map(el => {
                 const initialPositions = getElementPositions(el.id, 0);
                 const initialPoints    = initialPositions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
-                const mid = { x: (initialPositions[0].x + initialPositions[1].x) / 2, z: (initialPositions[0].z + initialPositions[1].z) / 2 };
+                const mid = initialPositions[Math.floor((initialPositions.length - 1) / 2)];
 
                 return (
                     <React.Fragment key={el.id}>

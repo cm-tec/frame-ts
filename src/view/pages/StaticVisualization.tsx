@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
 import { index, Matrix, matrix, subset, zeros } from "mathjs";
-import { Box, Checkbox, Divider, Flex, Group, Paper, Slider, Text } from "@mantine/core";
+import { Alert, Box, Checkbox, Divider, Flex, Group, Paper, Slider, Text } from "@mantine/core";
 import type { StructuralSystem } from "../../solver/StructuralSystem";
 import { SystemSolver } from "../../solver/SystemSolver";
 import type { Loads } from "../../models/models";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
+import { deformedElementPoints } from "../utils/deformedShape";
 
 export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
@@ -108,10 +109,25 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         };
     }, [structuralSystem, solution, scale]);
 
-    const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
+    const bendingWarnings = useMemo(() =>
+        loads.elements.filter(l => {
+            const el = structuralSystem.elements.find(e => e.id === l.element_id);
+            return el && el.ei === 0 && (l.q_i !== 0 || l.q_j !== 0);
+        }).map(l => l.element_id),
+    [structuralSystem, loads]);
+
+    const getElementPositions = useCallback((elementId: number, _time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
-    }, [structuralSystem, getNodePosition]);
+        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
+        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
+        const load = loads.elements.find(l => l.element_id === elementId);
+        return deformedElementPoints(
+            element, ni, nj,
+            (dof) => solution.get_w(dof),
+            scale,
+            load ? { qi: load.q_i, qj: load.q_j } : undefined,
+        );
+    }, [structuralSystem, solution, scale, loads]);
 
     return (
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
@@ -130,6 +146,14 @@ export default function StaticVisualization({ structuralSystem, loads }: {
 
                 <Box style={{ width: "30%", height: "100%", overflowY: 'auto', backgroundColor: '#f8f9fa', borderLeft: '1px solid #dee2e6' }}>
                     <Flex direction="column" gap="md" p="md">
+                        {bendingWarnings.length > 0 && (
+                            <Alert color="orange" title="No bending stiffness" variant="light">
+                                <Text size="xs">
+                                    Element{bendingWarnings.length > 1 ? 's' : ''} {bendingWarnings.join(', ')} {bendingWarnings.length > 1 ? 'have' : 'has'} EI = 0 but {bendingWarnings.length > 1 ? 'carry' : 'carries'} a distributed load with an orthogonal component. The deflection curve cannot be computed — a straight line is shown instead.
+                                </Text>
+                            </Alert>
+                        )}
+
                         <Text size="xs" fw={700} c="dimmed">INTERNAL FORCES</Text>
                         <Text size="xs" c="dimmed">Coming soon</Text>
 
