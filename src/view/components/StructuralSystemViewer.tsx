@@ -300,8 +300,8 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
 
                 const parallel = Math.abs(Math.sin((load.angle * Math.PI) / 180)) > Math.sin((30 * Math.PI) / 180);
 
-                const sqi = load.q_i >= 0 ? 1 : -1;
-                const sqj = load.q_j >= 0 ? 1 : -1;
+                const sqi = (!parallel && load.q_i < 0) ? -1 : 1;
+                const sqj = (!parallel && load.q_j < 0) ? -1 : 1;
                
                 const dxmi = sqi * dys * LOAD_GAP;
                 const dxmj = sqj * dys * LOAD_GAP;
