@@ -6,6 +6,7 @@ import { max, min } from 'mathjs';
 import { type Node, type Element, type Loads } from "../../models/models";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
+import { niceInterval, formatGridLabel } from '../utils/grid';
 
 export interface LoadVisualization {
     loads: Loads;
@@ -93,21 +94,6 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
 
 // ─── Grid layer ───────────────────────────────────────────────────────────────
 
-function niceInterval(range: number, targetCount = 7): number {
-    if (range === 0) return 1;
-    const raw = range / targetCount;
-    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const norm = raw / mag;
-    if (norm < 1.5) return mag;
-    if (norm < 3.5) return 2 * mag;
-    if (norm < 7.5) return 5 * mag;
-    return 10 * mag;
-}
-
-function formatGridLabel(val: number, interval: number): string {
-    const decimals = Math.max(0, -Math.floor(Math.log10(interval)));
-    return val.toFixed(decimals);
-}
 
 interface GridLayerProps {
     canvasWidth: number;
@@ -118,9 +104,12 @@ interface GridLayerProps {
     contentHeight: number;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
+    lineColor?: string;
+    labelColor?: string;
+    labelFontSize?: number;
 }
 
-const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWidth, contentHeight, toCanvasX, toCanvasZ }: GridLayerProps) => {
+export const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWidth, contentHeight, toCanvasX, toCanvasZ, lineColor = THEME.gridLine, labelColor = THEME.gridLabel, labelFontSize = THEME.gridLabelFontSize }: GridLayerProps) => {
     if (canvasWidth === 0 || canvasHeight === 0) return null;
 
     const effWidth  = contentWidth  === 0 ? 10 : contentWidth;
@@ -152,8 +141,8 @@ const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWi
                 const cx = toCanvasX(x);
                 return (
                     <React.Fragment key={`gx-${x}`}>
-                        <Line points={[cx, 0, cx, canvasHeight]} stroke={THEME.gridLine} strokeWidth={1} />
-                        {i % xLabelStep === 0 && <Text x={cx + 3} y={canvasHeight - THEME.gridLabelFontSize - 4} text={formatGridLabel(x, xInterval)} fontSize={THEME.gridLabelFontSize} fill={THEME.gridLabel} />}
+                        <Line points={[cx, 0, cx, canvasHeight]} stroke={lineColor} strokeWidth={1} />
+                        {i % xLabelStep === 0 && <Text x={cx + 3} y={canvasHeight - labelFontSize - 4} text={formatGridLabel(x, xInterval)} fontSize={labelFontSize} fill={labelColor} />}
                     </React.Fragment>
                 );
             })}
@@ -161,8 +150,8 @@ const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWi
                 const cz = toCanvasZ(z);
                 return (
                     <React.Fragment key={`gz-${z}`}>
-                        <Line points={[0, cz, canvasWidth, cz]} stroke={THEME.gridLine} strokeWidth={1} />
-                        {i % zLabelStep === 0 && <Text x={4} y={cz - THEME.gridLabelFontSize - 2} text={formatGridLabel(z, zInterval)} fontSize={THEME.gridLabelFontSize} fill={THEME.gridLabel} />}
+                        <Line points={[0, cz, canvasWidth, cz]} stroke={lineColor} strokeWidth={1} />
+                        {i % zLabelStep === 0 && <Text x={4} y={cz - labelFontSize - 2} text={formatGridLabel(z, zInterval)} fontSize={labelFontSize} fill={labelColor} />}
                     </React.Fragment>
                 );
             })}

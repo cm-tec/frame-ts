@@ -5,8 +5,7 @@ import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'reac
 import { max, min } from 'mathjs';
 
 import { type Node, type Element, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
-import { LoadLayer } from "../components/StructuralSystemViewer";
-
+import { LoadLayer, GridLayer } from "../components/StructuralSystemViewer";
 
 const CIRCLE_RADIUS = 20;
 const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
@@ -28,25 +27,7 @@ const BLUEPRINT = {
     bearingStroke: 'rgba(255,255,255,0.8)',
 };
 
-const GRID_LINE_COLOR = BLUEPRINT.gridLine;
-const GRID_LABEL_COLOR = BLUEPRINT.gridLabel;
-const GRID_LABEL_FONT_SIZE = BLUEPRINT.gridLabelSize;
 
-function niceInterval(range: number, targetCount = 7): number {
-    if (range === 0) return 1;
-    const raw = range / targetCount;
-    const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const norm = raw / mag;
-    if (norm < 1.5) return mag;
-    if (norm < 3.5) return 2 * mag;
-    if (norm < 7.5) return 5 * mag;
-    return 10 * mag;
-}
-
-function formatGridLabel(val: number, interval: number): string {
-    const decimals = Math.max(0, -Math.floor(Math.log10(interval)));
-    return val.toFixed(decimals);
-}
 
 interface ElementShapeProps {
     element: Element;
@@ -301,53 +282,12 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                     1:1
                 </Button>
                 <Stage height={canvasSize.height} width={canvasSize.width}>
-                    <Layer listening={false}>
-                        {(() => {
-                            const { width: W, height: H } = canvasSize;
-                            if (W === 0 || H === 0) return null;
-                            let worldLeft: number, worldRight: number, worldTop: number, worldBottom: number;
-                            if (equalScaleParams) {
-                                const { scale, cx, cz } = equalScaleParams;
-                                worldLeft = cx - W / 2 / scale;
-                                worldRight = cx + W / 2 / scale;
-                                worldTop = cz - H / 2 / scale;
-                                worldBottom = cz + H / 2 / scale;
-                            } else {
-                                const padX = marginX / (1 - 2 * marginX) * contentWidth;
-                                const padZ = marginZ / (1 - 2 * marginZ) * contentHeight;
-                                worldLeft = minX - padX;
-                                worldRight = minX + contentWidth + padX;
-                                worldTop = minZ - padZ;
-                                worldBottom = minZ + contentHeight + padZ;
-                            }
-                            const xInterval = niceInterval(worldRight - worldLeft);
-                            const zInterval = niceInterval(worldBottom - worldTop);
-                            const xLines: number[] = [];
-                            for (let x = Math.ceil(worldLeft / xInterval) * xInterval; x <= worldRight + xInterval * 0.01; x += xInterval)
-                                xLines.push(Math.round(x / xInterval) * xInterval);
-                            const zLines: number[] = [];
-                            for (let z = Math.ceil(worldTop / zInterval) * zInterval; z <= worldBottom + zInterval * 0.01; z += zInterval)
-                                zLines.push(Math.round(z / zInterval) * zInterval);
-                            const xLabelStep = xLines.length > 8 ? 2 : 1;
-                            const zLabelStep = zLines.length > 8 ? 2 : 1;
-                            return <>
-                                {xLines.map((x, i) => {
-                                    const cx = toCanvasX(x);
-                                    return <React.Fragment key={`gx-${x}`}>
-                                        <Line points={[cx, 0, cx, H]} stroke={GRID_LINE_COLOR} strokeWidth={1} />
-                                        {i % xLabelStep === 0 && <KonvaText x={cx + 3} y={H - GRID_LABEL_FONT_SIZE - 4} text={formatGridLabel(x, xInterval)} fontSize={GRID_LABEL_FONT_SIZE} fill={GRID_LABEL_COLOR} />}
-                                    </React.Fragment>;
-                                })}
-                                {zLines.map((z, i) => {
-                                    const cz = toCanvasZ(z);
-                                    return <React.Fragment key={`gz-${z}`}>
-                                        <Line points={[0, cz, W, cz]} stroke={GRID_LINE_COLOR} strokeWidth={1} />
-                                        {i % zLabelStep === 0 && <KonvaText x={4} y={cz - GRID_LABEL_FONT_SIZE - 2} text={formatGridLabel(z, zInterval)} fontSize={GRID_LABEL_FONT_SIZE} fill={GRID_LABEL_COLOR} />}
-                                    </React.Fragment>;
-                                })}
-                            </>;
-                        })()}
-                    </Layer>
+                    <GridLayer
+                        canvasWidth={canvasSize.width} canvasHeight={canvasSize.height}
+                        minX={minX} minZ={minZ} contentWidth={contentWidth} contentHeight={contentHeight}
+                        toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
+                        lineColor={BLUEPRINT.gridLine} labelColor={BLUEPRINT.gridLabel} labelFontSize={BLUEPRINT.gridLabelSize}
+                    />
                     <Layer>
                         {elements.map(element => {
                             const node_i = getNode(element.node_i);
