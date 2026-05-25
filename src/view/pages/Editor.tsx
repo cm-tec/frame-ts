@@ -330,7 +330,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                     <Table.Th bg="gray.1">Id</Table.Th>
                                     <Table.Th>x</Table.Th>
                                     <Table.Th>z</Table.Th>
-                                    <Table.Th>Mass</Table.Th>
+                                    {view === 'dynamic' && <Table.Th>Mass</Table.Th>}
                                     <Table.Th>u</Table.Th>
                                     <Table.Th>v</Table.Th>
                                     <Table.Th />
@@ -346,9 +346,9 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                         <Table.Td>
                                             <NumberInput value={row.z} onChange={(e) => updateNode(row.id, { z: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
-                                        <Table.Td>
+                                        {view === 'dynamic' && <Table.Td>
                                             <NumberInput value={row.mass} onChange={(e) => updateNode(row.id, { mass: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
+                                        </Table.Td>}
                                         <Table.Td>
                                             <Checkbox checked={row.restraint.u} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, u: e.currentTarget.checked } })} />
                                         </Table.Td>
@@ -417,8 +417,6 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                     <Table.Th bg="gray.1">Node</Table.Th>
                                     <Table.Th>F₀</Table.Th>
                                     <Table.Th>α (°)</Table.Th>
-                                    <Table.Th>f (Hz)</Table.Th>
-                                    <Table.Th>φ (°)</Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -433,12 +431,6 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                         </Table.Td>
                                         <Table.Td>
                                             <NumberInput value={row.angle} onChange={(e) => updateNodalLoad(row.id, { angle: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <NumberInput value={row.frequency} onChange={(e) => updateNodalLoad(row.id, { frequency: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <NumberInput value={row.phase_shift} onChange={(e) => updateNodalLoad(row.id, { phase_shift: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNodalLoad(row.id)}>
@@ -463,8 +455,6 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                     <Table.Th>qᵢ</Table.Th>
                                     <Table.Th>qⱼ</Table.Th>
                                     <Table.Th>α (°)</Table.Th>
-                                    <Table.Th>f (Hz)</Table.Th>
-                                    <Table.Th>φ (°)</Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -482,12 +472,6 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                         </Table.Td>
                                         <Table.Td>
                                             <NumberInput value={row.angle} onChange={(e) => updateElementLoad(row.id, { angle: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <NumberInput value={row.frequency} onChange={(e) => updateElementLoad(row.id, { frequency: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <NumberInput value={row.phase_shift} onChange={(e) => updateElementLoad(row.id, { phase_shift: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteElementLoad(row.id)}>
@@ -515,7 +499,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                     <Table.Th>Node i</Table.Th>
                                     <Table.Th>Node j</Table.Th>
                                     <Table.Th>EA</Table.Th>
-                                    <Table.Th>c</Table.Th>
+                                    {view === 'dynamic' && <Table.Th>c</Table.Th>}
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -532,9 +516,9 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                         <Table.Td>
                                             <NumberInput value={row.ea} onChange={(e) => updateElement(row.id, { ea: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
-                                        <Table.Td>
+                                        {view === 'dynamic' && <Table.Td>
                                             <NumberInput value={row.c} onChange={(e) => updateElement(row.id, { c: Number(e) || 0 })} variant="unstyled" hideControls />
-                                        </Table.Td>
+                                        </Table.Td>}
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteElement(row.id)}>
                                                 <IconTrash size={14} />
