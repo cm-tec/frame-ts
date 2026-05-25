@@ -251,7 +251,7 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
 
                 const wlen = Math.hypot(nj.x - ni.x, nj.z - ni.z);
                 const dxs = (nj.x - ni.x) / wlen;
-                const dys = (nj.z - ni.z) / wlen;
+                const dys = -(nj.z - ni.z) / wlen;
 
                 const parallel = Math.abs(Math.sin((load.angle * Math.PI) / 180)) > Math.sin((30 * Math.PI) / 180);
 
@@ -443,8 +443,8 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     }, [canvasWidth,  minX, contentWidth,  equalScaleParams]);
 
     const toCanvasZ = useCallback((z: number) => {
-        if (equalScaleParams) return canvasHeight / 2 + (z - equalScaleParams.cz) * equalScaleParams.scale;
-        return MARGIN_Z * canvasHeight + (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
+        if (equalScaleParams) return canvasHeight / 2 - (z - equalScaleParams.cz) * equalScaleParams.scale;
+        return (1 - MARGIN_Z) * canvasHeight - (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
     }, [canvasHeight, minZ, contentHeight, equalScaleParams]);
 
     return (

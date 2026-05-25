@@ -264,8 +264,8 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
 
     const toCanvasZ = (z: number) => {
         if (equalScaleParams)
-            return canvasSize.height / 2 + (z - equalScaleParams.cz) * equalScaleParams.scale;
-        return marginZ * canvasSize.height + (z - minZ) * (1 - 2 * marginZ) * canvasSize.height / contentHeight;
+            return canvasSize.height / 2 - (z - equalScaleParams.cz) * equalScaleParams.scale;
+        return (1 - marginZ) * canvasSize.height - (z - minZ) * (1 - 2 * marginZ) * canvasSize.height / contentHeight;
     };
 
     return (
