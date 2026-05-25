@@ -499,6 +499,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                     <Table.Th>Node i</Table.Th>
                                     <Table.Th>Node j</Table.Th>
                                     <Table.Th>EA</Table.Th>
+                                    <Table.Th>EI</Table.Th>
                                     {view === 'dynamic' && <Table.Th>c</Table.Th>}
                                     <Table.Th />
                                 </Table.Tr>
@@ -515,6 +516,9 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                         </Table.Td>
                                         <Table.Td>
                                             <NumberInput value={row.ea} onChange={(e) => updateElement(row.id, { ea: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.ei} onChange={(e) => updateElement(row.id, { ei: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         {view === 'dynamic' && <Table.Td>
                                             <NumberInput value={row.c} onChange={(e) => updateElement(row.id, { c: Number(e) || 0 })} variant="unstyled" hideControls />
