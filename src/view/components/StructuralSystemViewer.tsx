@@ -250,6 +250,7 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
         return { dx: Math.sin(r), dy: Math.cos(r) };
     };
 
+
     return (
         <Layer listening={false}>
             {showNodal && loads.nodes.map(load => {
@@ -286,7 +287,9 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
                 const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
                 const elementAngleDeg = Math.atan2(cxj - cxi, cyj - cyi) * 180 / Math.PI;
                 
-                const { dx, dy } = loadDir(load.angle + elementAngleDeg - 90);
+                const angle = load.angle - elementAngleDeg + 90;
+
+                const { dx, dy } = loadDir(angle);
 
 
 
@@ -294,10 +297,8 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
                 const dxs = (nj.x-ni.x)/l;
                 const dys = (nj.z-ni.z)/l;
 
-                // World-space element direction to detect parallelism
-                const angleRad = (load.angle * Math.PI) / 180;
-                const dot = dxs * Math.sin(angleRad) + dys * Math.cos(angleRad);
-                const parallel = Math.abs(dot) > 0.85;
+
+                const parallel = Math.abs(Math.sin((load.angle * Math.PI) / 180)) > Math.sin((30 * Math.PI) / 180);
 
                 const sqi = load.q_i >= 0 ? 1 : -1;
                 const sqj = load.q_j >= 0 ? 1 : -1;
@@ -307,11 +308,8 @@ function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, ca
                 const dymi = - sqi * dxs * LOAD_GAP;
                 const dymj = - sqj * dxs * LOAD_GAP;
                
-                // Far edge pushed OUTWARD beyond the arrow tips by LOAD_GAP
                 const oxi = dx * (load.q_i * pxPerUnit), oyi = - dy * (load.q_i * pxPerUnit);
                 const oxj = dx * (load.q_j * pxPerUnit), oyj = - dy * (load.q_j * pxPerUnit);
-
-                console.log(oyi)
 
                 // Interpolate tick endpoints directly from the four trapezoid corners
                 const nearXi = cxi + dxmi, nearYi = cyi + dymi;
