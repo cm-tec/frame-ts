@@ -214,7 +214,7 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
 
     const loadDir = (angleDeg: number) => {
         const r = (angleDeg * Math.PI) / 180;
-        return { dx: Math.sin(r), dy: Math.cos(r) };
+        return { dx: Math.cos(r), dy: Math.sin(r) };
     };
 
     return (
@@ -224,14 +224,14 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
                 if (!node) return null;
                 const cx = toCanvasX(node.x);
                 const cy = toCanvasZ(node.z);
-                const { dx, dy } = loadDir(load.angle);
+                const { dx, dy } = loadDir(load.angle + 90);
                 const sign = load.magnitude >= 0 ? 1 : -1;
                 const len = Math.abs(load.magnitude) * pxPerUnit;
                 const tailX = cx + sign * dx * (THEME.nodeRadius + LOAD_GAP);
                 const tailY = cy + sign * dy * (THEME.nodeRadius + LOAD_GAP);
                 return (
                     <Arrow key={load.id}
-                        points={[tailX, tailY, tailX + sign * dx * len, tailY + sign * dy * len]}
+                        points={[tailX + sign * dx * len, tailY + sign * dy * len, tailX, tailY,]}
                         fill={LOAD_STROKE} stroke={LOAD_STROKE} strokeWidth={2.5}
                         pointerLength={10} pointerWidth={8} listening={false}
                     />
@@ -243,41 +243,66 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
                 if (!el) return null;
                 const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
                 const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
+                
                 const cxi = toCanvasX(ni.x), cyi = toCanvasZ(ni.z);
                 const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
 
-                const elementAngleDeg = Math.atan2(cxj - cxi, cyj - cyi) * 180 / Math.PI;
-                const { dx, dy } = loadDir(load.angle - elementAngleDeg + 90);
+                // 1. Calculate path vector directly on the canvas to prevent grid-squish bugs
+                const pixelDx = cxj - cxi;
+                const pixelDy = cyj - cyi;
+                const canvasLength = Math.hypot(pixelDx, pixelDy);
+                
+                if (canvasLength < 1e-6) return null;
 
-                const wlen = Math.hypot(nj.x - ni.x, nj.z - ni.z);
-                const dxs = (nj.x - ni.x) / wlen;
-                const dys = -(nj.z - ni.z) / wlen;
+                const cDx = pixelDx / canvasLength; 
+                const cDy = pixelDy / canvasLength; 
 
-                const parallel = Math.abs(Math.sin((load.angle * Math.PI) / 180)) > Math.sin((30 * Math.PI) / 180);
+                // 2. Base Normal Vector (N_x, N_y). 
+                // On a screen where Y goes DOWN, this strictly points UP to the "TOP" of the beam
+                const N_x = cDy; 
+                const N_y = -cDx;
 
-                const sqi = (!parallel && load.q_i < 0) ? -1 : 1;
-                const sqj = (!parallel && load.q_j < 0) ? -1 : 1;
+                // 3. Apply the custom load angle 
+                // (Rotating CW on canvas effectively rotates CCW physically)
+                const theta = (load.angle * Math.PI) / 180;
+                const O_x = N_x * Math.cos(theta) - N_y * Math.sin(theta);
+                const O_y = N_x * Math.sin(theta) + N_y * Math.cos(theta);
 
-                const dxmi = sqi * dys * LOAD_GAP,  dymi = -sqi * dxs * LOAD_GAP;
-                const dxmj = sqj * dys * LOAD_GAP,  dymj = -sqj * dxs * LOAD_GAP;
-                const oxi  = dx * load.q_i * pxPerUnit, oyi = -dy * load.q_i * pxPerUnit;
-                const oxj  = dx * load.q_j * pxPerUnit, oyj = -dy * load.q_j * pxPerUnit;
+                // 4. Directional multipliers based on load intensity
+                const sqi = load.q_i >= 0 ? 1 : -1;
+                const sqj = load.q_j >= 0 ? 1 : -1;
 
-                const nearXi = cxi + dxmi, nearYi = cyi + dymi;
-                const nearXj = cxj + dxmj, nearYj = cyj + dymj;
-                const farXi  = cxi + oxi + dxmi, farYi = cyi + oyi + dymi;
-                const farXj  = cxj + oxj + dxmj, farYj = cyj + oyj + dymj;
+                // 5. Build Polygon Envelopes
+                // The "near" gap pushes off the beam purely in the Top/Bottom normal direction
+                const nearXi = cxi + N_x * sqi * LOAD_GAP;
+                const nearYi = cyi + N_y * sqi * LOAD_GAP;
+                const nearXj = cxj + N_x * sqj * LOAD_GAP;
+                const nearYj = cyj + N_y * sqj * LOAD_GAP;
+
+                // The "far" boundary extends out along the angled load direction
+                const farXi  = nearXi + O_x * sqi * Math.abs(load.q_i) * pxPerUnit;
+                const farYi  = nearYi + O_y * sqi * Math.abs(load.q_i) * pxPerUnit;
+                const farXj  = nearXj + O_x * sqj * Math.abs(load.q_j) * pxPerUnit;
+                const farYj  = nearYj + O_y * sqj * Math.abs(load.q_j) * pxPerUnit;
+
+                // A load should only be considered parallel if it's within 15° of the beam axis (75° to 90°)
+                const parallel = Math.abs(Math.sin(theta)) > Math.sin((75 * Math.PI) / 180);
 
                 const ticks = Array.from({ length: TICK_COUNT }, (_, k) => {
                     const t = k / (TICK_COUNT - 1);
                     const q = load.q_i + t * (load.q_j - load.q_i);
                     if (Math.abs(q) < 1e-10) return null;
+
+                    const tFarX = farXi + t * (farXj - farXi);
+                    const tFarY = farYi + t * (farYj - farYi);
+                    const tNearX = nearXi + t * (nearXj - nearXi);
+                    const tNearY = nearYi + t * (nearYj - nearYi);
+
+                    // Because we carefully defined the offsets expanding AWAY from the beam,
+                    // arrows ALWAYS point from far to near. No ternary flips required!
                     return (
                         <Arrow key={k}
-                            points={[
-                                farXi  + t * (farXj  - farXi),  farYi  + t * (farYj  - farYi),
-                                nearXi + t * (nearXj - nearXi), nearYi + t * (nearYj - nearYi),
-                            ]}
+                            points={[tFarX, tFarY, tNearX, tNearY]}
                             fill={LOAD_STROKE} stroke={LOAD_STROKE} strokeWidth={1.5}
                             pointerLength={6} pointerWidth={5} listening={false}
                         />
@@ -287,8 +312,10 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
                 return (
                     <React.Fragment key={load.id}>
                         {!parallel && (
-                            <Line points={[nearXi, nearYi, nearXj, nearYj, farXj, farYj, farXi, farYi]}
-                                fill={LOAD_FILL} stroke={LOAD_STROKE} strokeWidth={1.5} closed listening={false} />
+                            <Line 
+                                points={[nearXi, nearYi, nearXj, nearYj, farXj, farYj, farXi, farYi]}
+                                fill={LOAD_FILL} stroke={LOAD_STROKE} strokeWidth={1.5} closed listening={false} 
+                            />
                         )}
                         {ticks}
                     </React.Fragment>
