@@ -504,3 +504,68 @@ test('solveStatic — cantilever arm with additional strut support', () => {
     expect(sol.get_w(8)).toBe(0);
 });
 
+test('solveStatic — reaction forces of beam', () => {
+    const [ea, ei, P] = [7, 11, 13];
+    const system = getBeamWithCenterNode(ea, ei);
+    const solver = new SystemSolver(system);
+
+    let f = matrix([0, 0, -P, 0, 0, 0]);
+
+    const sol = solver.solveStatic(f);
+
+    expect(sol.get_r(0)).toBe(0);
+    expect(sol.get_r(1)).toBeCloseTo(P/2, ACC);
+    expect(sol.get_r(2)).toBe(0);
+
+    expect(sol.get_r(3)).toBe(0);
+    expect(sol.get_r(4)).toBeCloseTo(0);
+    expect(sol.get_r(5)).toBeCloseTo(0);
+
+    expect(sol.get_r(6)).toBe(0);
+    expect(sol.get_r(7)).toBeCloseTo(P/2, ACC);
+    expect(sol.get_r(8)).toBe(0);
+});
+
+test('solveStatic — reaction forces of frame', () => {
+ const [ea, ei] = [1, 1];
+    const system = getPortalFrame(ea, ei);
+    const solver = new SystemSolver(system);
+
+    let f = matrix([0, 1, -1, 0, 0, 0, 0, 0]);
+
+    const sol = solver.solveStatic(f);
+
+    expect(sol.get_r(0)).toBeCloseTo(-1, ACC);
+    expect(sol.get_r(1)).toBeCloseTo(0, ACC);
+    expect(sol.get_r(2)).toBe(0);
+
+    expect(sol.get_r(3)).toBe(0);
+    expect(sol.get_r(4)).toBeCloseTo(0);
+    expect(sol.get_r(5)).toBeCloseTo(0);
+
+    expect(sol.get_r(6)).toBe(0);
+    expect(sol.get_r(7)).toBe(0);
+    expect(sol.get_r(8)).toBe(0);
+
+
+    expect(sol.get_r(9)).toBeCloseTo(0, ACC);
+    expect(sol.get_r(10)).toBeCloseTo(1, ACC);
+    expect(sol.get_r(11)).toBe(0);
+});
+
+test('solveStatic — reaction forces of cantilever arm with additional strut support', () => {
+    const [ea, ei, q] = [1, 1, 1];
+    const system = getCantileverWithSupport(ea, ei);
+    const solver = new SystemSolver(system);
+
+
+    const m_fixed = (q * Math.pow(1, 2)) / 12;
+    const v_fixed = (q * 1) / 2;
+
+
+    let f = matrix([0, -v_fixed, m_fixed, 0]);
+
+    const sol = solver.solveStatic(f);
+
+    expect(sol.get_r(1)).toBeCloseTo(13/32, ACC);
+});

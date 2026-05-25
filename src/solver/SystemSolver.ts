@@ -230,14 +230,15 @@ export class SystemSolver {
     }
 
     solveStatic(force: Matrix): StaticSolution {
-        console.log("Non-restrained DOFs:", this.non_restrained);
-        let w_non_restrained = lusolve(this.k_11, force);
+        const w_non_restrained = lusolve(this.k_11, force);
+        const r_restrained = multiply(this.k_12, w_non_restrained);
 
         return new StaticSolution(
             w_non_restrained,
+            r_restrained,
             this.restrained,
             this.non_restrained
-        )
+        );
     }
 
     solveDynamic(initialConditions: Matrix): DynamicSolution {
