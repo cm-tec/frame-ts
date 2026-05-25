@@ -3,6 +3,9 @@ import { StructuralSystem } from './StructuralSystem';
 import { c_element, k_element, SystemSolver } from './SystemSolver';
 import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
 
+
+const ACC = 10;
+
 function makeForces(ndofs: number, entries: [dof: number, value: number][]): math.Matrix {
     const f = matrix(zeros([ndofs, 1]));
     for (const [dof, val] of entries) (f as math.Matrix).set([dof, 0], val);
@@ -303,5 +306,201 @@ test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
     for (const t of [0, 0.1, 0.5, 1.0, 2.0, 5.0]) {
         expect(sol.get_w(4, t)).toBeCloseTo(analytical(t), 6);
     }
+});
+
+
+
+function getBeamWithCenterNode(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: 0 },
+            { id: 2, x: 0.5, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 3, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+        ]
+    );
+}
+
+
+
+// Test the solution of a static system
+
+test('solveStatic — beam with central point load', () => {
+    const [ea, ei, P] = [7, 11, 13];
+    const system = getBeamWithCenterNode(ea, ei);
+
+    let f = matrix([0, 0, -P, 0, 0, 0]);
+
+    const sol = new SystemSolver(system).solveStatic(f);
+
+    const L = 1.0;
+    const expectedDeflection = (P * Math.pow(L, 3)) / (48 * ei);
+    const expectedBoundarySlope = (P * Math.pow(L, 2)) / (16 * ei);
+
+    expect(sol.get_w(0)).toBe(0);
+    expect(sol.get_w(1)).toBe(0);
+    expect(sol.get_w(2)).toBeCloseTo(-expectedBoundarySlope, ACC);
+
+    expect(sol.get_w(3)).toBe(0);
+    expect(sol.get_w(4)).toBeCloseTo(-expectedDeflection,ACC);
+    expect(sol.get_w(5)).toBe(0);
+
+    expect(sol.get_w(6)).toBe(0);
+    expect(sol.get_w(7)).toBe(0);
+    expect(sol.get_w(8)).toBeCloseTo(expectedBoundarySlope, ACC);
+});
+
+
+test('solveStatic — beam with uniform distributed load (UDL)', () => {
+    const [ea, ei, q] = [7, 11, 13];
+    const system = getBeamWithCenterNode(ea, ei);
+
+    const L = 1.0;
+    const l = L / 2;
+
+    const m_fixed = (q * Math.pow(l, 2)) / 12;
+    const v_fixed_center = (q * l / 2) + (q * l / 2);
+
+    let f = matrix([-m_fixed, 0, -v_fixed_center, 0, 0, m_fixed]);
+
+    const sol = new SystemSolver(system).solveStatic(f);
+
+    const expectedDeflection = (5 * q * Math.pow(L, 4)) / (384 * ei);
+    const expectedBoundarySlope = (q * Math.pow(L, 3)) / (24 * ei);
+
+
+    expect(sol.get_w(0)).toBe(0);
+    expect(sol.get_w(1)).toBe(0);
+    expect(sol.get_w(2)).toBeCloseTo(-expectedBoundarySlope, ACC);
+
+
+    expect(sol.get_w(3)).toBe(0);
+    expect(sol.get_w(4)).toBeCloseTo(-expectedDeflection, ACC);
+    expect(sol.get_w(5)).toBe(0);
+
+    expect(sol.get_w(6)).toBe(0);
+    expect(sol.get_w(7)).toBe(0);
+    expect(sol.get_w(8)).toBeCloseTo(expectedBoundarySlope, ACC);
+});
+
+
+
+function getBeamWithCantileverArm(ea = 1, ei = 1): StructuralSystem {
+    return new StructuralSystem(
+        [
+            // Node 1: Left Pin Support (Restrained u, v)
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
+            // Node 2: Middle Roller Support (Restrained v)
+            { id: 2, x: 2.0, z: 0, mass: 0, restraint: { u: false, v: true, theta: false }, angle: 0 },
+            // Node 3: Right Free Tip (No Restraints)
+            { id: 3, x: 3.0, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+        ],
+        [
+            // Element 1 (Span l=2)
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            // Element 2 (Cantilever overhang c=1)
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+        ]
+    );
+}
+
+// Helper B: 2D Portal Frame
+function getPortalFrame(ea = 1, ei = 1): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
+            { id: 2, x: 0, z: 1, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 3, x: 1, z: 1, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 4, x: 1, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 }
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 3, node_i: 3, node_j: 4, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: true }, releases_j: { u: false, v: false, theta: false } }
+        ]
+    );
+}
+
+// Helper C: Cantilever beam connected to a vertical strut/column support
+function getCantileverWithSupport(ea = 1, ei = 1): StructuralSystem {
+    return new StructuralSystem(
+        [
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: true }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 3, x: 1, z: -1, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 }
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: true }, releases_j: { u: false, v: false, theta: false } }
+        ]
+    );
+}
+
+
+
+
+test('solveStatic - Frame under point load', () => {
+    const [ea, ei] = [1, 1];
+    const system = getPortalFrame(ea, ei);
+    const solver = new SystemSolver(system);
+
+
+    let f = matrix([0, 1, -1, 0, 0, 0, 0, 0]);
+
+    const sol = solver.solveStatic(f);
+
+    expect(sol.get_w(0)).toBe(0);
+    expect(sol.get_w(1)).toBe(0);
+    expect(sol.get_w(2)).toBeCloseTo(-11/6, ACC);
+
+    // Node 2 (Top Left Corner Joint)
+    expect(sol.get_w(3)).toBeCloseTo(5/3, ACC);
+    expect(sol.get_w(4)).toBeCloseTo(0, 5);
+    expect(sol.get_w(5)).toBeCloseTo(-4/3, 5);
+
+    // Node 3 (Top Right Corner Joint)
+    expect(sol.get_w(6)).toBeCloseTo(5/3, 5);
+    expect(sol.get_w(7)).toBeCloseTo(-1, 5);
+    expect(sol.get_w(8)).toBeCloseTo(-5/6, 5);
+
+    // Node 4 (Base Right - Pinned translation)
+    expect(sol.get_w(9)).toBe(0);
+    expect(sol.get_w(10)).toBe(0);
+    expect(sol.get_w(11)).toBeCloseTo(-5/3, ACC);
+});
+
+test('solveStatic — cantilever arm with additional strut support', () => {
+    const [ea, ei, q] = [1, 1, 1];
+    const system = getCantileverWithSupport(ea, ei);
+    const solver = new SystemSolver(system);
+
+
+    const m_fixed = (q * Math.pow(1, 2)) / 12;
+    const v_fixed = (q * 1) / 2;
+
+
+    let f = matrix([
+        0,
+        -v_fixed,
+        m_fixed,
+        0
+    ]);
+
+    const sol = solver.solveStatic(f);
+
+    expect(sol.get_w(0)).toBe(0);
+    expect(sol.get_w(1)).toBe(0);
+    expect(sol.get_w(2)).toBe(0);
+
+    expect(sol.get_w(3)).toBe(0);
+    expect(sol.get_w(4)).toBeCloseTo(-3 / 32, 5);
+    expect(sol.get_w(5)).toBeCloseTo(-23 / 192, 5);
+
+    expect(sol.get_w(6)).toBe(0);
+    expect(sol.get_w(7)).toBe(0);
+    expect(sol.get_w(8)).toBe(0);
 });
 

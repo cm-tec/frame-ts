@@ -3,6 +3,7 @@ import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import type { StructuralSystem } from "./StructuralSystem";
 import { KinematicSolution } from "./KinematicSolution";
 import { DynamicSolution } from "./DynamicSolution";
+import { StaticSolution } from "./StaticSolution";
 
 
 function get_rotation_matrix_of_element(v: [number, number], angle_i: number, angle_j: number): Matrix {
@@ -45,7 +46,6 @@ export function k_element(EA: number, EI: number, l: number): Matrix {
         [ 0,       6*EI/l**2,  2*EI/l,     0,      -6*EI/l**2, 4*EI/l    ]
     ]);
 }
-
 export function c_element(c: number): Matrix {
     return matrix([
         [ c,  0,  0,  -c,  0,  0 ],
@@ -227,6 +227,17 @@ export class SystemSolver {
             this.restrained,
             this.non_restrained
         );
+    }
+
+    solveStatic(force: Matrix): StaticSolution {
+        console.log("Non-restrained DOFs:", this.non_restrained);
+        let w_non_restrained = lusolve(this.k_11, force);
+
+        return new StaticSolution(
+            w_non_restrained,
+            this.restrained,
+            this.non_restrained
+        )
     }
 
     solveDynamic(initialConditions: Matrix): DynamicSolution {

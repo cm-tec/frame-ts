@@ -1,5 +1,5 @@
 import '@mantine/core/styles.css';
-import { AppShell, Button, Group, MantineProvider, SegmentedControl, Text } from '@mantine/core';
+import { AppShell, Badge, Button, Group, MantineProvider, SegmentedControl, Text } from '@mantine/core';
 import { useMemo, useState } from "react";
 
 import { type Node, type Element, type InitialConditions, type Loads } from "./models/models";
@@ -68,6 +68,9 @@ export default function App() {
                   data={[{ value: 'response', label: 'Response' }, { value: 'eigenmodes', label: 'Eigenmodes' }]}
                   size="xs"
                 />
+              )}
+              {isKinematic && (
+                <Badge color="orange" variant="light">Kinematic System</Badge>
               )}
             </Group>
 
