@@ -5,6 +5,7 @@ import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'reac
 import { max, min } from 'mathjs';
 
 import { type Node, type Element, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
+import { LoadLayer } from "../components/StructuralSystemViewer";
 
 
 const CIRCLE_RADIUS = 20;
@@ -358,6 +359,16 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                             <NodeShape key={node.id} node={node} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />
                         ))}
                     </Layer>
+                    {view === 'static' && (
+                        <LoadLayer
+                            structuralSystem={{ nodes, elements }}
+                            lv={{ loads, scale: 1, showNodal: true, showElement: true }}
+                            toCanvasX={toCanvasX}
+                            toCanvasZ={toCanvasZ}
+                            canvasWidth={canvasSize.width}
+                            canvasHeight={canvasSize.height}
+                        />
+                    )}
                 </Stage>
             </Box>
 

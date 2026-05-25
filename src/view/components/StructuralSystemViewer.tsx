@@ -3,11 +3,11 @@ import Konva from 'konva';
 import { Arrow, Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node, type Loads } from "../../models/models";
+import { type Node, type Element, type Loads } from "../../models/models";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
 
-interface LoadVisualization {
+export interface LoadVisualization {
     loads: Loads;
     scale: number;
     showNodal: boolean;
@@ -227,7 +227,7 @@ const TICK_COUNT  = 5;
 const LOAD_GAP    = THEME.elementStrokeWidth / 2 + 18; // px gap between element/node and load symbol
 
 interface LoadLayerProps {
-    structuralSystem: StructuralSystem;
+    structuralSystem: { nodes: Node[], elements: Element[] };
     lv: LoadVisualization;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
@@ -235,7 +235,7 @@ interface LoadLayerProps {
     canvasHeight: number;
 }
 
-function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, canvasHeight }: LoadLayerProps) {
+export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, canvasHeight }: LoadLayerProps) {
     const { loads, scale, showNodal, showElement } = lv;
 
     // Auto-scale: map the largest load value to 15% of the shorter canvas axis
