@@ -203,7 +203,7 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
 
     const loadDir = (angleDeg: number) => {
         const r = (angleDeg * Math.PI) / 180;
-        return { dx: Math.cos(r), dy: Math.sin(r) };
+        return { dx: -Math.sin(r), dy: Math.cos(r) };
     };
 
     return (
@@ -213,14 +213,17 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
                 if (!node) return null;
                 const cx = toCanvasX(node.x);
                 const cy = toCanvasZ(node.z);
-                const { dx, dy } = loadDir(load.angle + 90);
+                
+                const { dx, dy } = loadDir(load.angle);
                 const sign = load.magnitude >= 0 ? 1 : -1;
                 const len = Math.abs(load.magnitude) * pxPerUnit;
+                
                 const tailX = cx + sign * dx * (THEME.nodeRadius + LOAD_GAP);
                 const tailY = cy + sign * dy * (THEME.nodeRadius + LOAD_GAP);
+                
                 return (
                     <Arrow key={load.id}
-                        points={[tailX + sign * dx * len, tailY + sign * dy * len, tailX, tailY,]}
+                        points={[tailX, tailY, tailX + sign * dx * len, tailY + sign * dy * len]}
                         fill={LOAD_STROKE} stroke={LOAD_STROKE} strokeWidth={2.5}
                         pointerLength={10} pointerWidth={8} listening={false}
                     />
