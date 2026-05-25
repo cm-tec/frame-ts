@@ -52,3 +52,12 @@ export type Element = {
     releases_i: { u: boolean; v: boolean; theta: boolean };
     releases_j: { u: boolean; v: boolean; theta: boolean };
 };
+
+export type Hinge = {
+    id: number;
+    element_id: number;
+    end: 'i' | 'j';
+    u: boolean;     // release N (normal/axial force)
+    v: boolean;     // release V (shear)
+    theta: boolean; // release M (moment)
+};

@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActionIcon, Box, Button, Checkbox, Divider, Flex, Group, NumberInput, ScrollArea, Stack, Table, Text } from '@mantine/core';
+import { ActionIcon, Box, Button, Checkbox, Divider, Flex, Group, NumberInput, ScrollArea, SegmentedControl, Stack, Table, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node, type Element, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
+import { type Node, type Element, type Hinge, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
 import { LoadLayer, GridLayer } from "../components/StructuralSystemViewer";
 
 const CIRCLE_RADIUS = 20;
@@ -143,13 +143,15 @@ interface EditorProps {
     setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
     elements: Element[];
     setElements: React.Dispatch<React.SetStateAction<Element[]>>;
+    hinges: Hinge[];
+    setHinges: React.Dispatch<React.SetStateAction<Hinge[]>>;
     initialConditions: InitialConditions;
     setInitialConditions: React.Dispatch<React.SetStateAction<InitialConditions>>;
     loads: Loads;
     setLoads: React.Dispatch<React.SetStateAction<Loads>>;
 }
 
-export default function Editor({ view, nodes, setNodes, elements, setElements, initialConditions, setInitialConditions, loads, setLoads }: EditorProps) {
+export default function Editor({ view, nodes, setNodes, elements, setElements, hinges, setHinges, initialConditions, setInitialConditions, loads, setLoads }: EditorProps) {
 
     const updateNode = (id: number, patch: Partial<Omit<Node, 'id'>>) =>
         setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
@@ -192,6 +194,15 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
     const deleteElement = (id: number) =>
         setElements(r => r.filter(row => row.id !== id));
 
+    const addHinge = () => {
+        const nextId = hinges.length ? Math.max(...hinges.map(h => h.id)) + 1 : 1;
+        setHinges(r => [...r, { id: nextId, element_id: elements[0]?.id ?? 1, end: 'i', u: false, v: false, theta: true }]);
+    };
+    const updateHinge = (id: number, patch: Partial<Hinge>) =>
+        setHinges(r => r.map(h => h.id === id ? { ...h, ...patch } : h));
+    const deleteHinge = (id: number) =>
+        setHinges(r => r.filter(h => h.id !== id));
+
     const addNode = () => {
         const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
         setNodes((r) => [...r, {
@@ -207,8 +218,8 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
         const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
         setElements((r) => [...r, {
             id: nextId, node_i: 1, node_j: 2, ea: 1, ei: 0, c: 0,
-            releases_i: { u: false, v: false, theta: true },
-            releases_j: { u: false, v: false, theta: true }
+            releases_i: { u: false, v: false, theta: false },
+            releases_j: { u: false, v: false, theta: false },
         }]);
     };
 
@@ -331,6 +342,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                     {view === 'dynamic' && <Table.Th>Mass</Table.Th>}
                                     <Table.Th>u</Table.Th>
                                     <Table.Th>v</Table.Th>
+                                    {view === 'static' && <Table.Th>θ</Table.Th>}
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -353,6 +365,11 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                                         <Table.Td>
                                             <Checkbox checked={row.restraint.v} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, v: e.currentTarget.checked } })} />
                                         </Table.Td>
+                                        {view === 'static' && (
+                                            <Table.Td>
+                                                <Checkbox checked={row.restraint.theta} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, theta: e.currentTarget.checked } })} />
+                                            </Table.Td>
+                                        )}
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNode(row.id)}>
                                                 <IconTrash size={14} />
@@ -481,6 +498,56 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
                             </Table.Tbody>
                         </Table>
                     </div>
+                    <div>
+                        <Group justify="space-between" mb="xs">
+                            <Text fw={600}>Hinges</Text>
+                            <Button size="xs" variant="light" onClick={addHinge}>Add</Button>
+                        </Group>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1">Elem</Table.Th>
+                                    <Table.Th>End</Table.Th>
+                                    <Table.Th>M</Table.Th>
+                                    <Table.Th>V</Table.Th>
+                                    <Table.Th>N</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {hinges.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1">
+                                            <NumberInput value={row.element_id} onChange={(e) => updateHinge(row.id, { element_id: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <SegmentedControl
+                                                size="xs"
+                                                value={row.end}
+                                                onChange={(v) => updateHinge(row.id, { end: v as 'i' | 'j' })}
+                                                data={[{ value: 'i', label: 'i' }, { value: 'j', label: 'j' }]}
+                                            />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Checkbox size="xs" checked={row.theta} onChange={(e) => updateHinge(row.id, { theta: e.currentTarget.checked })} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Checkbox size="xs" checked={row.v} onChange={(e) => updateHinge(row.id, { v: e.currentTarget.checked })} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <Checkbox size="xs" checked={row.u} onChange={(e) => updateHinge(row.id, { u: e.currentTarget.checked })} />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteHinge(row.id)}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
                     </>)}
 
                     <Divider />
