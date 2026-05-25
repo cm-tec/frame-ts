@@ -229,9 +229,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
     const marginX = 0.05;
     const marginZ = 0.1;
 
-    const [equalScale, setEqualScale] = useState(false);
-
-    const { minX, minZ, contentWidth, contentHeight } = useMemo(() => {
+    const { contentCx, contentCz, contentWidth, contentHeight } = useMemo(() => {
         const xs = nodes.map(n => n.x);
         const zs = nodes.map(n => n.z);
         const rawMinX = min(xs), rawMaxX = max(xs);
@@ -240,51 +238,51 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, i
         const rawH = rawMaxZ - rawMinZ;
         const contentWidth = Math.max(rawW, rawH / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
         const contentHeight = Math.max(rawH, rawW / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
-        const minX = rawMinX - (contentWidth - rawW) / 2;
-        const minZ = rawMinZ - (contentHeight - rawH) / 2;
-        return { minX, minZ, contentWidth, contentHeight };
+        return {
+            contentCx: (rawMinX + rawMaxX) / 2,
+            contentCz: (rawMinZ + rawMaxZ) / 2,
+            contentWidth,
+            contentHeight,
+        };
     }, [nodes]);
 
-    const equalScaleParams = useMemo(() => {
-        if (!equalScale || canvasSize.width === 0 || canvasSize.height === 0) return null;
+    const scaleParams = useMemo(() => {
+        if (canvasSize.width === 0 || canvasSize.height === 0) return null;
         const sx = (1 - 2 * marginX) * canvasSize.width / contentWidth;
         const sz = (1 - 2 * marginZ) * canvasSize.height / contentHeight;
-        return {
-            scale: Math.min(sx, sz),
-            cx: minX + contentWidth / 2,
-            cz: minZ + contentHeight / 2,
-        };
-    }, [equalScale, canvasSize.width, canvasSize.height, contentWidth, contentHeight, minX, minZ]);
+        return { scale: Math.min(sx, sz), cx: contentCx, cz: contentCz };
+    }, [canvasSize.width, canvasSize.height, contentWidth, contentHeight, contentCx, contentCz, marginX, marginZ]);
 
     const toCanvasX = (x: number) => {
-        if (equalScaleParams)
-            return canvasSize.width / 2 + (x - equalScaleParams.cx) * equalScaleParams.scale;
-        return marginX * canvasSize.width + (x - minX) * (1 - 2 * marginX) * canvasSize.width / contentWidth;
+        if (!scaleParams) return 0;
+        return canvasSize.width / 2 + (x - scaleParams.cx) * scaleParams.scale;
     };
 
     const toCanvasZ = (z: number) => {
-        if (equalScaleParams)
-            return canvasSize.height / 2 - (z - equalScaleParams.cz) * equalScaleParams.scale;
-        return (1 - marginZ) * canvasSize.height - (z - minZ) * (1 - 2 * marginZ) * canvasSize.height / contentHeight;
+        if (!scaleParams) return 0;
+        return canvasSize.height / 2 - (z - scaleParams.cz) * scaleParams.scale;
     };
+
+    const worldBounds = useMemo(() => {
+        if (!scaleParams) return { worldLeft: 0, worldRight: 1, worldBottom: -1, worldTop: 1 };
+        const { scale, cx, cz } = scaleParams;
+        return {
+            worldLeft:   cx - canvasSize.width  / (2 * scale),
+            worldRight:  cx + canvasSize.width  / (2 * scale),
+            worldBottom: cz - canvasSize.height / (2 * scale),
+            worldTop:    cz + canvasSize.height / (2 * scale),
+        };
+    }, [scaleParams, canvasSize.width, canvasSize.height]);
 
     return (
         <Flex h="calc(100vh - var(--app-shell-header-height, 50px))">
 
             {/* Canvas */}
             <Box ref={canvasContainerRef} style={{ flex: 1, background: BLUEPRINT.background, position: 'relative' }}>
-                <Button
-                    size="xs"
-                    variant={equalScale ? 'filled' : 'default'}
-                    style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}
-                    onClick={() => setEqualScale(v => !v)}
-                >
-                    1:1
-                </Button>
                 <Stage height={canvasSize.height} width={canvasSize.width}>
                     <GridLayer
                         canvasWidth={canvasSize.width} canvasHeight={canvasSize.height}
-                        minX={minX} minZ={minZ} contentWidth={contentWidth} contentHeight={contentHeight}
+                        {...worldBounds}
                         toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                         lineColor={BLUEPRINT.gridLine} labelColor={BLUEPRINT.gridLabel} labelFontSize={BLUEPRINT.gridLabelSize}
                     />

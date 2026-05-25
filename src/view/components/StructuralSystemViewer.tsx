@@ -98,10 +98,10 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
 interface GridLayerProps {
     canvasWidth: number;
     canvasHeight: number;
-    minX: number;
-    minZ: number;
-    contentWidth: number;
-    contentHeight: number;
+    worldLeft: number;
+    worldRight: number;
+    worldBottom: number;
+    worldTop: number;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
     lineColor?: string;
@@ -109,31 +109,20 @@ interface GridLayerProps {
     labelFontSize?: number;
 }
 
-export const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, contentWidth, contentHeight, toCanvasX, toCanvasZ, lineColor = THEME.gridLine, labelColor = THEME.gridLabel, labelFontSize = THEME.gridLabelFontSize }: GridLayerProps) => {
+export const GridLayer = React.memo(({ canvasWidth, canvasHeight, worldLeft, worldRight, worldBottom, worldTop, toCanvasX, toCanvasZ, lineColor = THEME.gridLine, labelColor = THEME.gridLabel, labelFontSize = THEME.gridLabelFontSize }: GridLayerProps) => {
     if (canvasWidth === 0 || canvasHeight === 0) return null;
 
-    const effWidth  = contentWidth  === 0 ? 10 : contentWidth;
-    const effHeight = contentHeight === 0 ? 10 : contentHeight;
-    const padX = MARGIN_X / (1 - 2 * MARGIN_X) * effWidth;
-    const padZ = MARGIN_Z / (1 - 2 * MARGIN_Z) * effHeight;
-    const worldLeft   = minX - padX;
-    const worldRight  = minX + effWidth  + padX;
-    const worldTop    = minZ - padZ;
-    const worldBottom = minZ + effHeight + padZ;
-
-    const xInterval = niceInterval(worldRight - worldLeft);
-    const zInterval = niceInterval(worldBottom - worldTop);
+    const interval = niceInterval(Math.max(worldRight - worldLeft, worldTop - worldBottom));
 
     const xLines: number[] = [];
-    for (let x = Math.ceil(worldLeft / xInterval) * xInterval; x <= worldRight + xInterval * 0.01; x += xInterval)
-        xLines.push(Math.round(x / xInterval) * xInterval);
+    for (let x = Math.ceil(worldLeft / interval) * interval; x <= worldRight + interval * 0.01; x += interval)
+        xLines.push(Math.round(x / interval) * interval);
 
     const zLines: number[] = [];
-    for (let z = Math.ceil(worldTop / zInterval) * zInterval; z <= worldBottom + zInterval * 0.01; z += zInterval)
-        zLines.push(Math.round(z / zInterval) * zInterval);
+    for (let z = Math.ceil(worldBottom / interval) * interval; z <= worldTop + interval * 0.01; z += interval)
+        zLines.push(Math.round(z / interval) * interval);
 
-    const xLabelStep = xLines.length > 8 ? 2 : 1;
-    const zLabelStep = zLines.length > 8 ? 2 : 1;
+    const labelStep = Math.max(xLines.length, zLines.length) > 8 ? 2 : 1;
 
     return (
         <Layer listening={false}>
@@ -142,7 +131,7 @@ export const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, co
                 return (
                     <React.Fragment key={`gx-${x}`}>
                         <Line points={[cx, 0, cx, canvasHeight]} stroke={lineColor} strokeWidth={1} />
-                        {i % xLabelStep === 0 && <Text x={cx + 3} y={canvasHeight - labelFontSize - 4} text={formatGridLabel(x, xInterval)} fontSize={labelFontSize} fill={labelColor} />}
+                        {i % labelStep === 0 && <Text x={cx + 3} y={canvasHeight - labelFontSize - 4} text={formatGridLabel(x, interval)} fontSize={labelFontSize} fill={labelColor} />}
                     </React.Fragment>
                 );
             })}
@@ -151,7 +140,7 @@ export const GridLayer = React.memo(({ canvasWidth, canvasHeight, minX, minZ, co
                 return (
                     <React.Fragment key={`gz-${z}`}>
                         <Line points={[0, cz, canvasWidth, cz]} stroke={lineColor} strokeWidth={1} />
-                        {i % zLabelStep === 0 && <Text x={4} y={cz - labelFontSize - 2} text={formatGridLabel(z, zInterval)} fontSize={labelFontSize} fill={labelColor} />}
+                        {i % labelStep === 0 && <Text x={4} y={cz - labelFontSize - 2} text={formatGridLabel(z, interval)} fontSize={labelFontSize} fill={labelColor} />}
                     </React.Fragment>
                 );
             })}
@@ -423,7 +412,6 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 }: StructuralSystemViewerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
-    const [equalScale, setEqualScale] = useState(false);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -436,7 +424,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
         return () => observer.disconnect();
     }, []);
 
-    const { minX, minZ, contentWidth, contentHeight } = useMemo(() => {
+    const { contentCx, contentCz, contentWidth, contentHeight } = useMemo(() => {
         const xs = structuralSystem.nodes.map(n => n.x);
         const zs = structuralSystem.nodes.map(n => n.z);
         const rawMinX = min(xs), rawMaxX = max(xs);
@@ -446,8 +434,8 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
         const contentWidth  = Math.max(rawW, rawH / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
         const contentHeight = Math.max(rawH, rawW / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
         return {
-            minX: rawMinX - (contentWidth  - rawW) / 2,
-            minZ: rawMinZ - (contentHeight - rawH) / 2,
+            contentCx: (rawMinX + rawMaxX) / 2,
+            contentCz: (rawMinZ + rawMaxZ) / 2,
             contentWidth,
             contentHeight,
         };
@@ -457,41 +445,40 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     const { width: canvasWidth, height: canvasHeight } = stageSize;
 
-    const equalScaleParams = useMemo(() => {
-        if (!equalScale || canvasWidth === 0 || canvasHeight === 0) return null;
+    const scaleParams = useMemo(() => {
+        if (canvasWidth === 0 || canvasHeight === 0) return null;
         const sx = (1 - 2 * MARGIN_X) * canvasWidth  / contentWidth;
         const sz = (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
-        return { scale: Math.min(sx, sz), cx: minX + contentWidth / 2, cz: minZ + contentHeight / 2 };
-    }, [equalScale, canvasWidth, canvasHeight, contentWidth, contentHeight, minX, minZ]);
+        return { scale: Math.min(sx, sz), cx: contentCx, cz: contentCz };
+    }, [canvasWidth, canvasHeight, contentWidth, contentHeight, contentCx, contentCz]);
 
     const toCanvasX = useCallback((x: number) => {
-        if (equalScaleParams) return canvasWidth  / 2 + (x - equalScaleParams.cx) * equalScaleParams.scale;
-        return MARGIN_X * canvasWidth  + (x - minX) * (1 - 2 * MARGIN_X) * canvasWidth  / contentWidth;
-    }, [canvasWidth,  minX, contentWidth,  equalScaleParams]);
+        if (!scaleParams) return 0;
+        return canvasWidth  / 2 + (x - scaleParams.cx) * scaleParams.scale;
+    }, [canvasWidth, scaleParams]);
 
     const toCanvasZ = useCallback((z: number) => {
-        if (equalScaleParams) return canvasHeight / 2 - (z - equalScaleParams.cz) * equalScaleParams.scale;
-        return (1 - MARGIN_Z) * canvasHeight - (z - minZ) * (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
-    }, [canvasHeight, minZ, contentHeight, equalScaleParams]);
+        if (!scaleParams) return 0;
+        return canvasHeight / 2 - (z - scaleParams.cz) * scaleParams.scale;
+    }, [canvasHeight, scaleParams]);
+
+    const worldBounds = useMemo(() => {
+        if (!scaleParams) return { worldLeft: 0, worldRight: 1, worldBottom: -1, worldTop: 1 };
+        const { scale, cx, cz } = scaleParams;
+        return {
+            worldLeft:   cx - canvasWidth  / (2 * scale),
+            worldRight:  cx + canvasWidth  / (2 * scale),
+            worldBottom: cz - canvasHeight / (2 * scale),
+            worldTop:    cz + canvasHeight / (2 * scale),
+        };
+    }, [scaleParams, canvasWidth, canvasHeight]);
 
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
-            <button
-                onClick={() => setEqualScale(v => !v)}
-                style={{
-                    position: "absolute", top: 8, right: 8, zIndex: 10,
-                    padding: "3px 8px", fontSize: 12, fontWeight: "bold",
-                    background: equalScale ? "#1e293b" : "#f1f5f9",
-                    color: equalScale ? "#f1f5f9" : "#1e293b",
-                    border: "1px solid #94a3b8", borderRadius: 4, cursor: "pointer",
-                }}
-            >
-                1:1
-            </button>
             <Stage width={canvasWidth} height={canvasHeight}>
                 <GridLayer
                     canvasWidth={canvasWidth} canvasHeight={canvasHeight}
-                    minX={minX} minZ={minZ} contentWidth={contentWidth} contentHeight={contentHeight}
+                    {...worldBounds}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                 />
                 <GhostLayer
