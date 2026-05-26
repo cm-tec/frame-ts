@@ -1,141 +1,28 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { ActionIcon, Box, Button, Checkbox, Divider, Flex, Group, NumberInput, ScrollArea, SegmentedControl, Stack, Table, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { Circle, Layer, Line, Rect, Shape, Stage, Text as KonvaText } from 'react-konva';
-import { max, min } from 'mathjs';
 
 import { type Node, type Element, type Hinge, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
-import { LoadLayer, GridLayer } from "../components/StructuralSystemViewer";
+import { StructuralSystem } from '../../solver/StructuralSystem';
+import StructuralSystemViewer, { type Theme } from '../components/StructuralSystemViewer';
 
-const CIRCLE_RADIUS = 20;
-const TEXT_BOX_SIZE = CIRCLE_RADIUS * 2;
 const SIDEBAR_WIDTH = 420;
-const CONTENT_MIN_DIM = 1.0;
-const CONTENT_MAX_RATIO = 5;
-const BLUEPRINT = {
-    background: '#0a2540',
-    gridLine: 'rgba(255,255,255,0.10)',
-    gridLabel: 'rgba(255,255,255,0.35)',
-    gridLabelSize: 11,
-    element: 'rgba(255,255,255,0.6)',
-    elementLabel: 'rgba(255,255,255,0.85)',
-    elementLabelBg: 'rgba(10,37,64,0.7)',
-    node: '#0a2540',
-    nodeStroke: 'rgba(255,255,255,0.9)',
-    nodeText: 'rgba(255,255,255,0.9)',
-    bearing: 'rgba(255,255,255,0.15)',
-    bearingStroke: 'rgba(255,255,255,0.8)',
+
+const BLUEPRINT_THEME: Partial<Theme> = {
+    nodeStroke:        'rgba(255,255,255,1)',
+    nodeFill:          'rgba(255,255,255,1)',
+    nodeCircleFill:    'rgba(255,255,255,1)',
+    nodeText:          'rgba(255,255,255,1)',
+    supportFill:       'rgba(255,255,255,0.15)',
+    elementStroke:     'rgba(255,255,255,0.75)',
+    elementLabelFill:  'rgba(10,37,64,0.85)',
+    elementLabelStroke:'rgba(255,255,255,0.25)',
+    elementLabelText:  'rgba(255,255,255,1)',
+    gridLine:          'rgba(255,255,255,0.10)',
+    gridLabel:         'rgba(255,255,255,0.35)',
+    hingeFill:         '#0a2540',
+    hingeStroke:       'rgba(255,255,255,0.75)',  // matches elementStroke
 };
-
-
-
-interface ElementShapeProps {
-    element: Element;
-    node_i: Node;
-    node_j: Node;
-    toCanvasX: (x: number) => number;
-    toCanvasZ: (z: number) => number;
-}
-
-function ElementShape({ element, node_i, node_j, toCanvasX, toCanvasZ }: ElementShapeProps) {
-    const x_i = toCanvasX(node_i.x);
-    const z_i = toCanvasZ(node_i.z);
-    const x_j = toCanvasX(node_j.x);
-    const z_j = toCanvasZ(node_j.z);
-    const textX = x_i + (x_j - x_i) / 2 - TEXT_BOX_SIZE / 2;
-    const textY = z_i + (z_j - z_i) / 2 - TEXT_BOX_SIZE / 2;
-
-    return <>
-        <Line stroke={BLUEPRINT.element} strokeWidth={10} points={[x_i, z_i, x_j, z_j]} />
-        <Rect
-            x={textX}
-            y={textY}
-            width={TEXT_BOX_SIZE}
-            height={TEXT_BOX_SIZE}
-            fill={BLUEPRINT.elementLabelBg}
-            stroke={BLUEPRINT.element}
-            strokeWidth={1}
-            cornerRadius={10}
-        />
-        <KonvaText
-            x={textX}
-            y={textY}
-            width={TEXT_BOX_SIZE}
-            height={TEXT_BOX_SIZE}
-            text={`${element.id}`}
-            fontSize={20}
-            fill={BLUEPRINT.elementLabel}
-            align="center"
-            verticalAlign="middle"
-        />
-    </>;
-}
-
-interface NodeShapeProps {
-    node: Node;
-    toCanvasX: (x: number) => number;
-    toCanvasZ: (z: number) => number;
-}
-
-function NodeShape({ node, toCanvasX, toCanvasZ }: NodeShapeProps) {
-    const circleX = toCanvasX(node.x);
-    const circleY = toCanvasZ(node.z);
-    const textX = circleX - TEXT_BOX_SIZE / 2;
-    const textY = circleY - TEXT_BOX_SIZE / 2;
-
-    return <>
-        {node.restraint.u && (
-            <Shape
-                stroke={BLUEPRINT.bearingStroke}
-                fill={BLUEPRINT.bearing}
-                strokeWidth={1}
-                sceneFunc={(context, shape) => {
-                    context.beginPath();
-                    context.moveTo(circleX, circleY);
-                    context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY - 1.4 * CIRCLE_RADIUS);
-                    context.lineTo(circleX - 2 * CIRCLE_RADIUS, circleY + 1.4 * CIRCLE_RADIUS);
-                    context.closePath();
-                    context.fillStrokeShape(shape);
-                }}
-            />
-        )}
-        {node.restraint.v && (
-            <Shape
-                stroke={BLUEPRINT.bearingStroke}
-                fill={BLUEPRINT.bearing}
-                strokeWidth={1}
-                sceneFunc={(context, shape) => {
-                    context.beginPath();
-                    context.moveTo(circleX, circleY);
-                    context.lineTo(circleX - 1.4 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
-                    context.lineTo(circleX + 1.4 * CIRCLE_RADIUS, circleY + 2 * CIRCLE_RADIUS);
-                    context.closePath();
-                    context.fillStrokeShape(shape);
-                }}
-            />
-        )}
-
-        <Circle
-            x={circleX}
-            y={circleY}
-            radius={CIRCLE_RADIUS}
-            fill={BLUEPRINT.node}
-            stroke={BLUEPRINT.nodeStroke}
-        />
-
-        <KonvaText
-            x={textX}
-            y={textY}
-            width={TEXT_BOX_SIZE}
-            height={TEXT_BOX_SIZE}
-            text={`${node.id}`}
-            fontSize={20}
-            fill={BLUEPRINT.nodeText}
-            align="center"
-            verticalAlign="middle"
-        />
-    </>;
-}
 
 interface EditorProps {
     view: 'dynamic' | 'static';
@@ -212,8 +99,6 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         }]);
     };
 
-    const getNode = (id: number) => nodes.find(n => n.id == id);
-
     const addElement = () => {
         const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
         setElements((r) => [...r, {
@@ -223,102 +108,43 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         }]);
     };
 
-    const canvasContainerRef = useRef<HTMLDivElement>(null);
-    const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth - SIDEBAR_WIDTH, height: window.innerHeight - 50 });
+    // ── Viewer data ──────────────────────────────────────────────────────────────
 
-    useEffect(() => {
-        const el = canvasContainerRef.current;
-        if (!el) return;
-        const observer = new ResizeObserver(entries => {
-            const { width, height } = entries[0].contentRect;
-            setCanvasSize({ width, height });
-        });
-        observer.observe(el);
-        return () => observer.disconnect();
-    }, []);
+    const structuralSystem = useMemo(
+        () => new StructuralSystem(nodes, elements, hinges),
+        [nodes, elements, hinges]
+    );
 
-    const marginX = 0.05;
-    const marginZ = 0.1;
-
-    const { contentCx, contentCz, contentWidth, contentHeight } = useMemo(() => {
-        const xs = nodes.map(n => n.x);
-        const zs = nodes.map(n => n.z);
-        const rawMinX = min(xs), rawMaxX = max(xs);
-        const rawMinZ = min(zs), rawMaxZ = max(zs);
-        const rawW = rawMaxX - rawMinX;
-        const rawH = rawMaxZ - rawMinZ;
-        const contentWidth = Math.max(rawW, rawH / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
-        const contentHeight = Math.max(rawH, rawW / CONTENT_MAX_RATIO, CONTENT_MIN_DIM);
-        return {
-            contentCx: (rawMinX + rawMaxX) / 2,
-            contentCz: (rawMinZ + rawMaxZ) / 2,
-            contentWidth,
-            contentHeight,
-        };
+    const getNodePosition = useCallback((nodeId: number, _t: number) => {
+        const node = nodes.find(n => n.id === nodeId);
+        return { x: node?.x ?? 0, z: node?.z ?? 0 };
     }, [nodes]);
 
-    const scaleParams = useMemo(() => {
-        if (canvasSize.width === 0 || canvasSize.height === 0) return null;
-        const sx = (1 - 2 * marginX) * canvasSize.width / contentWidth;
-        const sz = (1 - 2 * marginZ) * canvasSize.height / contentHeight;
-        return { scale: Math.min(sx, sz), cx: contentCx, cz: contentCz };
-    }, [canvasSize.width, canvasSize.height, contentWidth, contentHeight, contentCx, contentCz, marginX, marginZ]);
-
-    const toCanvasX = (x: number) => {
-        if (!scaleParams) return 0;
-        return canvasSize.width / 2 + (x - scaleParams.cx) * scaleParams.scale;
-    };
-
-    const toCanvasZ = (z: number) => {
-        if (!scaleParams) return 0;
-        return canvasSize.height / 2 - (z - scaleParams.cz) * scaleParams.scale;
-    };
-
-    const worldBounds = useMemo(() => {
-        if (!scaleParams) return { worldLeft: 0, worldRight: 1, worldBottom: -1, worldTop: 1 };
-        const { scale, cx, cz } = scaleParams;
-        return {
-            worldLeft:   cx - canvasSize.width  / (2 * scale),
-            worldRight:  cx + canvasSize.width  / (2 * scale),
-            worldBottom: cz - canvasSize.height / (2 * scale),
-            worldTop:    cz + canvasSize.height / (2 * scale),
-        };
-    }, [scaleParams, canvasSize.width, canvasSize.height]);
+    const getElementPositions = useCallback((elementId: number, _t: number) => {
+        const el = elements.find(e => e.id === elementId);
+        if (!el) return [{ x: 0, z: 0 }, { x: 0, z: 0 }];
+        const ni = nodes.find(n => n.id === el.node_i);
+        const nj = nodes.find(n => n.id === el.node_j);
+        if (!ni || !nj) return [{ x: 0, z: 0 }, { x: 0, z: 0 }];
+        return [{ x: ni.x, z: ni.z }, { x: nj.x, z: nj.z }];
+    }, [nodes, elements]);
 
     return (
         <Flex h="calc(100vh - var(--app-shell-header-height, 50px))">
 
             {/* Canvas */}
-            <Box ref={canvasContainerRef} style={{ flex: 1, background: BLUEPRINT.background, position: 'relative' }}>
-                <Stage height={canvasSize.height} width={canvasSize.width}>
-                    <GridLayer
-                        canvasWidth={canvasSize.width} canvasHeight={canvasSize.height}
-                        {...worldBounds}
-                        toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
-                        lineColor={BLUEPRINT.gridLine} labelColor={BLUEPRINT.gridLabel} labelFontSize={BLUEPRINT.gridLabelSize}
-                    />
-                    <Layer>
-                        {elements.map(element => {
-                            const node_i = getNode(element.node_i);
-                            const node_j = getNode(element.node_j);
-                            if (!node_i || !node_j) return;
-                            return <ElementShape key={element.id} element={element} node_i={node_i} node_j={node_j} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />;
-                        })}
-                        {nodes.map(node => (
-                            <NodeShape key={node.id} node={node} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ} />
-                        ))}
-                    </Layer>
-                    {view === 'static' && (
-                        <LoadLayer
-                            structuralSystem={{ nodes, elements }}
-                            lv={{ loads, scale: 1, showNodal: true, showElement: true }}
-                            toCanvasX={toCanvasX}
-                            toCanvasZ={toCanvasZ}
-                            canvasWidth={canvasSize.width}
-                            canvasHeight={canvasSize.height}
-                        />
-                    )}
-                </Stage>
+            <Box style={{ flex: 1, backgroundColor: '#0a2540', position: 'relative' }}>
+                <StructuralSystemViewer
+                    structuralSystem={structuralSystem}
+                    getNodePosition={getNodePosition}
+                    getElementPositions={getElementPositions}
+                    showUndeformedSystem={false}
+                    showNodes={true}
+                    showBearings={true}
+                    showHinges={true}
+                    loadVisualization={view === 'static' ? { loads, scale: 1, showNodal: true, showElement: true } : undefined}
+                    themeOverride={BLUEPRINT_THEME}
+                />
             </Box>
 
             {/* Sidebar */}
@@ -498,6 +324,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                             </Table.Tbody>
                         </Table>
                     </div>
+
                     <div>
                         <Group justify="space-between" mb="xs">
                             <Text fw={600}>Hinges</Text>

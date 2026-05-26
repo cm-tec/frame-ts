@@ -99,6 +99,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
+                        showHinges={true}
                         loadVisualization={{ loads, scale: 1, showNodal, showElement }}
                     />
                 </Box>

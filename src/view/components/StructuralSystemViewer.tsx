@@ -22,21 +22,25 @@ interface StructuralSystemViewerProps {
     showUndeformedSystem: boolean;
     showNodes: boolean;
     showBearings: boolean;
+    showHinges?: boolean;
     loadVisualization?: LoadVisualization;
+    themeOverride?: Partial<Theme>;
 }
 
 // ─── Visual theme ─────────────────────────────────────────────────────────────
 const THEME = {
-    nodeRadius: 14,
+    nodeRadius: 8,
+    bearingSize: 10,
     elementStrokeWidth: 6,
     elementLabelFontSize: 13,
-    nodeFontSize: 14,
+    nodeFontSize: 18,
     bearingStrokeWidth: 1.5,
     elementLabelCornerRadius: 6,
 
-    nodeStroke: '#1e293b',
-    nodeFill: '#ffffff',
-    nodeText: '#1e293b',
+    nodeStroke:      '#1e293b',
+    nodeFill:        '#1e293b',
+    nodeCircleFill:  '#1e293b',
+    nodeText:        '#1e293b',
     supportFill: '#475569',
     elementStroke: '#ff349a',
     elementLabelFill: '#ffffff',
@@ -44,7 +48,7 @@ const THEME = {
     elementLabelText: '#1e293b',
 
     ghostNodeStroke: '#cbd5e1',
-    ghostNodeFill: '#f8fafc',
+    ghostNodeFill: 'transparent',
     ghostNodeText: '#cbd5e1',
     ghostSupportFill: '#e2e8f0',
     ghostElementStroke: '#e2e8f0',
@@ -54,25 +58,33 @@ const THEME = {
     gridLine: '#efefef',
     gridLabel: '#c8c8c8',
     gridLabelFontSize: 11,
+
+    hingeFill:   'white',
+    hingeStroke: '#ff349a',   // matches elementStroke — hinge belongs to the element
 };
+export type Theme = typeof THEME;
 // ──────────────────────────────────────────────────────────────────────────────
 
-const TEXT_BOX_SIZE = THEME.nodeRadius * 2;
+const TEXT_BOX_SIZE = 20;
+const HINGE_RADIUS  = 7;
+const HINGE_OFFSET  = THEME.nodeRadius + HINGE_RADIUS;
 const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
 const CONTENT_MIN_DIM = 1.0;
 const CONTENT_MAX_RATIO = 5;
 
-type NodeColors = { supportFill: string; nodeFill: string; stroke: string; text: string };
+type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
 function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean }) {
+    const R = THEME.nodeRadius;
+    const B = THEME.bearingSize;
     return <>
         {node.restraint.u && (
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(-2 * THEME.nodeRadius, -1.4 * THEME.nodeRadius);
-                ctx.lineTo(-2 * THEME.nodeRadius, 1.4 * THEME.nodeRadius);
+                ctx.lineTo(-3 * B, -2 * B);
+                ctx.lineTo(-3 * B, 2 * B);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
@@ -81,14 +93,17 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
-                ctx.lineTo(-1.4 * THEME.nodeRadius, 2 * THEME.nodeRadius);
-                ctx.lineTo(1.4 * THEME.nodeRadius, 2 * THEME.nodeRadius);
+                ctx.lineTo(-2 * B, 3 * B);
+                ctx.lineTo(2 * B, 3 * B);
                 ctx.closePath();
                 ctx.fillStrokeShape(shape);
             }} />
         )}
-        <Circle visible={showNode} radius={THEME.nodeRadius} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
-        <Text visible={showNode} x={-TEXT_BOX_SIZE / 2} y={-TEXT_BOX_SIZE / 2} width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${node.id}`} fontSize={THEME.nodeFontSize} fontStyle="bold" fill={colors.text} align="center" verticalAlign="middle" />
+        {node.restraint.theta
+            ? <Rect visible={showNode} x={-(B-2)} y={-(B-2)} width={2 * (B-2)} height={2 * (B-2)} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
+            : <Circle visible={showNode} radius={R} fill={colors.nodeCircleFill} stroke={colors.stroke} strokeWidth={2} />
+        }
+        <Text visible={showNode} x={R + 3} y={-R - 8} text={`${node.id}`} fontSize={THEME.nodeFontSize} fontStyle="bold" fill={colors.text} />
     </>;
 }
 
@@ -171,7 +186,7 @@ const GhostLayer = React.memo(({ structuralSystem, show, showNodes, showBearings
         })}
         {show && structuralSystem.nodes.map(node => (
             <Group key={node.id} x={toCanvasX(node.x)} y={toCanvasZ(node.z)}>
-                <NodeShape node={node} colors={{ stroke: THEME.ghostNodeStroke, nodeFill: THEME.ghostNodeFill, supportFill: THEME.ghostSupportFill, text: THEME.ghostNodeText }} showNode={showNodes} showBearing={showBearings} />
+                <NodeShape node={node} colors={{ stroke: THEME.ghostNodeStroke, nodeFill: THEME.ghostNodeFill, nodeCircleFill: THEME.ghostNodeFill, supportFill: THEME.ghostSupportFill, text: THEME.ghostNodeText }} showNode={showNodes} showBearing={showBearings} />
             </Group>
         ))}
     </Layer>
@@ -326,11 +341,13 @@ interface AnimatedLayerProps {
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
     showNodes: boolean;
     showBearings: boolean;
+    showHinges?: boolean;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
+    theme: Theme;
 }
 
-function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, toCanvasX, toCanvasZ }: AnimatedLayerProps) {
+function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
     const toCanvasXRef          = useRef(toCanvasX);
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
@@ -343,18 +360,44 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
     const elementLineRefs       = useRef<Map<number, Konva.Line>>(new Map());
     const elementLabelGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
     const nodeGroupRefs         = useRef<Map<number, Konva.Group>>(new Map());
+    const hingeCircleRefs = useRef<Map<string, Konva.Circle>>(new Map());
 
     const applyPositions = useCallback((t: number) => {
         for (const el of structuralSystem.elements) {
             const line       = elementLineRefs.current.get(el.id);
             const labelGroup = elementLabelGroupRefs.current.get(el.id);
-            if (!line) continue;
-            const positions = getElementPositionsRef.current(el.id, t);
-            line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
-            if (labelGroup) {
-                const mid = positions[Math.floor((positions.length - 1) / 2)];
-                labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
-                labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
+            if (line) {
+                const positions = getElementPositionsRef.current(el.id, t);
+                line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
+                if (labelGroup) {
+                    const mi = (positions.length - 1) / 2;
+                    const lo = Math.floor(mi), hi = Math.ceil(mi), t = mi - lo;
+                    const mid = { x: positions[lo].x + t * (positions[hi].x - positions[lo].x), z: positions[lo].z + t * (positions[hi].z - positions[lo].z) };
+                    labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
+                    labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
+                }
+                const hi = hingeCircleRefs.current.get(`${el.id}-i`);
+                const hj = hingeCircleRefs.current.get(`${el.id}-j`);
+                if (hi || hj) {
+                    const first    = positions[0];
+                    const second   = positions[1];
+                    const prevLast = positions[positions.length - 2];
+                    const last     = positions[positions.length - 1];
+                    const hcxi = toCanvasXRef.current(first.x), hcyi = toCanvasZRef.current(first.z);
+                    const hcxj = toCanvasXRef.current(last.x),  hcyj = toCanvasZRef.current(last.z);
+                    if (hi) {
+                        const diX = toCanvasXRef.current(second.x) - hcxi;
+                        const diY = toCanvasZRef.current(second.z) - hcyi;
+                        const diL = Math.hypot(diX, diY);
+                        if (diL > 1e-6) { hi.x(hcxi + HINGE_OFFSET * diX / diL); hi.y(hcyi + HINGE_OFFSET * diY / diL); }
+                    }
+                    if (hj) {
+                        const djX = toCanvasXRef.current(prevLast.x) - hcxj;
+                        const djY = toCanvasZRef.current(prevLast.z) - hcyj;
+                        const djL = Math.hypot(djX, djY);
+                        if (djL > 1e-6) { hj.x(hcxj + HINGE_OFFSET * djX / djL); hj.y(hcyj + HINGE_OFFSET * djY / djL); }
+                    }
+                }
             }
         }
         for (const node of structuralSystem.nodes) {
@@ -374,26 +417,58 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
             {structuralSystem.elements.map(el => {
                 const initialPositions = getElementPositions(el.id, 0);
                 const initialPoints    = initialPositions.flatMap(({ x, z }) => [toCanvasX(x), toCanvasZ(z)]);
-                const mid = initialPositions[Math.floor((initialPositions.length - 1) / 2)];
+                const mi   = (initialPositions.length - 1) / 2;
+                const mlo  = Math.floor(mi), mhi = Math.ceil(mi), mt = mi - mlo;
+                const mid  = { x: initialPositions[mlo].x + mt * (initialPositions[mhi].x - initialPositions[mlo].x), z: initialPositions[mlo].z + mt * (initialPositions[mhi].z - initialPositions[mlo].z) };
+                const first    = initialPositions[0];
+                const second   = initialPositions[1];
+                const prevLast = initialPositions[initialPositions.length - 2];
+                const last     = initialPositions[initialPositions.length - 1];
+                const hcxi = toCanvasX(first.x), hcyi = toCanvasZ(first.z);
+                const hcxj = toCanvasX(last.x),  hcyj = toCanvasZ(last.z);
+                // Tangent at i-end: direction first→second
+                const diX = toCanvasX(second.x) - hcxi, diY = toCanvasZ(second.z) - hcyi;
+                const diL = Math.hypot(diX, diY);
+                const hdxi = diL > 1e-6 ? diX / diL : 1;
+                const hdyi = diL > 1e-6 ? diY / diL : 0;
+                // Tangent at j-end: direction last→prevLast (inward along element)
+                const djX = toCanvasX(prevLast.x) - hcxj, djY = toCanvasZ(prevLast.z) - hcyj;
+                const djL = Math.hypot(djX, djY);
+                const hdxj = djL > 1e-6 ? djX / djL : -1;
+                const hdyj = djL > 1e-6 ? djY / djL : 0;
 
                 return (
                     <React.Fragment key={el.id}>
                         <Line
                             ref={n => { n ? elementLineRefs.current.set(el.id, n) : elementLineRefs.current.delete(el.id); }}
-                            stroke={THEME.elementStroke} strokeWidth={THEME.elementStrokeWidth} points={initialPoints}
+                            stroke={theme.elementStroke} strokeWidth={theme.elementStrokeWidth} points={initialPoints}
                         />
                         <Group
                             ref={n => { n ? elementLabelGroupRefs.current.set(el.id, n) : elementLabelGroupRefs.current.delete(el.id); }}
                             x={toCanvasX(mid.x) - TEXT_BOX_SIZE / 2}
                             y={toCanvasZ(mid.z) - TEXT_BOX_SIZE / 2}
                         >
-                            <Rect width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill={THEME.elementLabelFill} stroke={THEME.elementLabelStroke} strokeWidth={1} cornerRadius={THEME.elementLabelCornerRadius} />
-                            <Text width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${el.id}`} fontSize={THEME.elementLabelFontSize} fontStyle="bold" fill={THEME.elementLabelText} align="center" verticalAlign="middle" />
+                            <Rect width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill={theme.elementLabelFill} stroke={theme.elementLabelStroke} strokeWidth={1} cornerRadius={theme.elementLabelCornerRadius} />
+                            <Text width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${el.id}`} fontSize={theme.elementLabelFontSize} fontStyle="bold" fill={theme.elementLabelText} align="center" verticalAlign="middle" />
                         </Group>
+                        {showHinges && el.releases_i.theta && (
+                            <Circle
+                                ref={c => { c ? hingeCircleRefs.current.set(`${el.id}-i`, c) : hingeCircleRefs.current.delete(`${el.id}-i`); }}
+                                x={hcxi + HINGE_OFFSET * hdxi} y={hcyi + HINGE_OFFSET * hdyi}
+                                radius={HINGE_RADIUS} fill={theme.hingeFill} stroke={theme.hingeStroke} strokeWidth={1.5}
+                            />
+                        )}
+                        {showHinges && el.releases_j.theta && (
+                            <Circle
+                                ref={c => { c ? hingeCircleRefs.current.set(`${el.id}-j`, c) : hingeCircleRefs.current.delete(`${el.id}-j`); }}
+                                x={hcxj + HINGE_OFFSET * hdxj} y={hcyj + HINGE_OFFSET * hdyj}
+                                radius={HINGE_RADIUS} fill={theme.hingeFill} stroke={theme.hingeStroke} strokeWidth={1.5}
+                            />
+                        )}
                     </React.Fragment>
                 );
             })}
-            {structuralSystem.nodes.map(node => {
+        {structuralSystem.nodes.map(node => {
                 const pos = getNodePosition(node.id, 0);
                 return (
                     <Group
@@ -401,7 +476,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                         ref={g => { g ? nodeGroupRefs.current.set(node.id, g) : nodeGroupRefs.current.delete(node.id); }}
                         x={toCanvasX(pos.x)} y={toCanvasZ(pos.z)}
                     >
-                        <NodeShape node={node} colors={{ stroke: THEME.nodeStroke, nodeFill: THEME.nodeFill, supportFill: THEME.supportFill, text: THEME.nodeText }} showNode={showNodes} showBearing={showBearings} />
+                        <NodeShape node={node} colors={{ stroke: theme.nodeStroke, nodeFill: theme.nodeFill, nodeCircleFill: theme.nodeCircleFill, supportFill: theme.supportFill, text: theme.nodeText }} showNode={showNodes} showBearing={showBearings} />
                     </Group>
                 );
             })}
@@ -412,8 +487,9 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, loadVisualization,
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, loadVisualization, themeOverride,
 }: StructuralSystemViewerProps) {
+    const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
     const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
@@ -485,6 +561,9 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     canvasWidth={canvasWidth} canvasHeight={canvasHeight}
                     {...worldBounds}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
+                    lineColor={effectiveTheme.gridLine}
+                    labelColor={effectiveTheme.gridLabel}
+                    labelFontSize={effectiveTheme.gridLabelFontSize}
                 />
                 <GhostLayer
                     structuralSystem={structuralSystem}
@@ -502,8 +581,9 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                 <AnimatedLayer
                     structuralSystem={structuralSystem}
                     getNodePosition={getNodePosition} getElementPositions={getElementPositions}
-                    showNodes={showNodes} showBearings={showBearings}
+                    showNodes={showNodes} showBearings={showBearings} showHinges={showHinges}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
+                    theme={effectiveTheme}
                 />
             </Stage>
         </div>
