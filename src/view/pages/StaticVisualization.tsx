@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { index, matrix, subset, zeros } from "mathjs";
+import { index, subset } from "mathjs";
 import { Alert, Box, Checkbox, Flex, Group, Paper, Slider, Text } from "@mantine/core";
 import type { StructuralSystem } from "../../solver/StructuralSystem";
 import { SystemSolver } from "../../solver/SystemSolver";
@@ -7,6 +7,7 @@ import type { Loads } from "../../models/models";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { StaticDiagramSidebar } from "../components/StaticDiagramSidebar";
 import { deformedElementPoints } from "../utils/deformedShape";
+import { assembleForceVector } from "../../solver/forceAssembly";
 
 export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
@@ -21,36 +22,8 @@ export default function StaticVisualization({ structuralSystem, loads }: {
 
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
-        const F_global = matrix(zeros([structuralSystem.ndof, 1]));
-
-        loads.nodes.forEach(load => {
-            const node = structuralSystem.nodes.find(n => n.id === load.node_id);
-            if (!node) return;
-            const rad = (load.angle * Math.PI) / 180;
-            F_global.set([node.dofs[0], 0], F_global.get([node.dofs[0], 0]) + load.magnitude * Math.sin(rad));
-            F_global.set([node.dofs[1], 0], F_global.get([node.dofs[1], 0]) - load.magnitude * Math.cos(rad));
-        });
-
-        loads.elements.forEach(load => {
-            const el = structuralSystem.elements.find(e => e.id === load.element_id);
-            if (!el) return;
-            const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
-            const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
-            const dx = nj.x - ni.x, dz = nj.z - ni.z;
-            const L = Math.hypot(dx, dz);
-            if (L < 1e-6) return;
-            const cosB = dx / L, sinB = dz / L;
-            const { q_i: qi, q_j: qj } = load;
-            const vi = (L / 20) * (7 * qi + 3 * qj);
-            const mi = (L * L / 60) * (3 * qi + 2 * qj);
-            const vj = (L / 20) * (3 * qi + 7 * qj);
-            const mj = -(L * L / 60) * (2 * qi + 3 * qj);
-            const gf = [-(-vi * sinB), -(vi * cosB), -mi, -(-vj * sinB), -(vj * cosB), -mj];
-            el.dofs.forEach((d, i) => F_global.set([d, 0], F_global.get([d, 0]) + gf[i]));
-        });
-
-        const solver2 = new SystemSolver(structuralSystem);
-        return solver2.solveStatic(subset(F_global, index(solver.non_restrained, [0])));
+        const F_global = assembleForceVector(structuralSystem, loads);
+        return solver.solveStatic(subset(F_global, index(solver.non_restrained, [0])));
     }, [structuralSystem, loads]);
 
     const getNodePosition = useCallback((nodeId: number): { x: number; z: number } => {

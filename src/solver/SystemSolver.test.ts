@@ -2,6 +2,10 @@ import { expect, test } from 'vitest';
 import { StructuralSystem } from './StructuralSystem';
 import { c_element, k_element, SystemSolver } from './SystemSolver';
 import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
+import {
+    getBeam, getRotatedBeam, getCantilever, getCantileverThroughReleases,
+    getFlippedCantilever, getBeamWithCenterNode, getPortalFrame, getCantileverWithSupport,
+} from './testExamples';
 
 
 const ACC = 10;
@@ -23,74 +27,6 @@ function areMatricesClose(A: math.Matrix, B: math.Matrix, epsilon = 1e-9) {
 }
 
 
-function getBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, },
-        ],
-        []
-    );
-}
-
-
-function getRotatedBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
-    const alpha = Math.atan2(4 / 5, 3 / 5);
-
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: alpha },
-            { id: 2, x: 3/5, z: 4/5, mass: m, restraint: { u: false, v: true, theta: false }, angle: alpha },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
-        ],
-        []
-    );
-}
-
-function getCantilever(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
-        ]
-    );
-}
-
-function getCantileverThroughReleases(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
-        ],
-        [
-            { id: 1, element_id: 1, end: 'j', u: true, v: true, theta: true }
-        ]
-    );
-}
-
-function getFlippedCantilever(ea: number = 7, ei: number = 11, c: number = 13, m = 17): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            // Free tip with local coordinates flipped 180°
-            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: Math.PI },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
-        ]
-    );
-}
 
 test('assembly of matrices for beam', () => {
     const [ea, ei, c, m] = [7, 11, 13, 17];
@@ -316,19 +252,6 @@ test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
 
 
 
-function getBeamWithCenterNode(ea: number = 7, ei: number = 11, c: number = 13, m=17): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: 0.5, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: 0 },
-            { id: 3, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: c },
-        ]
-    );
-}
 
 
 
@@ -394,62 +317,6 @@ test('solveStatic — beam with uniform distributed load (UDL)', () => {
 
 
 
-function getBeamWithCantileverArm(ea = 1, ei = 1): StructuralSystem {
-    return new StructuralSystem(
-        [
-            // Node 1: Left Pin Support (Restrained u, v)
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            // Node 2: Middle Roller Support (Restrained v)
-            { id: 2, x: 2.0, z: 0, mass: 0, restraint: { u: false, v: true, theta: false }, angle: 0 },
-            // Node 3: Right Free Tip (No Restraints)
-            { id: 3, x: 3.0, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
-        ],
-        [
-            // Element 1 (Span l=2)
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0 },
-            // Element 2 (Cantilever overhang c=1)
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0 },
-        ]
-    );
-}
-
-// Helper B: 2D Portal Frame
-function getPortalFrame(ea = 1, ei = 1): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: 0, z: 1, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
-            { id: 3, x: 1, z: 1, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
-            { id: 4, x: 1, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 }
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0 },
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0 },
-            { id: 3, node_i: 3, node_j: 4, ea: ea, ei: ei, c: 0 }
-        ],
-        [
-            { id: 1, element_id: 3, end: 'i', u: false, v: false, theta: true }
-        ]
-    );
-}
-
-// Helper C: Cantilever beam connected to a vertical strut/column support
-function getCantileverWithSupport(ea = 1, ei = 1): StructuralSystem {
-    return new StructuralSystem(
-        [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
-            { id: 3, x: 1, z: -1, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 }
-        ],
-        [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0 },
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0 }
-        ],
-        [
-            { id: 1, element_id: 2, end: 'i', u: false, v: false, theta: true }
-        ]
-    );
-}
 
 
 
