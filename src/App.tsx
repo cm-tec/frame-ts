@@ -42,7 +42,7 @@ export default function App() {
 
 
   // Separate structural systems per mode
-  const staticSystem  = useMemo(() => new StructuralSystem(nodes, elements, hinges),  [nodes, elements]);
+  const staticSystem  = useMemo(() => new StructuralSystem(nodes, elements, hinges),  [nodes, elements, hinges]);
   const dynamicSystem = useMemo(() => StructuralSystem.createPureTruss(nodes, elements), [nodes, elements]);
 
   const activeSystem = view === 'static' ? staticSystem : dynamicSystem;
