@@ -7,6 +7,7 @@ import { StructuralSystem } from '../../solver/StructuralSystem';
 import StructuralSystemViewer, { type Theme } from '../components/StructuralSystemViewer';
 
 const SIDEBAR_WIDTH = 420;
+const ID_COL_WIDTH  = 60;
 
 const BLUEPRINT_THEME: Partial<Theme> = {
     nodeStroke:        'rgba(255,255,255,1)',
@@ -255,7 +256,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                         <Table highlightOnHover withColumnBorders verticalSpacing="0">
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th bg="gray.1">Node</Table.Th>
+                                    <Table.Th bg="gray.1" w={ID_COL_WIDTH}>Node</Table.Th>
                                     <Table.Th>F₀</Table.Th>
                                     <Table.Th>α (°)</Table.Th>
                                     <Table.Th />
@@ -264,7 +265,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                             <Table.Tbody>
                                 {loads.nodes.map((row) => (
                                     <Table.Tr key={row.id}>
-                                        <Table.Td bg="gray.1">
+                                        <Table.Td bg="gray.1" w={ID_COL_WIDTH}>
                                             <NumberInput value={row.node_id} onChange={(e) => updateNodalLoad(row.id, { node_id: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
@@ -292,7 +293,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                         <Table highlightOnHover withColumnBorders verticalSpacing="0">
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th bg="gray.1">Elem</Table.Th>
+                                    <Table.Th bg="gray.1" w={ID_COL_WIDTH}>Elem</Table.Th>
                                     <Table.Th>qᵢ</Table.Th>
                                     <Table.Th>qⱼ</Table.Th>
                                     <Table.Th>α (°)</Table.Th>
@@ -302,7 +303,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                             <Table.Tbody>
                                 {loads.elements.map((row) => (
                                     <Table.Tr key={row.id}>
-                                        <Table.Td bg="gray.1">
+                                        <Table.Td bg="gray.1" w={ID_COL_WIDTH}>
                                             <NumberInput value={row.element_id} onChange={(e) => updateElementLoad(row.id, { element_id: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
@@ -333,18 +334,15 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                         <Table highlightOnHover withColumnBorders verticalSpacing="0">
                             <Table.Thead>
                                 <Table.Tr>
-                                    <Table.Th bg="gray.1">Elem</Table.Th>
+                                    <Table.Th bg="gray.1" w={ID_COL_WIDTH}>Elem</Table.Th>
                                     <Table.Th>End</Table.Th>
-                                    <Table.Th>M</Table.Th>
-                                    <Table.Th>V</Table.Th>
-                                    <Table.Th>N</Table.Th>
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
                                 {hinges.map((row) => (
                                     <Table.Tr key={row.id}>
-                                        <Table.Td bg="gray.1">
+                                        <Table.Td bg="gray.1" w={ID_COL_WIDTH}>
                                             <NumberInput value={row.element_id} onChange={(e) => updateHinge(row.id, { element_id: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>
                                         <Table.Td>
@@ -354,15 +352,6 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                                                 onChange={(v) => updateHinge(row.id, { end: v as 'i' | 'j' })}
                                                 data={[{ value: 'i', label: 'i' }, { value: 'j', label: 'j' }]}
                                             />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Checkbox size="xs" checked={row.theta} onChange={(e) => updateHinge(row.id, { theta: e.currentTarget.checked })} />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Checkbox size="xs" checked={row.v} onChange={(e) => updateHinge(row.id, { v: e.currentTarget.checked })} />
-                                        </Table.Td>
-                                        <Table.Td>
-                                            <Checkbox size="xs" checked={row.u} onChange={(e) => updateHinge(row.id, { u: e.currentTarget.checked })} />
                                         </Table.Td>
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteHinge(row.id)}>
