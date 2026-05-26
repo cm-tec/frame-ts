@@ -30,8 +30,9 @@ function getBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): Structu
             { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
-        ]
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, },
+        ],
+        []
     );
 }
 
@@ -45,8 +46,9 @@ function getRotatedBeam(ea: number = 7, ei: number = 11, c: number = 13, m=17): 
             { id: 2, x: 3/5, z: 4/5, mass: m, restraint: { u: false, v: true, theta: false }, angle: alpha },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
-        ]
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
+        ],
+        []
     );
 }
 
@@ -57,7 +59,7 @@ function getCantilever(ea: number = 7, ei: number = 11, c: number = 13, m=17): S
             { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: 0 },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
         ]
     );
 }
@@ -69,7 +71,10 @@ function getCantileverThroughReleases(ea: number = 7, ei: number = 11, c: number
             { id: 2, x: 1, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: true, v: true, theta: true } },
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
+        ],
+        [
+            { id: 1, element_id: 1, end: 'j', u: true, v: true, theta: true }
         ]
     );
 }
@@ -82,7 +87,7 @@ function getFlippedCantilever(ea: number = 7, ei: number = 11, c: number = 13, m
             { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: false, theta: false }, angle: Math.PI },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
         ]
     );
 }
@@ -155,7 +160,10 @@ test('assembly of matrices with releases', () => {
             { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: true }, angle: 0 },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: true, theta: true } },
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
+        ],
+        [
+            { id: 1, element_id: 1, end: 'j', u: false, v: true, theta: true }
         ]
     );
     solver = new SystemSolver(system);
@@ -276,16 +284,14 @@ test('fully restrained system is not kinematic', () => {
 test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
     const k = 400, c = 1000, m = 100;
 
-    const system = new StructuralSystem(
+    const system = StructuralSystem.createPureTruss(
         [
             { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0},
             { id: 2, x: 0, z: 1, mass: m, restraint: { u: true, v: false, theta: true }, angle: 0},
         ],
         [
             {
-                id: 1, node_i: 1, node_j: 2, ea: k, ei: 1, c: c,
-                releases_i: { u: false, v: false, theta: true },
-                releases_j: { u: false, v: false, theta: true }
+                id: 1, node_i: 1, node_j: 2, ea: k, ei: 1, c: c
             }
         ]
     );
@@ -318,8 +324,8 @@ function getBeamWithCenterNode(ea: number = 7, ei: number = 11, c: number = 13, 
             { id: 3, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: false }, angle: 0 },
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: c, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: c },
         ]
     );
 }
@@ -400,9 +406,9 @@ function getBeamWithCantileverArm(ea = 1, ei = 1): StructuralSystem {
         ],
         [
             // Element 1 (Span l=2)
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0 },
             // Element 2 (Cantilever overhang c=1)
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0 },
         ]
     );
 }
@@ -417,9 +423,12 @@ function getPortalFrame(ea = 1, ei = 1): StructuralSystem {
             { id: 4, x: 1, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 }
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
-            { id: 3, node_i: 3, node_j: 4, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: true }, releases_j: { u: false, v: false, theta: false } }
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0 },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0 },
+            { id: 3, node_i: 3, node_j: 4, ea: ea, ei: ei, c: 0 }
+        ],
+        [
+            { id: 1, element_id: 3, end: 'i', u: false, v: false, theta: true }
         ]
     );
 }
@@ -433,8 +442,11 @@ function getCantileverWithSupport(ea = 1, ei = 1): StructuralSystem {
             { id: 3, x: 1, z: -1, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 }
         ],
         [
-            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: false }, releases_j: { u: false, v: false, theta: false } },
-            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0, releases_i: { u: false, v: false, theta: true }, releases_j: { u: false, v: false, theta: false } }
+            { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: 0 },
+            { id: 2, node_i: 2, node_j: 3, ea: ea, ei: ei, c: 0 }
+        ],
+        [
+            { id: 1, element_id: 2, end: 'i', u: false, v: false, theta: true }
         ]
     );
 }

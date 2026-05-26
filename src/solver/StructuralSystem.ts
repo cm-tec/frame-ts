@@ -21,7 +21,7 @@ export class StructuralSystem {
     readonly nodes: StructuralNode[];
     readonly elements: StructuralElement[];
 
-    constructor(rawNodes: Node[], rawElements: Element[], hinges: Hinge[]) {
+    constructor(rawNodes: Node[], rawElements: Element[], hinges: Hinge[] = []) {
         this.ndof = rawNodes.length * 3;
 
         this.nodes = [];
