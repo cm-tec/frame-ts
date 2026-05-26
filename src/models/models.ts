@@ -48,9 +48,6 @@ export type Element = {
     ea: number;
     ei: number;
     c: number;
-
-    releases_i: { u: boolean; v: boolean; theta: boolean };
-    releases_j: { u: boolean; v: boolean; theta: boolean };
 };
 
 export type Hinge = {
