@@ -98,6 +98,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
+                        showHinges={true}
                     />
                 </Box>
 

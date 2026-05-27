@@ -112,8 +112,10 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
     // ── Viewer data ──────────────────────────────────────────────────────────────
 
     const structuralSystem = useMemo(
-        () => new StructuralSystem(nodes, elements, hinges),
-        [nodes, elements, hinges]
+        () => view === 'dynamic'
+            ? StructuralSystem.createPureTruss(nodes, elements)
+            : new StructuralSystem(nodes, elements, hinges),
+        [view, nodes, elements, hinges]
     );
 
     const getNodePosition = useCallback((nodeId: number, _t: number) => {

@@ -72,6 +72,7 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
+                        showHinges={true}
                     />
                 </Box>
                 <DiagramSidebar structuralSystem={structuralSystem} solution={solution} />
