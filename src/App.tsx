@@ -1,6 +1,6 @@
 import '@mantine/core/styles.css';
-import { AppShell, Badge, Button, Group, MantineProvider, SegmentedControl, Text } from '@mantine/core';
-import { useMemo, useState } from "react";
+import { AppShell, Badge, Button, Divider, Group, MantineProvider, SegmentedControl, Text, TextInput } from '@mantine/core';
+import { useMemo, useRef, useState } from "react";
 
 import { type Node, type Element, type Hinge, type InitialConditions, type Loads } from "./models/models";
 import { StructuralSystem } from "./solver/StructuralSystem";
@@ -41,6 +41,39 @@ export default function App() {
   });
 
 
+  const [systemName, setSystemName] = useState('My Structure');
+
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    const json = JSON.stringify({ name: systemName.trim() || 'My Structure', view, nodes, elements, hinges, initialConditions, loads }, null, 2);
+    const url  = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a    = document.createElement('a');
+    const filename = systemName.trim() ? `${systemName.trim()}.json` : 'structure.json';
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const d = JSON.parse(ev.target?.result as string);
+        if (d.name)              setSystemName(d.name);
+        if (d.view)              setView(d.view);
+        if (d.nodes)             setNodes(d.nodes);
+        if (d.elements)          setElements(d.elements);
+        if (d.hinges)            setHinges(d.hinges);
+        if (d.initialConditions) setInitialConditions(d.initialConditions);
+        if (d.loads)             setLoads(d.loads);
+      } catch { /* ignore malformed files */ }
+    };
+    reader.readAsText(file);
+  };
+
   // Separate structural systems per mode
   const staticSystem  = useMemo(() => new StructuralSystem(nodes, elements, hinges),  [nodes, elements, hinges]);
   const dynamicSystem = useMemo(() => StructuralSystem.createPureTruss(nodes, elements), [nodes, elements]);
@@ -77,9 +110,22 @@ export default function App() {
               )}
             </Group>
 
-            <Button onClick={() => setEditMode(m => !m)} variant="light">
-              {editMode ? 'Analyze' : 'Edit'}
-            </Button>
+            <Group gap="xs">
+              <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+              <TextInput
+                value={systemName}
+                onChange={e => setSystemName(e.currentTarget.value)}
+                size="xs"
+                w={160}
+                placeholder="System name"
+              />
+              <Button onClick={() => importRef.current?.click()} variant="default" size="xs">Import</Button>
+              <Button onClick={handleExport} variant="default" size="xs">Export</Button>
+              <Divider orientation="vertical" />
+              <Button onClick={() => setEditMode(m => !m)} variant="light" size="xs">
+                {editMode ? 'Analyze' : 'Edit'}
+              </Button>
+            </Group>
           </Group>
         </AppShell.Header>
 
