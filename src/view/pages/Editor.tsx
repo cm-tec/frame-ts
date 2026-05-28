@@ -145,6 +145,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                     showNodes={true}
                     showBearings={true}
                     showHinges={true}
+                    showReferenceFiber={true}
                     loadVisualization={view === 'static' ? { loads, scale: 1, showNodal: true, showElement: true } : undefined}
                     themeOverride={BLUEPRINT_THEME}
                 />

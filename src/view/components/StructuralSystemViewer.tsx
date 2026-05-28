@@ -23,6 +23,7 @@ interface StructuralSystemViewerProps {
     showNodes: boolean;
     showBearings: boolean;
     showHinges?: boolean;
+    showReferenceFiber?: boolean;
     loadVisualization?: LoadVisualization;
     themeOverride?: Partial<Theme>;
 }
@@ -344,12 +345,13 @@ interface AnimatedLayerProps {
     showNodes: boolean;
     showBearings: boolean;
     showHinges?: boolean;
+    showReferenceFiber?: boolean;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
     theme: Theme;
 }
 
-function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
+function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
     const toCanvasXRef          = useRef(toCanvasX);
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
@@ -359,11 +361,13 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
     const elementLabelGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
     const nodeGroupRefs         = useRef<Map<number, Konva.Group>>(new Map());
     const hingeCircleRefs = useRef<Map<string, Konva.Circle>>(new Map());
+    const referenceFiberRefs    = useRef<Map<number, Konva.Line>>(new Map());
 
     const applyPositions = useCallback((t: number) => {
         for (const el of structuralSystem.elements) {
             const line       = elementLineRefs.current.get(el.id);
             const labelGroup = elementLabelGroupRefs.current.get(el.id);
+            const referenceFiber = referenceFiberRefs.current.get(el.id);
             if (line) {
                 const positions = getElementPositionsRef.current(el.id, t);
                 line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
@@ -374,15 +378,32 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                     labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
                     labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
                 }
+                const first    = positions[0];
+                const last     = positions[positions.length - 1];
+                const hcxi = toCanvasXRef.current(first.x), hcyi = toCanvasZRef.current(first.z);
+                const hcxj = toCanvasXRef.current(last.x),  hcyj = toCanvasZRef.current(last.z);
+                
+                if (referenceFiber) {
+                    const dx = hcxj - hcxi;
+                    const dy = hcyj - hcyi;
+                    const dL = Math.hypot(dx, dy);
+                    if (dL > 1e-6) {
+                        const ux = dx / dL;
+                        const uy = dy / dL;
+                        const rx = -uy;
+                        const ry = ux;
+                        const offset = 7;
+                        referenceFiber.points([
+                            hcxi + rx * offset, hcyi + ry * offset,
+                            hcxj + rx * offset, hcyj + ry * offset
+                        ]);
+                    }
+                }
                 const hi = hingeCircleRefs.current.get(`${el.id}-i`);
                 const hj = hingeCircleRefs.current.get(`${el.id}-j`);
                 if (hi || hj) {
-                    const first    = positions[0];
                     const second   = positions[1];
                     const prevLast = positions[positions.length - 2];
-                    const last     = positions[positions.length - 1];
-                    const hcxi = toCanvasXRef.current(first.x), hcyi = toCanvasZRef.current(first.z);
-                    const hcxj = toCanvasXRef.current(last.x),  hcyj = toCanvasZRef.current(last.z);
                     if (hi) {
                         const diX = toCanvasXRef.current(second.x) - hcxi;
                         const diY = toCanvasZRef.current(second.z) - hcyi;
@@ -441,12 +462,34 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                 const hdxj = djL > 1e-6 ? djX / djL : -1;
                 const hdyj = djL > 1e-6 ? djY / djL : 0;
 
+                const fdx = hcxj - hcxi;
+                const fdy = hcyj - hcyi;
+                const fdL = Math.hypot(fdx, fdy);
+                const fux = fdL > 1e-6 ? fdx / fdL : 1;
+                const fuy = fdL > 1e-6 ? fdy / fdL : 0;
+                const frx = -fuy;
+                const fry = fux;
+                const foffset = 7;
+                const initialFiberPoints = [
+                    hcxi + frx * foffset, hcyi + fry * foffset,
+                    hcxj + frx * foffset, hcyj + fry * foffset
+                ];
+
                 return (
                     <React.Fragment key={el.id}>
                         <Line
                             ref={n => { n ? elementLineRefs.current.set(el.id, n) : elementLineRefs.current.delete(el.id); }}
                             stroke={theme.elementStroke} strokeWidth={theme.elementStrokeWidth} points={initialPoints}
                         />
+                        {showReferenceFiber && (
+                            <Line
+                                ref={n => { n ? referenceFiberRefs.current.set(el.id, n) : referenceFiberRefs.current.delete(el.id); }}
+                                stroke="#94a3b8"
+                                strokeWidth={1.5}
+                                dash={[3, 3]}
+                                points={initialFiberPoints}
+                            />
+                        )}
                         <Group
                             ref={n => { n ? elementLabelGroupRefs.current.set(el.id, n) : elementLabelGroupRefs.current.delete(el.id); }}
                             x={toCanvasX(mid.x) - TEXT_BOX_SIZE / 2}
@@ -491,7 +534,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, loadVisualization, themeOverride,
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, loadVisualization, themeOverride,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -582,10 +625,11 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                         canvasWidth={canvasWidth} canvasHeight={canvasHeight}
                     />
                 )}
-                <AnimatedLayer
+                 <AnimatedLayer
                     structuralSystem={structuralSystem}
                     getNodePosition={getNodePosition} getElementPositions={getElementPositions}
                     showNodes={showNodes} showBearings={showBearings} showHinges={showHinges}
+                    showReferenceFiber={showReferenceFiber}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                     theme={effectiveTheme}
                 />

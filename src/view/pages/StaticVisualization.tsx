@@ -18,6 +18,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
     const [showBearings, setShowBearings] = useState(true);
     const [showNodal, setShowNodal] = useState(true);
     const [showElement, setShowElement] = useState(true);
+    const [showReferenceFiber, setShowReferenceFiber] = useState(true);
     const [scale, setScale] = useState(1);
 
     const solution = useMemo(() => {
@@ -73,6 +74,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         showNodes={showNodes}
                         showBearings={showBearings}
                         showHinges={true}
+                        showReferenceFiber={showReferenceFiber}
                         loadVisualization={{ loads, scale: 1, showNodal, showElement }}
                     />
                 </Box>
@@ -100,6 +102,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         <Checkbox label="Show Undeformed" checked={showUndeformedSystem} onChange={(e) => setShowUndeformedSystem(e.currentTarget.checked)} size="sm" />
                         <Checkbox label="Show Nodes"      checked={showNodes}             onChange={(e) => setShowNodes(e.currentTarget.checked)}             size="sm" />
                         <Checkbox label="Show Bearings"   checked={showBearings}          onChange={(e) => setShowBearings(e.currentTarget.checked)}          size="sm" />
+                        <Checkbox label="Orientation"     checked={showReferenceFiber}    onChange={(e) => setShowReferenceFiber(e.currentTarget.checked)}    size="sm" />
                         <Checkbox label="Nodal Loads"     checked={showNodal}             onChange={(e) => setShowNodal(e.currentTarget.checked)}             size="sm" />
                         <Checkbox label="Element Loads"   checked={showElement}           onChange={(e) => setShowElement(e.currentTarget.checked)}           size="sm" />
                     </Group>
