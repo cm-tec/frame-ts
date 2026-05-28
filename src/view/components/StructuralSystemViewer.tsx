@@ -41,6 +41,10 @@ interface StructuralSystemViewerProps {
     pointForces?: PointForce[];
     distributedForces?: DistributedForce[];
     themeOverride?: Partial<Theme>;
+    selectedElementId?: number | null;
+    selectedNodeId?: number | null;
+    onElementClick?: (elementId: number) => void;
+    onNodeClick?: (nodeId: number) => void;
 }
 
 // ─── Visual theme ─────────────────────────────────────────────────────────────
@@ -623,6 +627,8 @@ export const ForceVisualizationLayer = React.memo(({
 
 // ─── Animated layer (deformed active system) ──────────────────────────────────
 
+const SELECTION_COLOR = '#f59e0b';
+
 interface AnimatedLayerProps {
     structuralSystem: StructuralSystem;
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number; theta?: number };
@@ -634,9 +640,13 @@ interface AnimatedLayerProps {
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
     theme: Theme;
+    selectedElementId?: number | null;
+    selectedNodeId?: number | null;
+    onElementClick?: (elementId: number) => void;
+    onNodeClick?: (nodeId: number) => void;
 }
 
-function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
+function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme, selectedElementId, selectedNodeId, onElementClick, onNodeClick }: AnimatedLayerProps) {
     const toCanvasXRef          = useRef(toCanvasX);
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
@@ -766,11 +776,24 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                     hcxj + frx * foffset, hcyj + fry * foffset
                 ];
 
+                const isElSelected = selectedElementId === el.id;
                 return (
                     <React.Fragment key={el.id}>
+                        {/* Actual element stroke */}
                         <Line
                             ref={n => { n ? elementLineRefs.current.set(el.id, n) : elementLineRefs.current.delete(el.id); }}
-                            stroke={theme.elementStroke} strokeWidth={theme.elementStrokeWidth} points={initialPoints}
+                            stroke={isElSelected ? SELECTION_COLOR : theme.elementStroke}
+                            strokeWidth={theme.elementStrokeWidth}
+                            points={initialPoints}
+                        />
+                        {/* Transparent thick hit-area for easy clicking */}
+                        <Line
+                            points={initialPoints}
+                            stroke="transparent"
+                            strokeWidth={theme.elementStrokeWidth + 16}
+                            onClick={() => onElementClick?.(el.id)}
+                            onTap={() => onElementClick?.(el.id)}
+                            style={{ cursor: 'pointer' }}
                         />
                         {showReferenceFiber && (
                             <Line
@@ -785,9 +808,25 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                             ref={n => { n ? elementLabelGroupRefs.current.set(el.id, n) : elementLabelGroupRefs.current.delete(el.id); }}
                             x={toCanvasX(mid.x) - TEXT_BOX_SIZE / 2}
                             y={toCanvasZ(mid.z) - TEXT_BOX_SIZE / 2}
+                            onClick={() => onElementClick?.(el.id)}
+                            onTap={() => onElementClick?.(el.id)}
+                            style={{ cursor: 'pointer' }}
                         >
-                            <Rect width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} fill={theme.elementLabelFill} stroke={theme.elementLabelStroke} strokeWidth={1} cornerRadius={theme.elementLabelCornerRadius} />
-                            <Text width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE} text={`${el.id}`} fontSize={theme.elementLabelFontSize} fontStyle="bold" fill={theme.elementLabelText} align="center" verticalAlign="middle" />
+                            <Rect
+                                width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE}
+                                fill={isElSelected ? SELECTION_COLOR : theme.elementLabelFill}
+                                stroke={isElSelected ? SELECTION_COLOR : theme.elementLabelStroke}
+                                strokeWidth={isElSelected ? 2.5 : 1}
+                                cornerRadius={theme.elementLabelCornerRadius}
+                            />
+                            <Text
+                                width={TEXT_BOX_SIZE} height={TEXT_BOX_SIZE}
+                                text={`${el.id}`}
+                                fontSize={theme.elementLabelFontSize}
+                                fontStyle="bold"
+                                fill={isElSelected ? 'white' : theme.elementLabelText}
+                                align="center" verticalAlign="middle"
+                            />
                         </Group>
                         {showHinges && el.releases_i.theta && (
                             <Circle
@@ -808,15 +847,26 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
             })}
         {structuralSystem.nodes.map(node => {
                 const pos = getNodePosition(node.id, 0);
+                const isNodeSelected = selectedNodeId === node.id;
+                const nodeColors = isNodeSelected
+                    ? { stroke: SELECTION_COLOR, nodeFill: SELECTION_COLOR, nodeCircleFill: SELECTION_COLOR, supportFill: theme.supportFill, text: SELECTION_COLOR }
+                    : { stroke: theme.nodeStroke, nodeFill: theme.nodeFill, nodeCircleFill: theme.nodeCircleFill, supportFill: theme.supportFill, text: theme.nodeText };
                 return (
                     <Group
                         key={node.id}
                         ref={g => { g ? nodeGroupRefs.current.set(node.id, g) : nodeGroupRefs.current.delete(node.id); }}
                         x={toCanvasX(pos.x)} y={toCanvasZ(pos.z)}
+                        onClick={() => onNodeClick?.(node.id)}
+                        onTap={() => onNodeClick?.(node.id)}
+                        style={{ cursor: 'pointer' }}
                     >
+                        {/* Extra glow ring when selected */}
+                        {isNodeSelected && (
+                            <Circle radius={THEME.nodeRadius + 5} fill="transparent" stroke={SELECTION_COLOR} strokeWidth={2.5} opacity={0.7} />
+                        )}
                         <NodeShape 
                             node={node} 
-                            colors={{ stroke: theme.nodeStroke, nodeFill: theme.nodeFill, nodeCircleFill: theme.nodeCircleFill, supportFill: theme.supportFill, text: theme.nodeText }} 
+                            colors={nodeColors}
                             showNode={showNodes} 
                             showBearing={showBearings}
                             jointRef={g => { g ? nodeJointRefs.current.set(node.id, g) : nodeJointRefs.current.delete(node.id); }}
@@ -830,6 +880,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
+    selectedElementId, selectedNodeId, onElementClick, onNodeClick,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -931,6 +982,10 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     showReferenceFiber={showReferenceFiber}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                     theme={effectiveTheme}
+                    selectedElementId={selectedElementId}
+                    selectedNodeId={selectedNodeId}
+                    onElementClick={onElementClick}
+                    onNodeClick={onNodeClick}
                 />
             </Stage>
         </div>

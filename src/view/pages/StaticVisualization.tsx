@@ -23,6 +23,18 @@ export default function StaticVisualization({ structuralSystem, loads }: {
     const [scale, setScale] = useState(1);
     const [forceMode, setForceMode] = useState<'none' | 'N' | 'Q' | 'M'>('none');
     const [forceScale, setForceScale] = useState(1);
+    const [selectedElementId, setSelectedElementId] = useState<number | null>(null);
+    const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+
+    const handleElementClick = useCallback((id: number) => {
+        setSelectedElementId(prev => prev === id ? null : id);
+        setSelectedNodeId(null);
+    }, []);
+
+    const handleNodeClick = useCallback((id: number) => {
+        setSelectedNodeId(prev => prev === id ? null : id);
+        setSelectedElementId(null);
+    }, []);
 
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
@@ -193,6 +205,10 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         showReferenceFiber={showReferenceFiber}
                         pointForces={pointForces}
                         distributedForces={distributedForces}
+                        selectedElementId={selectedElementId}
+                        selectedNodeId={selectedNodeId}
+                        onElementClick={handleElementClick}
+                        onNodeClick={handleNodeClick}
                     />
                 </Box>
 
@@ -200,6 +216,8 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                     structuralSystem={structuralSystem}
                     solution={solution}
                     loads={loads}
+                    selectedElementId={selectedElementId}
+                    selectedNodeId={selectedNodeId}
                 />
             </Flex>
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Box, CloseButton, Divider, Flex, Group, Modal, MultiSelect, Text } from '@mantine/core';
+import { Badge, Box, Divider, Flex, Group, Modal, Text } from '@mantine/core';
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import type { StaticSolution } from '../../solver/StaticSolution';
 import type { Loads } from '../../models/models';
@@ -15,11 +15,11 @@ const TYPE_COLOR: Record<string, string> = {
 };
 
 const TYPE_YLABEL: Record<string, string> = {
-    N:  'N',
-    V:  'V',
-    M:  'M',
-    dv: 'v',
-    du: 'u',
+    N:  'Normal Force N',
+    V:  'Shear Force V',
+    M:  'Bending Moment M',
+    dv: 'Transverse Disp. v',
+    du: 'Axial Disp. u',
 };
 
 // ── SVG diagram ──────────────────────────────────────────────────────────────
@@ -35,8 +35,6 @@ function SVGDiagram({ values, color }: { values: number[]; color: string }) {
     const range = maxV - minV;
     const span = Math.max(Math.abs(maxV), Math.abs(minV), 1e-10);
 
-    // When all values are the same (e.g. constant N), centre zero and show the
-    // constant value offset from it using ±span as the display range.
     const displayMax   = range > span * 1e-4 ? maxV : span;
     const displayRange = range > span * 1e-4 ? range : span * 2;
 
@@ -58,25 +56,15 @@ function SVGDiagram({ values, color }: { values: number[]; color: string }) {
 
     return (
         <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-            {/* Fill */}
             <polygon points={poly} fill={`${color}20`} stroke="none" />
-            {/* Curve */}
             <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} />
-            {/* Zero axis — always prominent */}
-            <line
-                x1={padL} y1={clampZerY} x2={padL + cW} y2={clampZerY}
-                stroke="#555"
-                strokeWidth={1.5}
-            />
-            {/* Max label */}
+            <line x1={padL} y1={clampZerY} x2={padL + cW} y2={clampZerY} stroke="#555" strokeWidth={1.5} />
             {Math.abs(maxV) > span * 1e-4 && (
                 <text x={padL + 2} y={padT - 2} fontSize={9} fill={color} fontFamily="monospace">{fmt(maxV)}</text>
             )}
-            {/* Min label */}
             {range > span * 1e-4 && (
                 <text x={padL + 2} y={H - 1} fontSize={9} fill={color} fontFamily="monospace">{fmt(minV)}</text>
             )}
-            {/* Zero label when crossing */}
             {crossesZero && Math.abs(zerY - padT) > 12 && Math.abs(zerY - (padT + cH)) > 12 && (
                 <text x={padL + cW - 2} y={clampZerY - 3} fontSize={9} fill="#777" fontFamily="monospace" textAnchor="end">0</text>
             )}
@@ -89,34 +77,32 @@ interface StaticDiagramSidebarProps {
     structuralSystem: StructuralSystem;
     solution: StaticSolution;
     loads: Loads;
+    selectedElementId?: number | null;
+    selectedNodeId?: number | null;
 }
 
 export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
-    structuralSystem, solution, loads,
+    structuralSystem, solution, loads, selectedElementId, selectedNodeId,
 }: StaticDiagramSidebarProps) {
-    const [activeViews, setActiveViews] = useState<string[]>([]);
     const [expandedChart, setExpandedChart] = useState<{ key: string; label: string } | null>(null);
 
     const { elements } = structuralSystem;
 
-    // Build MultiSelect option groups
-    const diagramOptions = useMemo(() => {
-        const bend = elements.filter(e => e.ei > 0);
-        const allItems = (type: string, els: typeof elements) =>
-            els.map(e => ({ value: `${type}-${e.id}`, label: `Element ${e.id}` }));
+    // Active views are driven entirely by which element is selected
+    const activeViews = useMemo(() => {
+        if (selectedElementId == null) return [];
+        const el = structuralSystem.elements.find(e => e.id === selectedElementId);
+        const keys = [`N-${selectedElementId}`];
+        if (el && el.ei > 0) keys.push(`V-${selectedElementId}`, `M-${selectedElementId}`);
+        keys.push(`dv-${selectedElementId}`, `du-${selectedElementId}`);
+        return keys;
+    }, [selectedElementId, structuralSystem.elements]);
 
-        return [
-            { group: 'Normal Force N',          items: allItems('N',  elements) },
-            ...(bend.length ? [
-                { group: 'Shear Force V',        items: allItems('V',  bend) },
-                { group: 'Bending Moment M',     items: allItems('M',  bend) },
-            ] : []),
-            { group: 'Transverse Displacement v', items: allItems('dv', elements) },
-            { group: 'Axial Displacement u',      items: allItems('du', elements) },
-        ];
-    }, [elements]);
+    const selectedNode = selectedNodeId != null
+        ? structuralSystem.nodes.find(n => n.id === selectedNodeId) ?? null
+        : null;
 
-    // Pre-compute all chart data once
+    // Pre-compute chart data for the selected element only
     const allData = useMemo(() => {
         const map = new Map<string, number[]>();
         const getDof = (dof: number) => solution.get_w(dof);
@@ -140,10 +126,8 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
     }, [structuralSystem, solution, loads, elements]);
 
     const getLabel = (key: string) => {
-        const allItems = diagramOptions.flatMap(g => g.items);
-        const opt = allItems.find(o => o.value === key);
-        const type = key.split('-')[0];
-        return opt ? `${opt.label} — ${TYPE_YLABEL[type]}` : key;
+        const [type, id] = key.split('-');
+        return `Element ${id} — ${TYPE_YLABEL[type] ?? type}`;
     };
 
     return (
@@ -167,18 +151,56 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
 
             <Box style={{ width: '30%', height: '100%', overflowY: 'auto', backgroundColor: '#f8f9fa', borderLeft: '1px solid #dee2e6' }}>
                 <Flex direction="column" gap="md" p="md">
-                    <MultiSelect
-                        placeholder="Add chart…"
-                        data={diagramOptions}
-                        value={activeViews}
-                        onChange={setActiveViews}
-                        searchable
-                        clearable
-                        hidePickedOptions
-                    />
 
-                    <Divider variant="dotted" />
+                    {/* ── Node info card ─────────────────────────────── */}
+                    {selectedNode && (() => {
+                        const u  = solution.get_w(selectedNode.dofs[0]);
+                        const v  = solution.get_w(selectedNode.dofs[1]);
+                        const th = solution.get_w(selectedNode.dofs[2]);
+                        const fmt = (n: number) => Math.abs(n) < 1e-9 ? '0' : n.toFixed(5);
+                        const restraintLabel = [
+                            selectedNode.restraint.u ? 'u' : null,
+                            selectedNode.restraint.v ? 'v' : null,
+                            selectedNode.restraint.theta ? 'θ' : null,
+                        ].filter(Boolean).join(', ') || 'free';
 
+                        return (
+                            <Box
+                                style={{
+                                    background: 'white',
+                                    border: '2px solid #f59e0b',
+                                    borderRadius: 8,
+                                    padding: '10px 12px',
+                                }}
+                            >
+                                <Group justify="space-between" mb={6}>
+                                    <Text size="xs" fw={800} tt="uppercase" c="#f59e0b">Node {selectedNode.id}</Text>
+                                    <Badge size="xs" color="yellow" variant="light">{restraintLabel === 'free' ? 'Free' : `Fixed: ${restraintLabel}`}</Badge>
+                                </Group>
+                                <Divider mb={8} color="yellow.2" />
+                                <Flex direction="column" gap={3}>
+                                    {[
+                                        { label: 'x',     value: fmt(selectedNode.x) },
+                                        { label: 'z',     value: fmt(selectedNode.z) },
+                                        { label: 'angle', value: `${(selectedNode.angle * 180 / Math.PI).toFixed(2)} °` },
+                                        null,
+                                        { label: 'u',  value: fmt(u) },
+                                        { label: 'v',  value: fmt(v) },
+                                        { label: 'θ',  value: fmt(th) + ' rad' },
+                                    ].map((row, i) =>
+                                        row === null ? <Divider key={`sp-${i}`} my={4} color="gray.2" /> : (
+                                            <Group key={row.label} justify="space-between">
+                                                <Text size="xs" c="dimmed" ff="monospace">{row.label}</Text>
+                                                <Text size="xs" fw={600} ff="monospace">{row.value}</Text>
+                                            </Group>
+                                        )
+                                    )}
+                                </Flex>
+                            </Box>
+                        );
+                    })()}
+
+                    {/* ── Element diagrams ────────────────────────────── */}
                     {activeViews.map(key => {
                         const type = key.split('-')[0];
                         const color = TYPE_COLOR[type] ?? '#555';
@@ -187,10 +209,7 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
 
                         return (
                             <Box key={key} style={{ width: '100%' }}>
-                                <Group justify="space-between" mb={5} wrap="nowrap">
-                                    <Text size="xs" fw={700} c="dimmed" tt="uppercase">{label}</Text>
-                                    <CloseButton size="sm" onClick={() => setActiveViews(v => v.filter(k => k !== key))} />
-                                </Group>
+                                <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={5}>{label}</Text>
                                 <Box
                                     style={{
                                         height: 140,
@@ -209,9 +228,9 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
                         );
                     })}
 
-                    {activeViews.length === 0 && (
+                    {activeViews.length === 0 && !selectedNode && (
                         <Text size="sm" c="dimmed" ta="center" mt="xl" fs="italic">
-                            No diagrams active.
+                            Click an element or node to inspect it.
                         </Text>
                     )}
                 </Flex>
