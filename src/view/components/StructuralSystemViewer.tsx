@@ -7,12 +7,27 @@ import { type Node, type Element, type Loads } from "../../models/models";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
 import { niceInterval, formatGridLabel } from '../utils/grid';
+import type { ForcePoint } from '../utils/internalForces';
 
-export interface LoadVisualization {
-    loads: Loads;
-    scale: number;
-    showNodal: boolean;
-    showElement: boolean;
+export interface PointForce {
+    id: string | number;
+    nodeId: number;
+    magnitude: number;
+    angle: number; // degrees, global angle (0 = downwards)
+    color: string;
+    scale?: number;
+    label?: string;
+}
+
+export interface DistributedForce {
+    id: string | number;
+    elementId: number;
+    distribution: Array<{ xi: number; value: number }>;
+    angle?: number; // degrees relative to normal (default = 0)
+    color: string | { positive: string; negative: string };
+    scale?: number;
+    renderStyle: 'arrows' | 'diagram';
+    showLabels?: boolean;
 }
 
 interface StructuralSystemViewerProps {
@@ -25,7 +40,8 @@ interface StructuralSystemViewerProps {
     showBearings: boolean;
     showHinges?: boolean;
     showReferenceFiber?: boolean;
-    loadVisualization?: LoadVisualization;
+    pointForces?: PointForce[];
+    distributedForces?: DistributedForce[];
     themeOverride?: Partial<Theme>;
 }
 
@@ -200,148 +216,370 @@ const GhostLayer = React.memo(({ structuralSystem, show, showNodes, showBearings
     </Layer>
 ));
 
-// ─── Load layer ───────────────────────────────────────────────────────────────
-
-const LOAD_FILL   = 'rgba(239, 68, 68, 0.15)';
-const LOAD_STROKE = 'rgba(239, 68, 68, 0.8)';
-const TICK_COUNT  = 5;
-const LOAD_GAP    = THEME.elementStrokeWidth / 2 + 18;
-
-interface LoadLayerProps {
-    structuralSystem: { nodes: Node[], elements: Element[] };
-    lv: LoadVisualization;
+interface ForceVisualizationLayerProps {
+    structuralSystem: StructuralSystem;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
     canvasWidth: number;
     canvasHeight: number;
+    getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
+    pointForces?: PointForce[];
+    distributedForces?: DistributedForce[];
+    theme: Theme;
 }
 
-export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWidth, canvasHeight }: LoadLayerProps) {
-    const { loads, scale, showNodal, showElement } = lv;
+export const ForceVisualizationLayer = React.memo(({
+    structuralSystem,
+    toCanvasX,
+    toCanvasZ,
+    canvasWidth,
+    canvasHeight,
+    getElementPositions,
+    pointForces = [],
+    distributedForces = [],
+    theme
+}: ForceVisualizationLayerProps) => {
+    let maxArrowVal = 1e-10;
+    pointForces.forEach(f => { maxArrowVal = Math.max(maxArrowVal, Math.abs(f.magnitude)); });
+    distributedForces.forEach(f => {
+        if (f.renderStyle === 'arrows') {
+            f.distribution.forEach(pt => { maxArrowVal = Math.max(maxArrowVal, Math.abs(pt.value)); });
+        }
+    });
+    const defaultArrowPxPerUnit = (0.15 * Math.min(canvasWidth, canvasHeight) / maxArrowVal);
 
-    let maxVal = 1e-10;
-    if (showNodal)   loads.nodes.forEach(l => { maxVal = Math.max(maxVal, Math.abs(l.magnitude)); });
-    if (showElement) loads.elements.forEach(l => { maxVal = Math.max(maxVal, Math.abs(l.q_i), Math.abs(l.q_j)); });
-    const pxPerUnit = (0.15 * Math.min(canvasWidth, canvasHeight) / maxVal) * scale;
+    const LOAD_GAP = theme.elementStrokeWidth / 2 + 18;
+    const TICK_COUNT = 5;
 
     return (
         <Layer listening={false}>
-            {showNodal && loads.nodes.map(load => {
-                const node = structuralSystem.nodes.find(n => n.id === load.node_id);
+            {/* ─── Render Point Forces ─── */}
+            {pointForces.map(force => {
+                const node = structuralSystem.nodes.find(n => n.id === force.nodeId);
                 if (!node) return null;
                 const cx = toCanvasX(node.x);
                 const cy = toCanvasZ(node.z);
-                
-                const rad = (load.angle * Math.PI) / 180;
-                const sign = load.magnitude >= 0 ? 1 : -1;
+
+                const rad = (force.angle * Math.PI) / 180;
+                const sign = force.magnitude >= 0 ? 1 : -1;
                 const dx = Math.sin(rad) * sign;
                 const dy = Math.cos(rad) * sign;
-                const len = Math.abs(load.magnitude) * pxPerUnit;
                 
-                // Head touches the node boundary (pushing force)
-                const headX = cx - dx * (THEME.nodeRadius + LOAD_GAP);
-                const headY = cy - dy * (THEME.nodeRadius + LOAD_GAP);
-                
-                // Tail is positioned further away
+                const pxPerUnit = force.scale !== undefined ? force.scale : defaultArrowPxPerUnit;
+                const len = Math.abs(force.magnitude) * pxPerUnit;
+
+                const headX = cx - dx * (theme.nodeRadius + LOAD_GAP);
+                const headY = cy - dy * (theme.nodeRadius + LOAD_GAP);
+
                 const tailX = headX - dx * len;
                 const tailY = headY - dy * len;
-                
+
                 return (
-                    <Arrow key={load.id}
-                        points={[tailX, tailY, headX, headY]}
-                        fill={LOAD_STROKE} stroke={LOAD_STROKE} strokeWidth={2.5}
-                        pointerLength={10} pointerWidth={8} listening={false}
-                    />
+                    <Group key={`pt-force-${force.id}`}>
+                        <Arrow
+                            points={[tailX, tailY, headX, headY]}
+                            fill={force.color} stroke={force.color} strokeWidth={2.5}
+                            pointerLength={10} pointerWidth={8} listening={false}
+                        />
+                        {force.label && (
+                            <Text
+                                x={tailX - dx * 10}
+                                y={tailY - dy * 10}
+                                text={force.label}
+                                fontSize={11}
+                                fontStyle="bold"
+                                fill={force.color}
+                                align="center"
+                            />
+                        )}
+                    </Group>
                 );
             })}
 
-            {showElement && loads.elements.map(load => {
-                const el = structuralSystem.elements.find(e => e.id === load.element_id);
+            {/* ─── Render Distributed Forces ─── */}
+            {distributedForces.map(force => {
+                const el = structuralSystem.elements.find(e => e.id === force.elementId);
                 if (!el) return null;
-                const ni = structuralSystem.nodes.find(n => n.id === el.node_i);
-                const nj = structuralSystem.nodes.find(n => n.id === el.node_j);
-                if (!ni || !nj) return null;
-                
-                const cxi = toCanvasX(ni.x), cyi = toCanvasZ(ni.z);
-                const cxj = toCanvasX(nj.x), cyj = toCanvasZ(nj.z);
 
-                // 1. Calculate path vector directly on the canvas to prevent grid-squish bugs
-                const pixelDx = cxj - cxi;
-                const pixelDy = cyj - cyi;
-                const canvasLength = Math.hypot(pixelDx, pixelDy);
-                
-                if (canvasLength < 1e-6) return null;
+                const positions = getElementPositions(el.id, 0);
+                if (positions.length < 2 || force.distribution.length < 2) return null;
 
-                const cDx = pixelDx / canvasLength; 
-                const cDy = pixelDy / canvasLength; 
+                const pStart = positions[0];
+                const pEnd = positions[positions.length - 1];
+                const cStart = { x: toCanvasX(pStart.x), y: toCanvasZ(pStart.z) };
+                const cEnd = { x: toCanvasX(pEnd.x), y: toCanvasZ(pEnd.z) };
+                const dx = cEnd.x - cStart.x;
+                const dy = cEnd.y - cStart.y;
+                const dL = Math.hypot(dx, dy);
+                if (dL < 1e-6) return null;
 
-                // 2. Base Normal Vector (N_x, N_y). 
-                // On a screen where Y goes DOWN, this strictly points UP to the "TOP" of the beam
-                const N_x = cDy; 
-                const N_y = -cDx;
+                const ux = dx / dL;
+                const uy = dy / dL;
+                const nx = -uy;
+                const ny = ux;
 
-                // 3. Apply the custom load angle 
-                // (Rotating CCW on canvas/screen)
-                const theta = (load.angle * Math.PI) / 180;
-                const O_x = N_x * Math.cos(theta) + N_y * Math.sin(theta);
-                const O_y = -N_x * Math.sin(theta) + N_y * Math.cos(theta);
+                const getDeformedPosAtXi = (xi: number) => {
+                    const idxFloat = xi * (positions.length - 1);
+                    const idxLow = Math.floor(idxFloat);
+                    const idxHigh = Math.ceil(idxFloat);
+                    const t = idxFloat - idxLow;
+                    const pLow = positions[idxLow];
+                    const pHigh = positions[idxHigh];
+                    return {
+                        x: toCanvasX(pLow.x + t * (pHigh.x - pLow.x)),
+                        z: toCanvasZ(pLow.z + t * (pHigh.z - pLow.z))
+                    };
+                };
 
-                // 4. Directional multipliers based on load intensity
-                const sqi = load.q_i >= 0 ? 1 : -1;
-                const sqj = load.q_j >= 0 ? 1 : -1;
+                if (force.renderStyle === 'arrows') {
+                    const pxPerUnit = force.scale !== undefined ? force.scale : defaultArrowPxPerUnit;
 
-                // 5. Build Polygon Envelopes
-                // The "near" gap pushes off the beam purely in the Top/Bottom normal direction
-                const nearXi = cxi + N_x * sqi * LOAD_GAP;
-                const nearYi = cyi + N_y * sqi * LOAD_GAP;
-                const nearXj = cxj + N_x * sqj * LOAD_GAP;
-                const nearYj = cyj + N_y * sqj * LOAD_GAP;
+                    const loadNx = -nx;
+                    const loadNy = -ny;
+                    const forceAngle = force.angle ?? 0;
+                    const theta = (forceAngle * Math.PI) / 180;
+                    const O_x = loadNx * Math.cos(theta) + loadNy * Math.sin(theta);
+                    const O_y = -loadNx * Math.sin(theta) + loadNy * Math.cos(theta);
 
-                // The "far" boundary extends out along the angled load direction
-                const farXi  = nearXi + O_x * sqi * Math.abs(load.q_i) * pxPerUnit;
-                const farYi  = nearYi + O_y * sqi * Math.abs(load.q_i) * pxPerUnit;
-                const farXj  = nearXj + O_x * sqj * Math.abs(load.q_j) * pxPerUnit;
-                const farYj  = nearYj + O_y * sqj * Math.abs(load.q_j) * pxPerUnit;
+                    const envelopePoints: number[] = [];
+                    const basePoints: number[] = [];
 
-                // A load should only be considered parallel if it's within 15° of the beam axis (75° to 90°)
-                const parallel = Math.abs(Math.sin(theta)) > Math.sin((75 * Math.PI) / 180);
+                    const mappedPts = force.distribution.map(pt => {
+                        const basePos = getDeformedPosAtXi(pt.xi);
+                        const val = pt.value;
+                        const sign = val >= 0 ? 1 : -1;
+                        const absVal = Math.abs(val);
 
-                const ticks = Array.from({ length: TICK_COUNT }, (_, k) => {
-                    const t = k / (TICK_COUNT - 1);
-                    const q = load.q_i + t * (load.q_j - load.q_i);
-                    if (Math.abs(q) < 1e-10) return null;
+                        const nearX = basePos.x + loadNx * sign * LOAD_GAP;
+                        const nearY = basePos.z + loadNy * sign * LOAD_GAP;
 
-                    const tFarX = farXi + t * (farXj - farXi);
-                    const tFarY = farYi + t * (farYj - farYi);
-                    const tNearX = nearXi + t * (nearXj - nearXi);
-                    const tNearY = nearYi + t * (nearYj - nearYi);
+                        const farX = nearX + O_x * sign * absVal * pxPerUnit;
+                        const farY = nearY + O_y * sign * absVal * pxPerUnit;
 
-                    // Because we carefully defined the offsets expanding AWAY from the beam,
-                    // arrows ALWAYS point from far to near. No ternary flips required!
-                    return (
-                        <Arrow key={k}
-                            points={[tFarX, tFarY, tNearX, tNearY]}
-                            fill={LOAD_STROKE} stroke={LOAD_STROKE} strokeWidth={1.5}
-                            pointerLength={6} pointerWidth={5} listening={false}
-                        />
-                    );
-                });
+                        return { nearX, nearY, farX, farY, value: val };
+                    });
 
-                return (
-                    <React.Fragment key={load.id}>
-                        {!parallel && (
-                            <Line 
-                                points={[nearXi, nearYi, nearXj, nearYj, farXj, farYj, farXi, farYi]}
-                                fill={LOAD_FILL} stroke={LOAD_STROKE} strokeWidth={1.5} closed listening={false} 
+                    mappedPts.forEach(pt => {
+                        basePoints.push(pt.nearX, pt.nearY);
+                    });
+                    for (let k = mappedPts.length - 1; k >= 0; k--) {
+                        envelopePoints.push(mappedPts[k].farX, mappedPts[k].farY);
+                    }
+                    const fullPolyPoints = [...basePoints, ...envelopePoints];
+
+                    const parallel = Math.abs(Math.sin(theta)) > Math.sin((75 * Math.PI) / 180);
+
+                    const ticks: React.ReactNode[] = [];
+                    for (let k = 0; k < TICK_COUNT; k++) {
+                        const t = k / (TICK_COUNT - 1);
+                        
+                        let val = 0;
+                        let nearX = 0, nearY = 0, farX = 0, farY = 0;
+                        
+                        if (mappedPts.length === 2) {
+                            val = mappedPts[0].value + t * (mappedPts[1].value - mappedPts[0].value);
+                            nearX = mappedPts[0].nearX + t * (mappedPts[1].nearX - mappedPts[0].nearX);
+                            nearY = mappedPts[0].nearY + t * (mappedPts[1].nearY - mappedPts[0].nearY);
+                            farX = mappedPts[0].farX + t * (mappedPts[1].farX - mappedPts[0].farX);
+                            farY = mappedPts[0].farY + t * (mappedPts[1].farY - mappedPts[0].farY);
+                        } else {
+                            const targetXi = t;
+                            let segIndex = 0;
+                            for (let i = 0; i < force.distribution.length - 1; i++) {
+                                if (targetXi >= force.distribution[i].xi && targetXi <= force.distribution[i + 1].xi) {
+                                    segIndex = i;
+                                    break;
+                                }
+                            }
+                            const p0 = force.distribution[segIndex];
+                            const p1 = force.distribution[segIndex + 1];
+                            const segT = (targetXi - p0.xi) / (p1.xi - p0.xi);
+                            
+                            const m0 = mappedPts[segIndex];
+                            const m1 = mappedPts[segIndex + 1];
+
+                            val = p0.value + segT * (p1.value - p0.value);
+                            nearX = m0.nearX + segT * (m1.nearX - m0.nearX);
+                            nearY = m0.nearY + segT * (m1.nearY - m0.nearY);
+                            farX = m0.farX + segT * (m1.farX - m0.farX);
+                            farY = m0.farY + segT * (m1.farY - m0.farY);
+                        }
+
+                        if (Math.abs(val) < 1e-10) continue;
+
+                        const arrowColor = typeof force.color === 'string' ? force.color : (val >= 0 ? force.color.positive : force.color.negative);
+
+                        ticks.push(
+                            <Arrow
+                                key={`tick-${force.id}-${k}`}
+                                points={[farX, farY, nearX, nearY]}
+                                fill={arrowColor} stroke={arrowColor} strokeWidth={1.5}
+                                pointerLength={6} pointerWidth={5} listening={false}
                             />
-                        )}
-                        {ticks}
-                    </React.Fragment>
-                );
+                        );
+                    }
+
+                    const strokeColor = typeof force.color === 'string' ? force.color : force.color.positive;
+                    const fillColor = strokeColor.startsWith('rgba') 
+                        ? strokeColor.replace(/[\d\.]+\)$/, '0.15)')
+                        : 'rgba(239, 68, 68, 0.15)';
+
+                    return (
+                        <React.Fragment key={`dist-force-${force.id}`}>
+                            {!parallel && (
+                                <Line
+                                    points={fullPolyPoints}
+                                    fill={fillColor} stroke={strokeColor} strokeWidth={1.5}
+                                    closed listening={false}
+                                />
+                            )}
+                            {ticks}
+                        </React.Fragment>
+                    );
+                } else {
+                    const pxScale = force.scale ?? 1.0;
+                    const diagNx = -nx;
+                    const diagNy = -ny;
+
+                    const curvePoints = force.distribution.map(pt => {
+                        const basePos = getDeformedPosAtXi(pt.xi);
+                        const offsetHeight = pt.value * pxScale;
+                        
+                        return {
+                            x: basePos.x + diagNx * offsetHeight,
+                            y: basePos.z + diagNy * offsetHeight,
+                            val: pt.value,
+                            xi: pt.xi
+                        };
+                    });
+
+                    const polyPoints: number[] = [];
+                    for (let k = 0; k < positions.length; k++) {
+                        polyPoints.push(toCanvasX(positions[k].x), toCanvasZ(positions[k].z));
+                    }
+                    for (let k = curvePoints.length - 1; k >= 0; k--) {
+                        polyPoints.push(curvePoints[k].x, curvePoints[k].y);
+                    }
+
+                    const avgVal = curvePoints.reduce((acc, p) => acc + p.val, 0) / curvePoints.length;
+                    let strokeColor = 'rgba(16, 185, 129, 0.7)';
+                    let fillColor = 'rgba(16, 185, 129, 0.12)';
+
+                    if (typeof force.color === 'string') {
+                        strokeColor = force.color;
+                        fillColor = force.color.startsWith('rgba')
+                            ? force.color.replace(/[\d\.]+\)$/, '0.12)')
+                            : force.color + '22';
+                    } else {
+                        const c = avgVal >= 0 ? force.color.positive : force.color.negative;
+                        strokeColor = c;
+                        fillColor = c.startsWith('rgba')
+                            ? c.replace(/[\d\.]+\)$/, '0.12)')
+                            : c + '22';
+                    }
+
+                    const hatchLines: React.ReactNode[] = [];
+                    curvePoints.forEach((cPt, k) => {
+                        if (k === 0 || k === curvePoints.length - 1 || k % 3 === 0) {
+                            const basePos = getDeformedPosAtXi(cPt.xi);
+                            hatchLines.push(
+                                <Line
+                                    key={`hatch-${force.id}-${k}`}
+                                    points={[basePos.x, basePos.z, cPt.x, cPt.y]}
+                                    stroke={strokeColor}
+                                    strokeWidth={1}
+                                    opacity={0.4}
+                                />
+                            );
+                        }
+                    });
+
+                    const labels: React.ReactNode[] = [];
+                    if (force.showLabels && curvePoints.length >= 2) {
+                        const startVal = curvePoints[0].val;
+                        const endVal = curvePoints[curvePoints.length - 1].val;
+                        
+                        let peakIndex = 0;
+                        let maxAbsVal = -1;
+                        for (let k = 0; k < curvePoints.length; k++) {
+                            const absVal = Math.abs(curvePoints[k].val);
+                            if (absVal > maxAbsVal) {
+                                maxAbsVal = absVal;
+                                peakIndex = k;
+                            }
+                        }
+                        const peakVal = curvePoints[peakIndex].val;
+
+                        const labelFormat = (val: number) => {
+                            return Math.abs(val) < 1e-1 ? '0' : `${val > 0 ? '+' : ''}${val.toFixed(1)}`;
+                        };
+
+                        const threshold = 1e-1;
+                        if (Math.abs(startVal) > threshold) {
+                            labels.push(
+                                <Text
+                                    key={`lbl-start-${force.id}`}
+                                    x={curvePoints[0].x + diagNx * 5}
+                                    y={curvePoints[0].y + diagNy * 5}
+                                    text={labelFormat(startVal)}
+                                    fontSize={10}
+                                    fill={theme.nodeText}
+                                    align="center"
+                                />
+                            );
+                        }
+                        if (Math.abs(endVal) > threshold && Math.abs(endVal - startVal) > threshold) {
+                            labels.push(
+                                <Text
+                                    key={`lbl-end-${force.id}`}
+                                    x={curvePoints[curvePoints.length - 1].x + diagNx * 5}
+                                    y={curvePoints[curvePoints.length - 1].y + diagNy * 5}
+                                    text={labelFormat(endVal)}
+                                    fontSize={10}
+                                    fill={theme.nodeText}
+                                    align="center"
+                                />
+                            );
+                        }
+                        if (peakIndex > 0 && peakIndex < curvePoints.length - 1 && Math.abs(peakVal) > threshold) {
+                            labels.push(
+                                <Text
+                                    key={`lbl-peak-${force.id}`}
+                                    x={curvePoints[peakIndex].x + diagNx * 5}
+                                    y={curvePoints[peakIndex].y + diagNy * 5}
+                                    text={labelFormat(peakVal)}
+                                    fontSize={10}
+                                    fontStyle="bold"
+                                    fill={theme.nodeText}
+                                    align="center"
+                                />
+                            );
+                        }
+                    }
+
+                    const boundaryPoints = curvePoints.flatMap(p => [p.x, p.y]);
+
+                    return (
+                        <React.Fragment key={`dist-diag-${force.id}`}>
+                            <Line
+                                points={polyPoints}
+                                fill={fillColor}
+                                closed={true}
+                            />
+                            <Line
+                                points={boundaryPoints}
+                                stroke={strokeColor}
+                                strokeWidth={1.5}
+                            />
+                            {hatchLines}
+                            {labels}
+                        </React.Fragment>
+                    );
+                }
             })}
         </Layer>
     );
-}
+});
 
 // ─── Animated layer (deformed active system) ──────────────────────────────────
 
@@ -554,10 +792,8 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
     );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, getNodeRotation, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, loadVisualization, themeOverride,
+    structuralSystem, getNodePosition, getElementPositions, getNodeRotation, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -641,11 +877,15 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     showNodes={showNodes} showBearings={showBearings}
                     nodeMap={nodeMap} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                 />
-                {loadVisualization && (
-                    <LoadLayer
-                        structuralSystem={structuralSystem} lv={loadVisualization}
+                {(pointForces || distributedForces) && (
+                    <ForceVisualizationLayer
+                        structuralSystem={structuralSystem}
                         toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                         canvasWidth={canvasWidth} canvasHeight={canvasHeight}
+                        getElementPositions={getElementPositions}
+                        pointForces={pointForces}
+                        distributedForces={distributedForces}
+                        theme={effectiveTheme}
                     />
                 )}
                  <AnimatedLayer

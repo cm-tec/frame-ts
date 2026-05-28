@@ -118,6 +118,32 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         [view, nodes, elements, hinges]
     );
 
+    const pointForces = useMemo(() => {
+        if (view !== 'static') return undefined;
+        return loads.nodes.map((load) => ({
+            id: `nodal-load-${load.id}`,
+            nodeId: load.node_id,
+            magnitude: load.magnitude,
+            angle: load.angle,
+            color: 'rgba(239, 68, 68, 0.8)',
+        }));
+    }, [loads.nodes, view]);
+
+    const distributedForces = useMemo(() => {
+        if (view !== 'static') return undefined;
+        return loads.elements.map((load) => ({
+            id: `element-load-${load.id}`,
+            elementId: load.element_id,
+            distribution: [
+                { xi: 0, value: load.q_i },
+                { xi: 1, value: load.q_j }
+            ],
+            angle: load.angle,
+            color: 'rgba(239, 68, 68, 0.8)',
+            renderStyle: 'arrows' as const,
+        }));
+    }, [loads.elements, view]);
+
     const getNodePosition = useCallback((nodeId: number, _t: number) => {
         const node = nodes.find(n => n.id === nodeId);
         return { x: node?.x ?? 0, z: node?.z ?? 0 };
@@ -146,7 +172,8 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                     showBearings={true}
                     showHinges={true}
                     showReferenceFiber={true}
-                    loadVisualization={view === 'static' ? { loads, scale: 1, showNodal: true, showElement: true } : undefined}
+                    pointForces={pointForces}
+                    distributedForces={distributedForces}
                     themeOverride={BLUEPRINT_THEME}
                 />
             </Box>
