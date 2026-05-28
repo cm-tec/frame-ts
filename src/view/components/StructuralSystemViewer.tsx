@@ -632,7 +632,9 @@ export const ForceVisualizationLayer = React.memo(({
 
 // ─── Animated layer (deformed active system) ──────────────────────────────────
 
-const SELECTION_COLOR = '#f59e0b';
+const SELECTION_COLOR  = '#f59e0b'; // amber-400 — glow ring / element highlight
+const SELECTION_FILL   = '#fde68a'; // amber-200 — bearing & node body fill
+const SELECTION_STROKE = '#d97706'; // amber-600 — crisp dark outline
 
 interface AnimatedLayerProps {
     structuralSystem: StructuralSystem;
@@ -855,7 +857,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                 const pos = getNodePosition(node.id, 0);
                 const isNodeSelected = selectedNodeId === node.id;
                 const nodeColors = isNodeSelected
-                    ? { stroke: SELECTION_COLOR, nodeFill: SELECTION_COLOR, nodeCircleFill: SELECTION_COLOR, supportFill: theme.supportFill, text: SELECTION_COLOR }
+                    ? { stroke: SELECTION_STROKE, nodeFill: SELECTION_COLOR, nodeCircleFill: SELECTION_COLOR, supportFill: SELECTION_FILL, text: SELECTION_STROKE }
                     : { stroke: theme.nodeStroke, nodeFill: theme.nodeFill, nodeCircleFill: theme.nodeCircleFill, supportFill: theme.supportFill, text: theme.nodeText };
                 return (
                     <Group
@@ -866,18 +868,18 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                         onTap={() => onNodeClick?.(node.id)}
                         style={{ cursor: 'pointer' }}
                     >
-                        {/* Extra glow ring when selected */}
-                        {isNodeSelected && (
-                            <Circle radius={THEME.nodeRadius + 5} fill="transparent" stroke={SELECTION_COLOR} strokeWidth={2.5} opacity={0.7} />
-                        )}
-                        <NodeShape 
-                            node={node} 
+                        <NodeShape
+                            node={node}
                             colors={nodeColors}
-                            showNode={showNodes} 
+                            showNode={showNodes}
                             showBearing={showBearings}
                             showNodeCross={showNodeCross}
                             jointRef={g => { g ? nodeJointRefs.current.set(node.id, g) : nodeJointRefs.current.delete(node.id); }}
                         />
+                        {/* Extra glow ring when selected */}
+                        {isNodeSelected && (
+                            <Circle radius={THEME.nodeRadius + 5} fill="transparent" stroke={nodeColors.stroke} strokeWidth={2.5} opacity={0.7} />
+                        )}
                     </Group>
                 );
             })}
