@@ -223,5 +223,43 @@ test('elementDisplacementAt — beam with released dof isnt affected by neighbor
     expect(v).toBeCloseTo(-5/12288, ACC);
 });
 
+test('elementDisplacementAt — EI = 0 element with one rigid end curves and does not divide by zero', () => {
+    const system = new StructuralSystem(
+         [
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: true }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: 0, restraint: { u: false, v: true, theta: false }, angle: 0 },
+        ],
+        [
+            { id: 1, node_i: 1, node_j: 2, ea: 10, ei: 0, c: 0 },
+        ],
+        [
+             { id: 1, element_id: 1, end: 'i', u: false, v: false, theta: true }, // node 1 is pinned
+             // node 2 is rigid (theta release is false)
+        ]
+    );
+
+    const get_w = (dof: number) => (dof === 5 ? 0.1 : 0);
+
+    const el = system.elements[0];
+    const n_i = system.nodes[0];
+    const n_j = system.nodes[1];
+
+    const { u, v } = elementDisplacementAt(el, n_i, n_j, get_w, 0.5);
+
+    // Since node 2 rotates by 0.1 rad, the rigid connection at node 2 (xi = 1) causes bending.
+    // Since node 1 is pinned, th_i should be 1.5 * chord - th_j / 2.
+    // chord = (v_j - v_i)/L = 0.
+    // th_j = 0.1.
+    // th_i = -0.05.
+    // v = N1 * v_i + N2 * L * th_i + N3 * v_j + N4 * L * th_j
+    // N2(0.5) = 0.125
+    // N4(0.5) = -0.125
+    // L = 1
+    // v = 0.125 * (-0.05) + (-0.125) * 0.1 = -0.00625 - 0.0125 = -0.01875.
+    expect(u).toBeCloseTo(0, ACC);
+    expect(v).toBeCloseTo(-0.01875, ACC);
+});
+
+
 
 

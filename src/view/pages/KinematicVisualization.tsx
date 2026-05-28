@@ -5,6 +5,8 @@ import type { StructuralSystem } from "../../solver/StructuralSystem";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { PlaybackBar } from "../components/PlaybackBar";
 import { useAnimation } from "../hooks/useAnimation";
+import { deformedElementPoints } from "../utils/deformedShape";
+
 
 export default function KinematicVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [selectedMode, setSelectedMode] = useState(0);
@@ -52,10 +54,27 @@ export default function KinematicVisualization({ structuralSystem }: { structura
         };
     }, [structuralSystem, solution, selectedMode, autoScale, scale]);
 
+    const getNodeRotation = useCallback((nodeId: number, time: number): number => {
+        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
+        if (!solution.modes[selectedMode]) return 0;
+
+        const factor = autoScale * scale * Math.cos(time);
+        return solution.get_w(selectedMode, node.dofs[2]) * factor;
+    }, [structuralSystem, solution, selectedMode, autoScale, scale]);
+
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
-    }, [structuralSystem, getNodePosition]);
+        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
+        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
+
+        const getDof = (dof: number): number => {
+            if (!solution.modes[selectedMode]) return 0;
+            const factor = autoScale * scale * Math.cos(time);
+            return solution.get_w(selectedMode, dof) * factor;
+        };
+
+        return deformedElementPoints(element, ni, nj, getDof, 1);
+    }, [structuralSystem, solution, selectedMode, autoScale, scale]);
 
     const selectMode = useCallback((i: number) => {
         setSelectedMode(i);
@@ -70,6 +89,7 @@ export default function KinematicVisualization({ structuralSystem }: { structura
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
+                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}

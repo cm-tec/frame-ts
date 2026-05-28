@@ -6,6 +6,8 @@ import { matrix, zeros } from "mathjs";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { PlaybackBar } from "../components/PlaybackBar";
 import { useAnimation } from "../hooks/useAnimation";
+import { deformedElementPoints } from "../utils/deformedShape";
+
 
 export default function EigenmodeVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
     const [selectedMode, setSelectedMode] = useState(0);
@@ -77,10 +79,33 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
         };
     }, [structuralSystem, solution, modes, selectedMode, autoScale, scale]);
 
+    const getNodeRotation = useCallback((nodeId: number, time: number): number => {
+        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
+        const mode = modes[selectedMode];
+        if (!mode) return 0;
+
+        const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
+        const factor = autoScale * scale;
+        const ti = solution.non_restrained.indexOf(node.dofs[2]);
+        return ti >= 0 ? disp.get([ti]) * factor : 0;
+    }, [structuralSystem, solution, modes, selectedMode, autoScale, scale]);
+
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
-    }, [structuralSystem, getNodePosition]);
+        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
+        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
+        const mode = modes[selectedMode];
+        if (!mode) return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
+
+        const getDof = (dof: number): number => {
+            const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
+            const factor = autoScale * scale;
+            const idx = solution.non_restrained.indexOf(dof);
+            return idx >= 0 ? disp.get([idx]) * factor : 0;
+        };
+
+        return deformedElementPoints(element, ni, nj, getDof, 1);
+    }, [structuralSystem, solution, modes, selectedMode, autoScale, scale, getNodePosition]);
 
     const selectMode = useCallback((i: number) => {
         setSelectedMode(i);
@@ -95,6 +120,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
+                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}

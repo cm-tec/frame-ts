@@ -9,6 +9,7 @@ import { useVisualizationStore } from "../../store/visualizationStore";
 import { PlaybackBar } from "../components/PlaybackBar";
 import type { InitialConditions, Loads } from "../../models/models";
 import { useAnimation } from "../hooks/useAnimation";
+import { deformedElementPoints } from "../utils/deformedShape";
 
 export default function DynamicVisualization({ structuralSystem, initialConditions, loads: _loads }: {
     structuralSystem: StructuralSystem;
@@ -56,10 +57,21 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
         return { x: x + u, z: z + v };
     }, [getNodeState]);
 
+    const getNodeRotation = useCallback((nodeId: number, time: number): number => {
+        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
+        return solution.get_w(node.dofs[2], time);
+    }, [structuralSystem, solution]);
+
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
-    }, [structuralSystem, getNodePosition]);
+        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
+        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
+        return deformedElementPoints(
+            element, ni, nj,
+            (dof) => solution.get_w(dof, time),
+            1,
+        );
+    }, [structuralSystem, solution]);
 
     return (
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
@@ -69,6 +81,7 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
+                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}

@@ -35,6 +35,11 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         };
     }, [structuralSystem, solution, scale]);
 
+    const getNodeRotation = useCallback((nodeId: number): number => {
+        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
+        return solution.get_w(node.dofs[2]) * scale;
+    }, [structuralSystem, solution, scale]);
+
     const bendingWarnings = useMemo(() =>
         loads.elements.filter(l => {
             const el = structuralSystem.elements.find(e => e.id === l.element_id);
@@ -70,6 +75,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
+                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}

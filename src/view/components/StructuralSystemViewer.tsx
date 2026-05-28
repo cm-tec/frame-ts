@@ -19,6 +19,7 @@ interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
+    getNodeRotation?: (nodeId: number, time: number) => number;
     showUndeformedSystem: boolean;
     showNodes: boolean;
     showBearings: boolean;
@@ -76,7 +77,7 @@ const CONTENT_MAX_RATIO = 5;
 
 type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
-function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean }) {
+function NodeShape({ node, colors, showNode, showBearing, jointRef }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean; jointRef?: React.Ref<Konva.Group> }) {
     const R = THEME.nodeRadius;
     const B = THEME.bearingSize;
     return <>
@@ -100,10 +101,16 @@ function NodeShape({ node, colors, showNode, showBearing }: { node: Node; colors
                 ctx.fillStrokeShape(shape);
             }} />
         )}
-        {node.restraint.theta
-            ? <Rect visible={showNode} x={-(B-2)} y={-(B-2)} width={2 * (B-2)} height={2 * (B-2)} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
-            : <Circle visible={showNode} radius={R} fill={colors.nodeCircleFill} stroke={colors.stroke} strokeWidth={2} />
-        }
+        <Group ref={jointRef}>
+            {node.restraint.theta
+                ? <Rect visible={showNode} x={-(B-2)} y={-(B-2)} width={2 * (B-2)} height={2 * (B-2)} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
+                : <Group visible={showNode}>
+                      <Circle radius={R} fill={colors.nodeCircleFill} stroke={colors.stroke} strokeWidth={2} />
+                      <Line points={[-R + 2, 0, R - 2, 0]} stroke={colors.stroke === THEME.ghostNodeStroke ? '#94a3b8' : 'white'} strokeWidth={1.5} />
+                      <Line points={[0, -R + 2, 0, R - 2]} stroke={colors.stroke === THEME.ghostNodeStroke ? '#94a3b8' : 'white'} strokeWidth={1.5} />
+                  </Group>
+            }
+        </Group>
         <Text visible={showNode} x={R + 3} y={-R - 8} text={`${node.id}`} fontSize={THEME.nodeFontSize} fontStyle="bold" fill={colors.text} />
     </>;
 }
@@ -342,6 +349,7 @@ interface AnimatedLayerProps {
     structuralSystem: StructuralSystem;
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
+    getNodeRotation?: (nodeId: number, time: number) => number;
     showNodes: boolean;
     showBearings: boolean;
     showHinges?: boolean;
@@ -351,15 +359,17 @@ interface AnimatedLayerProps {
     theme: Theme;
 }
 
-function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
+function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, getNodeRotation, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
     const toCanvasXRef          = useRef(toCanvasX);
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
     const getElementPositionsRef = useRef(getElementPositions);
+    const getNodeRotationRef    = useRef(getNodeRotation);
 
     const elementLineRefs       = useRef<Map<number, Konva.Line>>(new Map());
     const elementLabelGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
     const nodeGroupRefs         = useRef<Map<number, Konva.Group>>(new Map());
+    const nodeJointRefs         = useRef<Map<number, Konva.Group>>(new Map());
     const hingeCircleRefs = useRef<Map<string, Konva.Circle>>(new Map());
     const referenceFiberRefs    = useRef<Map<number, Konva.Line>>(new Map());
 
@@ -425,6 +435,12 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
             const pos = getNodePositionRef.current(node.id, t);
             group.x(toCanvasXRef.current(pos.x));
             group.y(toCanvasZRef.current(pos.z));
+            
+            const joint = nodeJointRefs.current.get(node.id);
+            if (joint && getNodeRotationRef.current) {
+                const rotRad = getNodeRotationRef.current(node.id, t);
+                joint.rotation(-(rotRad * 180) / Math.PI);
+            }
         }
     }, [structuralSystem]);
 
@@ -434,6 +450,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
         toCanvasZRef.current = toCanvasZ;
         getNodePositionRef.current = getNodePosition;
         getElementPositionsRef.current = getElementPositions;
+        getNodeRotationRef.current = getNodeRotation;
         applyPositions(useAnimationStore.getState().time);
     });
 
@@ -523,7 +540,13 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                         ref={g => { g ? nodeGroupRefs.current.set(node.id, g) : nodeGroupRefs.current.delete(node.id); }}
                         x={toCanvasX(pos.x)} y={toCanvasZ(pos.z)}
                     >
-                        <NodeShape node={node} colors={{ stroke: theme.nodeStroke, nodeFill: theme.nodeFill, nodeCircleFill: theme.nodeCircleFill, supportFill: theme.supportFill, text: theme.nodeText }} showNode={showNodes} showBearing={showBearings} />
+                        <NodeShape 
+                            node={node} 
+                            colors={{ stroke: theme.nodeStroke, nodeFill: theme.nodeFill, nodeCircleFill: theme.nodeCircleFill, supportFill: theme.supportFill, text: theme.nodeText }} 
+                            showNode={showNodes} 
+                            showBearing={showBearings}
+                            jointRef={g => { g ? nodeJointRefs.current.set(node.id, g) : nodeJointRefs.current.delete(node.id); }}
+                        />
                     </Group>
                 );
             })}
@@ -534,7 +557,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, loadVisualization, themeOverride,
+    structuralSystem, getNodePosition, getElementPositions, getNodeRotation, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, loadVisualization, themeOverride,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -628,6 +651,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                  <AnimatedLayer
                     structuralSystem={structuralSystem}
                     getNodePosition={getNodePosition} getElementPositions={getElementPositions}
+                    getNodeRotation={getNodeRotation}
                     showNodes={showNodes} showBearings={showBearings} showHinges={showHinges}
                     showReferenceFiber={showReferenceFiber}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}

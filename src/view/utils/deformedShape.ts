@@ -57,17 +57,29 @@ export function elementDisplacementAt(
     //   M_i^FEM = (3qᵢ+2qⱼ)L²/60,  M_j^FEM = −(2qᵢ+3qⱼ)L²/60
     if (element.releases_i.theta || element.releases_j.theta) {
         const chord = (v_j - v_i) / L;
-        const Mi_fem = (3 * qi_trans + 2 * qj_trans) * L * L / 60;
-        const Mj_fem = -(2 * qi_trans + 3 * qj_trans) * L * L / 60;
         const EI = element.ei;
 
-        if (element.releases_i.theta && element.releases_j.theta) {
-            th_i = chord + Mj_fem * L / (6 * EI) - Mi_fem * L / (3 * EI);
-            th_j = chord + Mi_fem * L / (6 * EI) - Mj_fem * L / (3 * EI);
-        } else if (element.releases_i.theta) {
-            th_i = 1.5 * chord - th_j / 2 - Mi_fem * L / (4 * EI);
+        if (EI === 0) {
+            if (element.releases_i.theta && element.releases_j.theta) {
+                th_i = chord;
+                th_j = chord;
+            } else if (element.releases_i.theta) {
+                th_i = 1.5 * chord - th_j / 2;
+            } else {
+                th_j = 1.5 * chord - th_i / 2;
+            }
         } else {
-            th_j = 1.5 * chord - th_i / 2 - Mj_fem * L / (4 * EI);
+            const Mi_fem = (3 * qi_trans + 2 * qj_trans) * L * L / 60;
+            const Mj_fem = -(2 * qi_trans + 3 * qj_trans) * L * L / 60;
+
+            if (element.releases_i.theta && element.releases_j.theta) {
+                th_i = chord + Mj_fem * L / (6 * EI) - Mi_fem * L / (3 * EI);
+                th_j = chord + Mi_fem * L / (6 * EI) - Mj_fem * L / (3 * EI);
+            } else if (element.releases_i.theta) {
+                th_i = 1.5 * chord - th_j / 2 - Mi_fem * L / (4 * EI);
+            } else {
+                th_j = 1.5 * chord - th_i / 2 - Mj_fem * L / (4 * EI);
+            }
         }
     }
 
@@ -125,7 +137,7 @@ export function deformedElementPoints(
     const L = Math.hypot(dx, dz);
     if (L < 1e-10) return [{ x: ni.x, z: ni.z }, { x: nj.x, z: nj.z }];
 
-    if (element.ei === 0) {
+    if (element.ei === 0 && element.releases_i.theta && element.releases_j.theta) {
         const w = element.dofs.map(d => getDof(d));
         return [
             { x: ni.x + w[0] * scale, z: ni.z + w[1] * scale },
