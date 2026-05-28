@@ -3,11 +3,10 @@ import Konva from 'konva';
 import { Arrow, Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node, type Element, type Loads } from "../../models/models";
+import { type Node } from "../../models/models";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
 import { niceInterval, formatGridLabel } from '../utils/grid';
-import type { ForcePoint } from '../utils/internalForces';
 
 export interface PointForce {
     id: string | number;
@@ -32,9 +31,8 @@ export interface DistributedForce {
 
 interface StructuralSystemViewerProps {
     structuralSystem: StructuralSystem;
-    getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
+    getNodePosition: (nodeId: number, time: number) => { x: number; z: number; theta?: number };
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
-    getNodeRotation?: (nodeId: number, time: number) => number;
     showUndeformedSystem: boolean;
     showNodes: boolean;
     showBearings: boolean;
@@ -585,9 +583,8 @@ export const ForceVisualizationLayer = React.memo(({
 
 interface AnimatedLayerProps {
     structuralSystem: StructuralSystem;
-    getNodePosition: (nodeId: number, time: number) => { x: number; z: number };
+    getNodePosition: (nodeId: number, time: number) => { x: number; z: number; theta?: number };
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
-    getNodeRotation?: (nodeId: number, time: number) => number;
     showNodes: boolean;
     showBearings: boolean;
     showHinges?: boolean;
@@ -597,12 +594,11 @@ interface AnimatedLayerProps {
     theme: Theme;
 }
 
-function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, getNodeRotation, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
+function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme }: AnimatedLayerProps) {
     const toCanvasXRef          = useRef(toCanvasX);
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
     const getElementPositionsRef = useRef(getElementPositions);
-    const getNodeRotationRef    = useRef(getNodeRotation);
 
     const elementLineRefs       = useRef<Map<number, Konva.Line>>(new Map());
     const elementLabelGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
@@ -675,9 +671,8 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
             group.y(toCanvasZRef.current(pos.z));
             
             const joint = nodeJointRefs.current.get(node.id);
-            if (joint && getNodeRotationRef.current) {
-                const rotRad = getNodeRotationRef.current(node.id, t);
-                joint.rotation(-(rotRad * 180) / Math.PI);
+            if (joint && pos.theta !== undefined) {
+                joint.rotation(-(pos.theta * 180) / Math.PI);
             }
         }
     }, [structuralSystem]);
@@ -688,7 +683,6 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
         toCanvasZRef.current = toCanvasZ;
         getNodePositionRef.current = getNodePosition;
         getElementPositionsRef.current = getElementPositions;
-        getNodeRotationRef.current = getNodeRotation;
         applyPositions(useAnimationStore.getState().time);
     });
 
@@ -793,7 +787,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 }
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, getNodeRotation, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -891,7 +885,6 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                  <AnimatedLayer
                     structuralSystem={structuralSystem}
                     getNodePosition={getNodePosition} getElementPositions={getElementPositions}
-                    getNodeRotation={getNodeRotation}
                     showNodes={showNodes} showBearings={showBearings} showHinges={showHinges}
                     showReferenceFiber={showReferenceFiber}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}

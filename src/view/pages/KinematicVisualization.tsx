@@ -43,23 +43,16 @@ export default function KinematicVisualization({ structuralSystem }: { structura
         return maxDisp > 0 ? (extent * 0.15) / maxDisp : 1;
     }, [solution, selectedMode, structuralSystem]);
 
-    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
+    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number; theta: number } => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        if (!solution.modes[selectedMode]) return { x: node.x, z: node.z };
+        if (!solution.modes[selectedMode]) return { x: node.x, z: node.z, theta: node.angle };
 
         const factor = autoScale * scale * Math.cos(time);
         return {
             x: node.x + solution.get_w(selectedMode, node.dofs[0]) * factor,
             z: node.z + solution.get_w(selectedMode, node.dofs[1]) * factor,
+            theta: node.angle + solution.get_w(selectedMode, node.dofs[2]) * factor,
         };
-    }, [structuralSystem, solution, selectedMode, autoScale, scale]);
-
-    const getNodeRotation = useCallback((nodeId: number, time: number): number => {
-        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        if (!solution.modes[selectedMode]) return 0;
-
-        const factor = autoScale * scale * Math.cos(time);
-        return solution.get_w(selectedMode, node.dofs[2]) * factor;
     }, [structuralSystem, solution, selectedMode, autoScale, scale]);
 
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
@@ -89,7 +82,6 @@ export default function KinematicVisualization({ structuralSystem }: { structura
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
-                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
@@ -118,7 +110,7 @@ export default function KinematicVisualization({ structuralSystem }: { structura
 
                         <Box>
                             <Text size="xs" fw={700} c="dimmed" mb="xs">AMPLITUDE SCALE ×{scale.toFixed(1)}</Text>
-                            <Slider value={scale} onChange={setScale} min={0.1} max={5} step={0.1} label={(v) => `×${v.toFixed(1)}`} />
+                            <Slider value={scale} onChange={setScale} min={0} max={5} step={0.1} label={(v) => `×${v.toFixed(1)}`} />
                         </Box>
                     </Flex>
                 </Box>

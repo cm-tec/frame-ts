@@ -52,15 +52,12 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
         return { x: node.x, z: node.z, u: solution.get_w(node.dofs[0], time), v: solution.get_w(node.dofs[1], time) };
     }, [structuralSystem, solution]);
 
-    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
+    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number; theta: number } => {
         const { x, z, u, v } = getNodeState(nodeId, time);
-        return { x: x + u, z: z + v };
-    }, [getNodeState]);
-
-    const getNodeRotation = useCallback((nodeId: number, time: number): number => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        return solution.get_w(node.dofs[2], time);
-    }, [structuralSystem, solution]);
+        const theta = solution.get_w(node.dofs[2], time);
+        return { x: x + u, z: z + v, theta: node.angle + theta };
+    }, [getNodeState, structuralSystem, solution]);
 
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
@@ -81,7 +78,6 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
-                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}

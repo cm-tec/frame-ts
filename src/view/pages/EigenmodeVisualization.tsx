@@ -64,30 +64,21 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
         return maxDisp > 0 ? (extent * 0.15) / maxDisp : 1;
     }, [solution, modes, selectedMode, structuralSystem]);
 
-    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number } => {
+    const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number; theta: number } => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
         const mode = modes[selectedMode];
-        if (!mode) return { x: node.x, z: node.z };
+        if (!mode) return { x: node.x, z: node.z, theta: node.angle };
 
         const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
         const factor = autoScale * scale;
         const ui = solution.non_restrained.indexOf(node.dofs[0]);
         const vi = solution.non_restrained.indexOf(node.dofs[1]);
+        const ti = solution.non_restrained.indexOf(node.dofs[2]);
         return {
             x: node.x + (ui >= 0 ? disp.get([ui]) * factor : 0),
             z: node.z + (vi >= 0 ? disp.get([vi]) * factor : 0),
+            theta: node.angle + (ti >= 0 ? disp.get([ti]) * factor : 0),
         };
-    }, [structuralSystem, solution, modes, selectedMode, autoScale, scale]);
-
-    const getNodeRotation = useCallback((nodeId: number, time: number): number => {
-        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        const mode = modes[selectedMode];
-        if (!mode) return 0;
-
-        const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
-        const factor = autoScale * scale;
-        const ti = solution.non_restrained.indexOf(node.dofs[2]);
-        return ti >= 0 ? disp.get([ti]) * factor : 0;
     }, [structuralSystem, solution, modes, selectedMode, autoScale, scale]);
 
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
@@ -120,7 +111,6 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
-                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
@@ -164,7 +154,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
 
                         <Box>
                             <Text size="xs" fw={700} c="dimmed" mb="xs">AMPLITUDE SCALE ×{scale.toFixed(1)}</Text>
-                            <Slider value={scale} onChange={setScale} min={0.1} max={5} step={0.1} label={(v) => `×${v.toFixed(1)}`} />
+                            <Slider value={scale} onChange={setScale} min={0} max={5} step={0.1} label={(v) => `×${v.toFixed(1)}`} />
                         </Box>
                     </Flex>
                 </Box>

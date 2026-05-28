@@ -142,17 +142,13 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         return list;
     }, [loads.elements, showElement, forceMode, internalForcesData, autoForceScale, forceScale]);
 
-    const getNodePosition = useCallback((nodeId: number): { x: number; z: number } => {
+    const getNodePosition = useCallback((nodeId: number): { x: number; z: number; theta: number } => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
         return {
             x: node.x + solution.get_w(node.dofs[0]) * scale,
             z: node.z + solution.get_w(node.dofs[1]) * scale,
+            theta: node.angle + solution.get_w(node.dofs[2]) * scale,
         };
-    }, [structuralSystem, solution, scale]);
-
-    const getNodeRotation = useCallback((nodeId: number): number => {
-        const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        return solution.get_w(node.dofs[2]) * scale;
     }, [structuralSystem, solution, scale]);
 
     const bendingWarnings = useMemo(() =>
@@ -190,7 +186,6 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         structuralSystem={structuralSystem}
                         getNodePosition={getNodePosition}
                         getElementPositions={getElementPositions}
-                        getNodeRotation={getNodeRotation}
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
@@ -215,15 +210,15 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                             <Text size="xs" fw={700}>Deformation Scale</Text>
                             <Slider
                                 value={scale} onChange={setScale}
-                                min={0.1} max={5} step={0.1}
+                                min={0} max={5} step={0.1}
                                 label={(v) => `×${v.toFixed(1)}`}
                                 style={{ width: 80 }}
                             />
                             <Text size="xs" w={28}>×{scale.toFixed(1)}</Text>
                         </Group>
-
+ 
                         <Divider orientation="vertical" color="gray.3" />
-
+ 
                         <Group gap="xs" align="center">
                             <Text size="xs" fw={700}>Internal Forces</Text>
                             <SegmentedControl
@@ -242,7 +237,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                                     <Text size="xs" fw={700} ml="xs">Diagram Scale</Text>
                                     <Slider
                                         value={forceScale} onChange={setForceScale}
-                                        min={0.1} max={5} step={0.1}
+                                        min={0} max={5} step={0.1}
                                         label={(v) => `×${v.toFixed(1)}`}
                                         style={{ width: 80 }}
                                     />
