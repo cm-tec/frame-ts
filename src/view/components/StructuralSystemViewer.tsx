@@ -216,11 +216,6 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
     if (showElement) loads.elements.forEach(l => { maxVal = Math.max(maxVal, Math.abs(l.q_i), Math.abs(l.q_j)); });
     const pxPerUnit = (0.15 * Math.min(canvasWidth, canvasHeight) / maxVal) * scale;
 
-    const loadDir = (angleDeg: number) => {
-        const r = (angleDeg * Math.PI) / 180;
-        return { dx: -Math.sin(r), dy: Math.cos(r) };
-    };
-
     return (
         <Layer listening={false}>
             {showNodal && loads.nodes.map(load => {
@@ -229,16 +224,23 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
                 const cx = toCanvasX(node.x);
                 const cy = toCanvasZ(node.z);
                 
-                const { dx, dy } = loadDir(load.angle);
+                const rad = (load.angle * Math.PI) / 180;
                 const sign = load.magnitude >= 0 ? 1 : -1;
+                const dx = Math.sin(rad) * sign;
+                const dy = Math.cos(rad) * sign;
                 const len = Math.abs(load.magnitude) * pxPerUnit;
                 
-                const tailX = cx + sign * dx * (THEME.nodeRadius + LOAD_GAP);
-                const tailY = cy + sign * dy * (THEME.nodeRadius + LOAD_GAP);
+                // Head touches the node boundary (pushing force)
+                const headX = cx - dx * (THEME.nodeRadius + LOAD_GAP);
+                const headY = cy - dy * (THEME.nodeRadius + LOAD_GAP);
+                
+                // Tail is positioned further away
+                const tailX = headX - dx * len;
+                const tailY = headY - dy * len;
                 
                 return (
                     <Arrow key={load.id}
-                        points={[tailX, tailY, tailX + sign * dx * len, tailY + sign * dy * len]}
+                        points={[tailX, tailY, headX, headY]}
                         fill={LOAD_STROKE} stroke={LOAD_STROKE} strokeWidth={2.5}
                         pointerLength={10} pointerWidth={8} listening={false}
                     />
