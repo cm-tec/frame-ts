@@ -330,6 +330,40 @@ export const ForceVisualizationLayer = React.memo(({
                 };
 
                 if (force.renderStyle === 'arrows') {
+                    const segments: Array<{
+                        distribution: Array<{ xi: number; value: number }>;
+                        sign: 1 | -1;
+                    }> = [];
+
+                    let currentPoints: Array<{ xi: number; value: number }> = [force.distribution[0]];
+                    for (let i = 0; i < force.distribution.length - 1; i++) {
+                        const p0 = force.distribution[i];
+                        const p1 = force.distribution[i + 1];
+
+                        if (p0.value * p1.value < 0) {
+                            const xi_0 = p0.xi + (0 - p0.value) / (p1.value - p0.value) * (p1.xi - p0.xi);
+                            const zeroPt = { xi: xi_0, value: 0 };
+                            currentPoints.push(zeroPt);
+                            
+                            const nonZeroPt = currentPoints.find(p => Math.abs(p.value) > 1e-10);
+                            const segmentSign = nonZeroPt ? (nonZeroPt.value >= 0 ? 1 : -1) : 1;
+                            
+                            segments.push({
+                                distribution: currentPoints,
+                                sign: segmentSign as any
+                            });
+                            currentPoints = [zeroPt, p1];
+                        } else {
+                            currentPoints.push(p1);
+                        }
+                    }
+                    const nonZeroPt = currentPoints.find(p => Math.abs(p.value) > 1e-10);
+                    const segmentSign = nonZeroPt ? (nonZeroPt.value >= 0 ? 1 : -1) : 1;
+                    segments.push({
+                        distribution: currentPoints,
+                        sign: segmentSign as any
+                    });
+
                     const pxPerUnit = force.scale !== undefined ? force.scale : defaultArrowPxPerUnit;
 
                     const loadNx = -nx;
@@ -339,99 +373,107 @@ export const ForceVisualizationLayer = React.memo(({
                     const O_x = loadNx * Math.cos(theta) + loadNy * Math.sin(theta);
                     const O_y = -loadNx * Math.sin(theta) + loadNy * Math.cos(theta);
 
-                    const envelopePoints: number[] = [];
-                    const basePoints: number[] = [];
-
-                    const mappedPts = force.distribution.map(pt => {
-                        const basePos = getDeformedPosAtXi(pt.xi);
-                        const val = pt.value;
-                        const sign = val >= 0 ? 1 : -1;
-                        const absVal = Math.abs(val);
-
-                        const nearX = basePos.x + loadNx * sign * LOAD_GAP;
-                        const nearY = basePos.z + loadNy * sign * LOAD_GAP;
-
-                        const farX = nearX + O_x * sign * absVal * pxPerUnit;
-                        const farY = nearY + O_y * sign * absVal * pxPerUnit;
-
-                        return { nearX, nearY, farX, farY, value: val };
-                    });
-
-                    mappedPts.forEach(pt => {
-                        basePoints.push(pt.nearX, pt.nearY);
-                    });
-                    for (let k = mappedPts.length - 1; k >= 0; k--) {
-                        envelopePoints.push(mappedPts[k].farX, mappedPts[k].farY);
-                    }
-                    const fullPolyPoints = [...basePoints, ...envelopePoints];
-
                     const parallel = Math.abs(Math.sin(theta)) > Math.sin((75 * Math.PI) / 180);
-
-                    const ticks: React.ReactNode[] = [];
-                    for (let k = 0; k < TICK_COUNT; k++) {
-                        const t = k / (TICK_COUNT - 1);
-                        
-                        let val = 0;
-                        let nearX = 0, nearY = 0, farX = 0, farY = 0;
-                        
-                        if (mappedPts.length === 2) {
-                            val = mappedPts[0].value + t * (mappedPts[1].value - mappedPts[0].value);
-                            nearX = mappedPts[0].nearX + t * (mappedPts[1].nearX - mappedPts[0].nearX);
-                            nearY = mappedPts[0].nearY + t * (mappedPts[1].nearY - mappedPts[0].nearY);
-                            farX = mappedPts[0].farX + t * (mappedPts[1].farX - mappedPts[0].farX);
-                            farY = mappedPts[0].farY + t * (mappedPts[1].farY - mappedPts[0].farY);
-                        } else {
-                            const targetXi = t;
-                            let segIndex = 0;
-                            for (let i = 0; i < force.distribution.length - 1; i++) {
-                                if (targetXi >= force.distribution[i].xi && targetXi <= force.distribution[i + 1].xi) {
-                                    segIndex = i;
-                                    break;
-                                }
-                            }
-                            const p0 = force.distribution[segIndex];
-                            const p1 = force.distribution[segIndex + 1];
-                            const segT = (targetXi - p0.xi) / (p1.xi - p0.xi);
-                            
-                            const m0 = mappedPts[segIndex];
-                            const m1 = mappedPts[segIndex + 1];
-
-                            val = p0.value + segT * (p1.value - p0.value);
-                            nearX = m0.nearX + segT * (m1.nearX - m0.nearX);
-                            nearY = m0.nearY + segT * (m1.nearY - m0.nearY);
-                            farX = m0.farX + segT * (m1.farX - m0.farX);
-                            farY = m0.farY + segT * (m1.farY - m0.farY);
-                        }
-
-                        if (Math.abs(val) < 1e-10) continue;
-
-                        const arrowColor = typeof force.color === 'string' ? force.color : (val >= 0 ? force.color.positive : force.color.negative);
-
-                        ticks.push(
-                            <Arrow
-                                key={`tick-${force.id}-${k}`}
-                                points={[farX, farY, nearX, nearY]}
-                                fill={arrowColor} stroke={arrowColor} strokeWidth={1.5}
-                                pointerLength={6} pointerWidth={5} listening={false}
-                            />
-                        );
-                    }
-
-                    const strokeColor = typeof force.color === 'string' ? force.color : force.color.positive;
-                    const fillColor = strokeColor.startsWith('rgba') 
-                        ? strokeColor.replace(/[\d\.]+\)$/, '0.15)')
-                        : 'rgba(239, 68, 68, 0.15)';
 
                     return (
                         <React.Fragment key={`dist-force-${force.id}`}>
-                            {!parallel && (
-                                <Line
-                                    points={fullPolyPoints}
-                                    fill={fillColor} stroke={strokeColor} strokeWidth={1.5}
-                                    closed listening={false}
-                                />
-                            )}
-                            {ticks}
+                            {segments.map((seg, segIdx) => {
+                                const segmentDist = seg.distribution;
+                                const segmentSign = seg.sign;
+
+                                const envelopePoints: number[] = [];
+                                const basePoints: number[] = [];
+
+                                const mappedPts = segmentDist.map(pt => {
+                                    const basePos = getDeformedPosAtXi(pt.xi);
+                                    const val = pt.value;
+                                    const absVal = Math.abs(val);
+
+                                    const nearX = basePos.x + loadNx * segmentSign * LOAD_GAP;
+                                    const nearY = basePos.z + loadNy * segmentSign * LOAD_GAP;
+
+                                    const farX = nearX + O_x * segmentSign * absVal * pxPerUnit;
+                                    const farY = nearY + O_y * segmentSign * absVal * pxPerUnit;
+
+                                    return { nearX, nearY, farX, farY, value: val };
+                                });
+
+                                mappedPts.forEach(pt => {
+                                    basePoints.push(pt.nearX, pt.nearY);
+                                });
+                                for (let k = mappedPts.length - 1; k >= 0; k--) {
+                                    envelopePoints.push(mappedPts[k].farX, mappedPts[k].farY);
+                                }
+                                const fullPolyPoints = [...basePoints, ...envelopePoints];
+
+                                const ticks: React.ReactNode[] = [];
+                                for (let k = 0; k < TICK_COUNT; k++) {
+                                    const t = k / (TICK_COUNT - 1);
+                                    
+                                    let val = 0;
+                                    let nearX = 0, nearY = 0, farX = 0, farY = 0;
+                                    
+                                    if (mappedPts.length === 2) {
+                                        val = mappedPts[0].value + t * (mappedPts[1].value - mappedPts[0].value);
+                                        nearX = mappedPts[0].nearX + t * (mappedPts[1].nearX - mappedPts[0].nearX);
+                                        nearY = mappedPts[0].nearY + t * (mappedPts[1].nearY - mappedPts[0].nearY);
+                                        farX = mappedPts[0].farX + t * (mappedPts[1].farX - mappedPts[0].farX);
+                                        farY = mappedPts[0].farY + t * (mappedPts[1].farY - mappedPts[0].farY);
+                                    } else {
+                                        const targetXi = segmentDist[0].xi + t * (segmentDist[segmentDist.length - 1].xi - segmentDist[0].xi);
+                                        let segIndex = 0;
+                                        for (let i = 0; i < segmentDist.length - 1; i++) {
+                                            if (targetXi >= segmentDist[i].xi && targetXi <= segmentDist[i + 1].xi) {
+                                                segIndex = i;
+                                                break;
+                                            }
+                                        }
+                                        const p0 = segmentDist[segIndex];
+                                        const p1 = segmentDist[segIndex + 1];
+                                        const segT = (p1.xi - p0.xi) > 1e-6 ? (targetXi - p0.xi) / (p1.xi - p0.xi) : 0;
+                                        
+                                        const m0 = mappedPts[segIndex];
+                                        const m1 = mappedPts[segIndex + 1];
+
+                                        val = p0.value + segT * (p1.value - p0.value);
+                                        nearX = m0.nearX + segT * (m1.nearX - m0.nearX);
+                                        nearY = m0.nearY + segT * (m1.nearY - m0.nearY);
+                                        farX = m0.farX + segT * (m1.farX - m0.farX);
+                                        farY = m0.farY + segT * (m1.farY - m0.farY);
+                                    }
+
+                                    if (Math.abs(val) < 1e-10) continue;
+
+                                    const arrowColor = typeof force.color === 'string' ? force.color : (val >= 0 ? force.color.positive : force.color.negative);
+
+                                    ticks.push(
+                                        <Arrow
+                                            key={`tick-${force.id}-${segIdx}-${k}`}
+                                            points={[farX, farY, nearX, nearY]}
+                                            fill={arrowColor} stroke={arrowColor} strokeWidth={1.5}
+                                            pointerLength={6} pointerWidth={5} listening={false}
+                                        />
+                                    );
+                                }
+
+                                const strokeColor = typeof force.color === 'string' ? force.color : force.color.positive;
+                                const fillColor = strokeColor.startsWith('rgba') 
+                                    ? strokeColor.replace(/[\d\.]+\)$/, '0.15)')
+                                    : 'rgba(239, 68, 68, 0.15)';
+
+                                return (
+                                    <React.Fragment key={`seg-${segIdx}`}>
+                                        {!parallel && (
+                                            <Line
+                                                points={fullPolyPoints}
+                                                fill={fillColor} stroke={strokeColor} strokeWidth={1.5}
+                                                closed listening={false}
+                                            />
+                                        )}
+                                        {ticks}
+                                    </React.Fragment>
+                                );
+                            })}
                         </React.Fragment>
                     );
                 } else {
