@@ -202,7 +202,7 @@ test('elementDisplacementAt — beam with released dof isnt affected by neighbor
         ]
     )
 
-    let f = matrix([0]);
+    let f = matrix([0, 0]);
 
     const sol = new SystemSolver(system).solveStatic(f);
 

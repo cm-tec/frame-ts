@@ -273,10 +273,10 @@ export function LoadLayer({ structuralSystem, lv, toCanvasX, toCanvasZ, canvasWi
                 const N_y = -cDx;
 
                 // 3. Apply the custom load angle 
-                // (Rotating CW on canvas effectively rotates CCW physically)
+                // (Rotating CCW on canvas/screen)
                 const theta = (load.angle * Math.PI) / 180;
-                const O_x = N_x * Math.cos(theta) - N_y * Math.sin(theta);
-                const O_y = N_x * Math.sin(theta) + N_y * Math.cos(theta);
+                const O_x = N_x * Math.cos(theta) + N_y * Math.sin(theta);
+                const O_y = -N_x * Math.sin(theta) + N_y * Math.cos(theta);
 
                 // 4. Directional multipliers based on load intensity
                 const sqi = load.q_i >= 0 ? 1 : -1;

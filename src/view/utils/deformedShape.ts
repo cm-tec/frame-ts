@@ -20,7 +20,7 @@ export function elementDisplacementAt(
     nj: StructuralNode,
     get_w: (dof: number) => number,
     xi: number,
-    load?: { qi: number; qj: number },
+    load?: { qi: number; qj: number; angle?: number },
 ): { u: number; v: number } {
     const dx = nj.x - ni.x;
     const dz = nj.z - ni.z;
@@ -42,6 +42,13 @@ export function elementDisplacementAt(
     const v_j  = -sj * w[3] + cj * w[4];
     let th_j =  w[5];
 
+    // Project load to local coordinate system components
+    const rad = (load && load.angle !== undefined) ? (load.angle * Math.PI) / 180 : 0;
+    const qi_trans = load ? load.qi * Math.cos(rad) : 0;
+    const qj_trans = load ? load.qj * Math.cos(rad) : 0;
+    const qi_axial = load ? load.qi * Math.sin(rad) : 0;
+    const qj_axial = load ? load.qj * Math.sin(rad) : 0;
+
     // Static condensation means the solver gives node rotations, not element end
     // rotations at hinged ends. Back-calculate true end slopes from M = 0.
     //
@@ -50,9 +57,8 @@ export function elementDisplacementAt(
     //   M_i^FEM = (3qᵢ+2qⱼ)L²/60,  M_j^FEM = −(2qᵢ+3qⱼ)L²/60
     if (element.releases_i.theta || element.releases_j.theta) {
         const chord = (v_j - v_i) / L;
-        const qi = load?.qi ?? 0, qj = load?.qj ?? 0;
-        const Mi_fem = (3 * qi + 2 * qj) * L * L / 60;
-        const Mj_fem = -(2 * qi + 3 * qj) * L * L / 60;
+        const Mi_fem = (3 * qi_trans + 2 * qj_trans) * L * L / 60;
+        const Mj_fem = -(2 * qi_trans + 3 * qj_trans) * L * L / 60;
         const EI = element.ei;
 
         if (element.releases_i.theta && element.releases_j.theta) {
@@ -76,24 +82,27 @@ export function elementDisplacementAt(
     const N3 =      3 * xi2  - 2 * xi3;
     const N4 =     -xi2      + xi3;
 
-    const u = (1 - xi) * u_i + xi * u_j;
-    let   v = N1 * v_i  + N2 * L * th_i
-            + N3 * v_j  + N4 * L * th_j;
+    let u = (1 - xi) * u_i + xi * u_j;
+    let v = N1 * v_i  + N2 * L * th_i
+          + N3 * v_j  + N4 * L * th_j;
 
-    // Particular solution for trapezoidal distributed load.
-    // Derived for fixed-fixed beam with EI·v'''' = −q(x), where
-    // positive q = downward (local −v direction).
+    // Particular solution for axial displacement under distributed axial load.
+    if (load && element.ea > 0) {
+        u += (L * L / (6 * element.ea)) * (
+            (2 * qi_axial + qj_axial) * xi - 3 * qi_axial * xi2 - (qj_axial - qi_axial) * xi3
+        );
+    }
+
+    // Particular solution for transverse displacement under distributed transverse load.
     if (load && L4overEI !== 0) {
-        const { qi, qj } = load;
         const one_minus_xi = 1 - xi;
-        v -= qi * xi2 * one_minus_xi * one_minus_xi * L4overEI / 24;
+        v -= qi_trans * xi2 * one_minus_xi * one_minus_xi * L4overEI / 24;
 
-        const dq = qj - qi;
+        const dq = qj_trans - qi_trans;
         if (dq !== 0) {
             v -= dq * L4overEI * (xi2 * xi3 / 120 - xi3 / 40 + xi2 / 60);
         }
     }
-
     return { u, v };
 }
 
@@ -108,7 +117,7 @@ export function deformedElementPoints(
     nj: StructuralNode,
     getDof: (dof: number) => number,
     scale: number,
-    load?: { qi: number; qj: number },
+    load?: { qi: number; qj: number; angle?: number },
     nPoints = N_CURVE_POINTS,
 ): Array<{ x: number; z: number }> {
     const dx = nj.x - ni.x;

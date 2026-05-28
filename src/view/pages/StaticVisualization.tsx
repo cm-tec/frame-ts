@@ -50,7 +50,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             element, ni, nj,
             (dof) => solution.get_w(dof),
             scale,
-            load ? { qi: load.q_i, qj: load.q_j } : undefined,
+            load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined,
         );
     }, [structuralSystem, solution, scale, loads]);
 

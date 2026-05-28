@@ -31,11 +31,19 @@ export function assembleForceVector(structuralSystem: StructuralSystem, loads: L
         const L = Math.hypot(dx, dz);
         if (L < 1e-6) return;
         const sinB = dz / L, cosB = dx / L;
-        const { q_i: qi, q_j: qj } = load;
-        let vi = (L / 20) * (7 * qi + 3 * qj);
-        let mi = (L * L / 60) * (3 * qi + 2 * qj);
-        let vj = (L / 20) * (3 * qi + 7 * qj);
-        let mj = -(L * L / 60) * (2 * qi + 3 * qj);
+        const rad = (load.angle * Math.PI) / 180;
+        const qi_trans = load.q_i * Math.cos(rad);
+        const qj_trans = load.q_j * Math.cos(rad);
+        const qi_axial = load.q_i * Math.sin(rad);
+        const qj_axial = load.q_j * Math.sin(rad);
+
+        let vi = (L / 20) * (7 * qi_trans + 3 * qj_trans);
+        let mi = (L * L / 60) * (3 * qi_trans + 2 * qj_trans);
+        let vj = (L / 20) * (3 * qi_trans + 7 * qj_trans);
+        let mj = -(L * L / 60) * (2 * qi_trans + 3 * qj_trans);
+
+        const ui = (L / 6) * (2 * qi_axial + qj_axial);
+        const uj = (L / 6) * (qi_axial + 2 * qj_axial);
 
         // Condense FEF for moment releases (K_fr * K_rr⁻¹ * f_released).
         if (el.releases_i.theta && el.releases_j.theta) {
@@ -54,7 +62,14 @@ export function assembleForceVector(structuralSystem: StructuralSystem, loads: L
             mj = 0;
         }
 
-        const gf = [vi * sinB, -vi * cosB, -mi, vj * sinB, -vj * cosB, -mj];
+        const gf = [
+            vi * sinB + ui * cosB,
+            -vi * cosB + ui * sinB,
+            -mi,
+            vj * sinB + uj * cosB,
+            -vj * cosB + uj * sinB,
+            -mj
+        ];
         el.dofs.forEach((d, i) => F.set([d, 0], F.get([d, 0]) + gf[i]));
     });
 
