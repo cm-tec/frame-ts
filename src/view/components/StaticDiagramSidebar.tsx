@@ -125,7 +125,7 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
             const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
             const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
             const load = loads.elements.find(l => l.element_id === el.id);
-            const loadOpt = load ? { qi: load.q_i, qj: load.q_j } : undefined;
+            const loadOpt = load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined;
 
             const forces = elementInternalForces(el, ni, nj, getDof, loadOpt);
             map.set(`N-${el.id}`,  forces.map(p => p.N));

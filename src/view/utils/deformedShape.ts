@@ -44,10 +44,14 @@ export function elementDisplacementAt(
 
     // Project load to local coordinate system components
     const rad = (load && load.angle !== undefined) ? (load.angle * Math.PI) / 180 : 0;
-    const qi_trans = load ? load.qi * Math.cos(rad) : 0;
-    const qj_trans = load ? load.qj * Math.cos(rad) : 0;
-    const qi_axial = load ? load.qi * Math.sin(rad) : 0;
-    const qj_axial = load ? load.qj * Math.sin(rad) : 0;
+    let cosVal = Math.cos(rad);
+    let sinVal = Math.sin(rad);
+    if (Math.abs(cosVal) < 1e-12) cosVal = 0;
+    if (Math.abs(sinVal) < 1e-12) sinVal = 0;
+    const qi_trans = load ? load.qi * cosVal : 0;
+    const qj_trans = load ? load.qj * cosVal : 0;
+    const qi_axial = load ? load.qi * sinVal : 0;
+    const qj_axial = load ? load.qj * sinVal : 0;
 
     // Static condensation means the solver gives node rotations, not element end
     // rotations at hinged ends. Back-calculate true end slopes from M = 0.

@@ -40,7 +40,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             const forces = elementInternalForces(
                 el, ni, nj,
                 (dof) => solution.get_w(dof),
-                load ? { qi: load.q_i, qj: load.q_j } : undefined,
+                load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined,
             );
             for (const f of forces) {
                 if (forceMode === 'N') maxVal = Math.max(maxVal, Math.abs(f.N));
@@ -48,7 +48,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                 if (forceMode === 'M') maxVal = Math.max(maxVal, Math.abs(f.M));
             }
         }
-        return maxVal > 0 ? 30 / maxVal : 1;
+        return maxVal > 1e-7 ? 30 / maxVal : 1;
     }, [structuralSystem, solution, loads, forceMode]);
 
     const internalForcesData = useMemo(() => {
@@ -59,7 +59,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             const points = elementInternalForces(
                 el, ni, nj,
                 (dof) => solution.get_w(dof),
-                load ? { qi: load.q_i, qj: load.q_j } : undefined,
+                load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined,
             );
             return { elementId: el.id, points };
         });

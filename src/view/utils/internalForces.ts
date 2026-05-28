@@ -16,7 +16,7 @@ export function elementInternalForces(
     ni: StructuralNode,
     nj: StructuralNode,
     getDof: (dof: number) => number,
-    load?: { qi: number; qj: number },
+    load?: { qi: number; qj: number; angle?: number },
     nPoints = 30,
 ): ForcePoint[] {
     const dx = nj.x - ni.x;
@@ -47,6 +47,17 @@ export function elementInternalForces(
     // Homogeneous shear is constant (d³v_h/dξ³ is constant for cubic Hermite)
     const V_h = EIoL3 * (12 * v_i + 6 * L * th_i - 12 * v_j + 6 * L * th_j);
 
+    const rad = (load && load.angle !== undefined) ? (load.angle * Math.PI) / 180 : 0;
+    let cosVal = Math.cos(rad);
+    let sinVal = Math.sin(rad);
+    if (Math.abs(cosVal) < 1e-12) cosVal = 0;
+    if (Math.abs(sinVal) < 1e-12) sinVal = 0;
+
+    const qi_trans = load ? load.qi * cosVal : 0;
+    const qj_trans = load ? load.qj * cosVal : 0;
+    const qi_axial = load ? load.qi * sinVal : 0;
+    const qj_axial = load ? load.qj * sinVal : 0;
+
     const points: ForcePoint[] = [];
     for (let k = 0; k < nPoints; k++) {
         const xi  = k / (nPoints - 1);
@@ -63,23 +74,36 @@ export function elementInternalForces(
         let V = V_h;
 
         // Particular solution (fixed-fixed particular solution, same derivation as deformedShape.ts):
-        //   M_p_uniform  = −qi · L²/12 · (1 − 6ξ + 6ξ²)
-        //   V_p_uniform  =  qi · L/2   · (1 − 2ξ)
-        //   M_p_triangle = −Δq · L²    · (ξ³/6 − 3ξ/20 + 1/30)
-        //   V_p_triangle = −Δq · L     · (ξ²/2 − 3/20)
+        //   M_p_uniform  = −qi_trans · L²/12 · (1 − 6ξ + 6ξ²)
+        //   V_p_uniform  =  qi_trans · L/2   · (1 − 2ξ)
+        //   M_p_triangle = −Δq_trans · L²    · (ξ³/6 − 3ξ/20 + 1/30)
+        //   V_p_triangle = −Δq_trans · L     · (ξ²/2 − 3/20)
         if (load && ei > 0) {
-            const { qi, qj } = load;
             const L2 = L * L;
-            M += -qi * L2 / 12 * (1 - 6 * xi + 6 * xi2);
-            V +=  qi * L  / 2  * (1 - 2 * xi);
-            const dq = qj - qi;
+            M += -qi_trans * L2 / 12 * (1 - 6 * xi + 6 * xi2);
+            V +=  qi_trans * L  / 2  * (1 - 2 * xi);
+            const dq = qj_trans - qi_trans;
             if (dq !== 0) {
                 M += -dq * L2 * (xi3 / 6 - 3 * xi / 20 + 1 / 30);
                 V += -dq * L  * (xi2 / 2 - 3 / 20);
             }
         }
 
-        points.push({ xi, N: N_val, V, M });
+        let N = N_val;
+        if (load && ea > 0) {
+            // N_p(xi) = L * ( (2*q_a,i + q_a,j)/6 - q_a,i * xi - xi^2/2 * (q_a,j - q_a,i) )
+            N += L * (
+                (2 * qi_axial + qj_axial) / 6 -
+                qi_axial * xi -
+                (xi2 / 2) * (qj_axial - qi_axial)
+            );
+        }
+
+        let cleanN = Math.abs(N) < 1e-9 ? 0 : N;
+        let cleanV = Math.abs(V) < 1e-9 ? 0 : V;
+        let cleanM = Math.abs(M) < 1e-9 ? 0 : M;
+
+        points.push({ xi, N: cleanN, V: cleanV, M: cleanM });
     }
     return points;
 }
@@ -90,7 +114,7 @@ export function elementLocalDisplacements(
     ni: StructuralNode,
     nj: StructuralNode,
     getDof: (dof: number) => number,
-    load?: { qi: number; qj: number },
+    load?: { qi: number; qj: number; angle?: number },
     nPoints = 30,
 ): DispPoint[] {
     const dx = nj.x - ni.x;
@@ -121,7 +145,17 @@ export function elementLocalDisplacements(
         const xi2 = xi * xi;
         const xi3 = xi2 * xi;
 
-        const u_val = (1 - xi) * u_i + xi * u_j;
+        let u_val = (1 - xi) * u_i + xi * u_j;
+        if (load && element.ea > 0) {
+            const rad = (load.angle !== undefined) ? (load.angle * Math.PI) / 180 : 0;
+            let sinVal = Math.sin(rad);
+            if (Math.abs(sinVal) < 1e-12) sinVal = 0;
+            const qi_axial = load.qi * sinVal;
+            const qj_axial = load.qj * sinVal;
+            u_val += (L * L / (6 * element.ea)) * (
+                (2 * qi_axial + qj_axial) * xi - 3 * qi_axial * xi2 - (qj_axial - qi_axial) * xi3
+            );
+        }
 
         const N1 = 1 - 3 * xi2 + 2 * xi3;
         const N2 = xi - 2 * xi2 + xi3;
@@ -130,14 +164,21 @@ export function elementLocalDisplacements(
         let v_val = N1 * v_i + N2 * L * th_i + N3 * v_j + N4 * L * th_j;
 
         if (load && L4overEI !== 0) {
-            const { qi, qj } = load;
+            const rad = (load.angle !== undefined) ? (load.angle * Math.PI) / 180 : 0;
+            let cosVal = Math.cos(rad);
+            if (Math.abs(cosVal) < 1e-12) cosVal = 0;
+            const qi_trans = load.qi * cosVal;
+            const qj_trans = load.qj * cosVal;
             const one_minus_xi = 1 - xi;
-            v_val -= qi * xi2 * one_minus_xi * one_minus_xi * L4overEI / 24;
-            const dq = qj - qi;
+            v_val -= qi_trans * xi2 * one_minus_xi * one_minus_xi * L4overEI / 24;
+            const dq = qj_trans - qi_trans;
             if (dq !== 0) v_val -= dq * L4overEI * (xi2 * xi3 / 120 - xi3 / 40 + xi2 / 60);
         }
 
-        points.push({ x: xi * L, u: u_val, v: v_val });
+        let cleanU = Math.abs(u_val) < 1e-9 ? 0 : u_val;
+        let cleanV = Math.abs(v_val) < 1e-9 ? 0 : v_val;
+
+        points.push({ x: xi * L, u: cleanU, v: cleanV });
     }
     return points;
 }

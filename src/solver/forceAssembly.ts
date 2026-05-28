@@ -32,10 +32,15 @@ export function assembleForceVector(structuralSystem: StructuralSystem, loads: L
         if (L < 1e-6) return;
         const sinB = dz / L, cosB = dx / L;
         const rad = (load.angle * Math.PI) / 180;
-        const qi_trans = load.q_i * Math.cos(rad);
-        const qj_trans = load.q_j * Math.cos(rad);
-        const qi_axial = load.q_i * Math.sin(rad);
-        const qj_axial = load.q_j * Math.sin(rad);
+        let cosVal = Math.cos(rad);
+        let sinVal = Math.sin(rad);
+        if (Math.abs(cosVal) < 1e-12) cosVal = 0;
+        if (Math.abs(sinVal) < 1e-12) sinVal = 0;
+
+        const qi_trans = load.q_i * cosVal;
+        const qj_trans = load.q_j * cosVal;
+        const qi_axial = load.q_i * sinVal;
+        const qj_axial = load.q_j * sinVal;
 
         let vi = (L / 20) * (7 * qi_trans + 3 * qj_trans);
         let mi = (L * L / 60) * (3 * qi_trans + 2 * qj_trans);
