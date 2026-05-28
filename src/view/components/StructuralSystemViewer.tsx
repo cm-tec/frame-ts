@@ -48,7 +48,7 @@ interface StructuralSystemViewerProps {
     showNodeCross?: boolean;
 }
 
-// ─── Visual theme ─────────────────────────────────────────────────────────────
+// #region Visual theme ─────────────────────────────────────────────────────────
 const THEME = {
     nodeRadius: 8,
     bearingSize: 10,
@@ -84,7 +84,7 @@ const THEME = {
     hingeStroke: '#ff349a',   // matches elementStroke — hinge belongs to the element
 };
 export type Theme = typeof THEME;
-// ──────────────────────────────────────────────────────────────────────────────
+// #endregion
 
 const TEXT_BOX_SIZE = 20;
 const HINGE_RADIUS  = 7;
@@ -138,7 +138,7 @@ function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false,
     </>;
 }
 
-// ─── Grid layer ───────────────────────────────────────────────────────────────
+// #region Grid layer ───────────────────────────────────────────────────────────
 
 
 interface GridLayerProps {
@@ -194,7 +194,9 @@ export const GridLayer = React.memo(({ canvasWidth, canvasHeight, worldLeft, wor
     );
 });
 
-// ─── Ghost layer (undeformed system overlay) ──────────────────────────────────
+// #endregion
+
+// #region Ghost layer ──────────────────────────────────────────────────────────
 
 interface GhostLayerProps {
     structuralSystem: StructuralSystem;
@@ -222,6 +224,184 @@ const GhostLayer = React.memo(({ structuralSystem, show, showNodes, showBearings
         ))}
     </Layer>
 ));
+
+// #endregion
+
+// #region Force render helpers ─────────────────────────────────────────────────
+
+const TICK_COUNT = 5;
+
+function withAlpha(color: string, alpha: string, fallback?: string): string {
+    if (color.startsWith('rgba')) return color.replace(/[\d\.]+\)$/, `${alpha})`);
+    return fallback ?? color;
+}
+
+function refSetter<T>(mapRef: { current: Map<any, T> }, id: any) {
+    return (node: T | null) => { node ? mapRef.current.set(id, node) : mapRef.current.delete(id); };
+}
+
+function renderArrowsForce(
+    force: DistributedForce,
+    nx: number, ny: number,
+    getDeformedPosAtXi: (xi: number) => { x: number; z: number },
+    pxPerUnit: number,
+    loadGap: number,
+): React.ReactNode {
+    const segments: Array<{ distribution: Array<{ xi: number; value: number }>; sign: 1 | -1 }> = [];
+    let currentPoints = [force.distribution[0]];
+    for (let i = 0; i < force.distribution.length - 1; i++) {
+        const p0 = force.distribution[i], p1 = force.distribution[i + 1];
+        if (p0.value * p1.value < 0) {
+            const zeroPt = { xi: p0.xi + (0 - p0.value) / (p1.value - p0.value) * (p1.xi - p0.xi), value: 0 };
+            currentPoints.push(zeroPt);
+            const nonZero = currentPoints.find(p => Math.abs(p.value) > 1e-10);
+            segments.push({ distribution: currentPoints, sign: (nonZero ? (nonZero.value >= 0 ? 1 : -1) : 1) as 1 | -1 });
+            currentPoints = [zeroPt, p1];
+        } else {
+            currentPoints.push(p1);
+        }
+    }
+    const nonZero = currentPoints.find(p => Math.abs(p.value) > 1e-10);
+    segments.push({ distribution: currentPoints, sign: (nonZero ? (nonZero.value >= 0 ? 1 : -1) : 1) as 1 | -1 });
+
+    const loadNx = -nx, loadNy = -ny;
+    const theta = ((force.angle ?? 0) * Math.PI) / 180;
+    const O_x = loadNx * Math.cos(theta) + loadNy * Math.sin(theta);
+    const O_y = -loadNx * Math.sin(theta) + loadNy * Math.cos(theta);
+    const parallel = Math.abs(Math.sin(theta)) > Math.sin((75 * Math.PI) / 180);
+
+    return (
+        <React.Fragment key={`dist-force-${force.id}`}>
+            {segments.map((seg, segIdx) => {
+                const { distribution: segDist, sign: segSign } = seg;
+                const mappedPts = segDist.map(pt => {
+                    const base = getDeformedPosAtXi(pt.xi);
+                    const absVal = Math.abs(pt.value);
+                    const nearX = base.x + loadNx * segSign * loadGap;
+                    const nearY = base.z + loadNy * segSign * loadGap;
+                    return { nearX, nearY, farX: nearX + O_x * segSign * absVal * pxPerUnit, farY: nearY + O_y * segSign * absVal * pxPerUnit, value: pt.value };
+                });
+
+                const basePts = mappedPts.flatMap(p => [p.nearX, p.nearY]);
+                const envPts  = [...mappedPts].reverse().flatMap(p => [p.farX, p.farY]);
+
+                const ticks: React.ReactNode[] = [];
+                for (let k = 0; k < TICK_COUNT; k++) {
+                    const tickT = k / (TICK_COUNT - 1);
+                    let val = 0, nearX = 0, nearY = 0, farX = 0, farY = 0;
+                    if (mappedPts.length === 2) {
+                        const lerp = (a: number, b: number) => a + tickT * (b - a);
+                        val = lerp(mappedPts[0].value, mappedPts[1].value);
+                        nearX = lerp(mappedPts[0].nearX, mappedPts[1].nearX); nearY = lerp(mappedPts[0].nearY, mappedPts[1].nearY);
+                        farX  = lerp(mappedPts[0].farX,  mappedPts[1].farX);  farY  = lerp(mappedPts[0].farY,  mappedPts[1].farY);
+                    } else {
+                        const targetXi = segDist[0].xi + tickT * (segDist[segDist.length - 1].xi - segDist[0].xi);
+                        let si = 0;
+                        for (let i = 0; i < segDist.length - 1; i++) {
+                            if (targetXi >= segDist[i].xi && targetXi <= segDist[i + 1].xi) { si = i; break; }
+                        }
+                        const p0 = segDist[si], p1 = segDist[si + 1];
+                        const m0 = mappedPts[si], m1 = mappedPts[si + 1];
+                        const segT = (p1.xi - p0.xi) > 1e-6 ? (targetXi - p0.xi) / (p1.xi - p0.xi) : 0;
+                        const lerp = (a: number, b: number) => a + segT * (b - a);
+                        val = lerp(p0.value, p1.value);
+                        nearX = lerp(m0.nearX, m1.nearX); nearY = lerp(m0.nearY, m1.nearY);
+                        farX  = lerp(m0.farX,  m1.farX);  farY  = lerp(m0.farY,  m1.farY);
+                    }
+                    if (Math.abs(val) < 1e-10) continue;
+                    const arrowColor = typeof force.color === 'string' ? force.color : (val >= 0 ? force.color.positive : force.color.negative);
+                    ticks.push(
+                        <Arrow key={`tick-${force.id}-${segIdx}-${k}`}
+                            points={[farX, farY, nearX, nearY]}
+                            fill={arrowColor} stroke={arrowColor} strokeWidth={1.5}
+                            pointerLength={6} pointerWidth={5} listening={false}
+                        />
+                    );
+                }
+                const strokeColor = typeof force.color === 'string' ? force.color : force.color.positive;
+                const fillColor = withAlpha(strokeColor, '0.15', 'rgba(239, 68, 68, 0.15)');
+                return (
+                    <React.Fragment key={`seg-${segIdx}`}>
+                        {!parallel && <Line points={[...basePts, ...envPts]} fill={fillColor} stroke={strokeColor} strokeWidth={1.5} closed listening={false} />}
+                        {ticks}
+                    </React.Fragment>
+                );
+            })}
+        </React.Fragment>
+    );
+}
+
+function renderDiagramForce(
+    force: DistributedForce,
+    nx: number, ny: number,
+    basePoints: number[],
+    getDeformedPosAtXi: (xi: number) => { x: number; z: number },
+    theme: Theme,
+): React.ReactNode {
+    const pxScale = force.scale ?? 1.0;
+    const diagNx = -nx, diagNy = -ny;
+
+    const curvePoints = force.distribution.map(pt => {
+        const base = getDeformedPosAtXi(pt.xi);
+        const off = pt.value * pxScale;
+        return { x: base.x + diagNx * off, y: base.z + diagNy * off, val: pt.value, xi: pt.xi };
+    });
+
+    const polyPoints = [...basePoints, ...curvePoints.slice().reverse().flatMap(p => [p.x, p.y])];
+
+    const avgVal = curvePoints.reduce((acc, p) => acc + p.val, 0) / curvePoints.length;
+    let strokeColor = 'rgba(16, 185, 129, 0.7)';
+    let fillColor   = 'rgba(16, 185, 129, 0.12)';
+    if (typeof force.color === 'string') {
+        strokeColor = force.color;
+        fillColor = withAlpha(force.color, '0.12', force.color + '22');
+    } else {
+        const c = avgVal >= 0 ? force.color.positive : force.color.negative;
+        strokeColor = c;
+        fillColor = withAlpha(c, '0.12', c + '22');
+    }
+
+    const hatchLines = curvePoints.flatMap((cPt, k) => {
+        if (k !== 0 && k !== curvePoints.length - 1 && k % 3 !== 0) return [];
+        const base = getDeformedPosAtXi(cPt.xi);
+        return [<Line key={`hatch-${force.id}-${k}`} points={[base.x, base.z, cPt.x, cPt.y]} stroke={strokeColor} strokeWidth={1} opacity={0.4} />];
+    });
+
+    const labels: React.ReactNode[] = [];
+    if (force.showLabels && curvePoints.length >= 2) {
+        const threshold = 1e-1;
+        const fmt = (v: number) => Math.abs(v) < threshold ? '0' : `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
+        const startVal = curvePoints[0].val;
+        const endVal   = curvePoints[curvePoints.length - 1].val;
+        let peakIndex = 0, maxAbs = -1;
+        for (let k = 0; k < curvePoints.length; k++) {
+            if (Math.abs(curvePoints[k].val) > maxAbs) { maxAbs = Math.abs(curvePoints[k].val); peakIndex = k; }
+        }
+        const peakVal = curvePoints[peakIndex].val;
+        const lbl = (key: string, x: number, y: number, text: string, bold = false) => (
+            <Text key={key} x={x} y={y} text={text} fontSize={10} fontStyle={bold ? 'bold' : 'normal'} fill={theme.nodeText} align="center" />
+        );
+        if (Math.abs(startVal) > threshold)
+            labels.push(lbl(`lbl-start-${force.id}`, curvePoints[0].x + diagNx * 5, curvePoints[0].y + diagNy * 5, fmt(startVal)));
+        if (Math.abs(endVal) > threshold && Math.abs(endVal - startVal) > threshold)
+            labels.push(lbl(`lbl-end-${force.id}`, curvePoints[curvePoints.length - 1].x + diagNx * 5, curvePoints[curvePoints.length - 1].y + diagNy * 5, fmt(endVal)));
+        if (peakIndex > 0 && peakIndex < curvePoints.length - 1 && Math.abs(peakVal) > threshold)
+            labels.push(lbl(`lbl-peak-${force.id}`, curvePoints[peakIndex].x + diagNx * 5, curvePoints[peakIndex].y + diagNy * 5, fmt(peakVal), true));
+    }
+
+    return (
+        <React.Fragment key={`dist-diag-${force.id}`}>
+            <Line points={polyPoints} fill={fillColor} closed />
+            <Line points={curvePoints.flatMap(p => [p.x, p.y])} stroke={strokeColor} strokeWidth={1.5} />
+            {hatchLines}
+            {labels}
+        </React.Fragment>
+    );
+}
+
+// #endregion
+
+// #region ForceVisualizationLayer ──────────────────────────────────────────────
 
 interface ForceVisualizationLayerProps {
     structuralSystem: StructuralSystem;
@@ -256,7 +436,6 @@ export const ForceVisualizationLayer = React.memo(({
     const defaultArrowPxPerUnit = (0.15 * Math.min(canvasWidth, canvasHeight) / maxArrowVal);
 
     const LOAD_GAP = theme.elementStrokeWidth / 2 + 18;
-    const TICK_COUNT = 5;
 
     return (
         <Layer listening={false}>
@@ -311,326 +490,34 @@ export const ForceVisualizationLayer = React.memo(({
                 const positions = getElementPositions(el.id, 0);
                 if (positions.length < 2 || force.distribution.length < 2) return null;
 
-                const pStart = positions[0];
-                const pEnd = positions[positions.length - 1];
-                const cStart = { x: toCanvasX(pStart.x), y: toCanvasZ(pStart.z) };
-                const cEnd = { x: toCanvasX(pEnd.x), y: toCanvasZ(pEnd.z) };
-                const dx = cEnd.x - cStart.x;
-                const dy = cEnd.y - cStart.y;
-                const dL = Math.hypot(dx, dy);
+                const cdx = toCanvasX(positions[positions.length - 1].x) - toCanvasX(positions[0].x);
+                const cdy = toCanvasZ(positions[positions.length - 1].z) - toCanvasZ(positions[0].z);
+                const dL = Math.hypot(cdx, cdy);
                 if (dL < 1e-6) return null;
 
-                const ux = dx / dL;
-                const uy = dy / dL;
-                const nx = -uy;
-                const ny = ux;
-
+                const nx = -cdy / dL, ny = cdx / dL;
                 const getDeformedPosAtXi = (xi: number) => {
-                    const idxFloat = xi * (positions.length - 1);
-                    const idxLow = Math.floor(idxFloat);
-                    const idxHigh = Math.ceil(idxFloat);
-                    const t = idxFloat - idxLow;
-                    const pLow = positions[idxLow];
-                    const pHigh = positions[idxHigh];
-                    return {
-                        x: toCanvasX(pLow.x + t * (pHigh.x - pLow.x)),
-                        z: toCanvasZ(pLow.z + t * (pHigh.z - pLow.z))
-                    };
+                    const f = xi * (positions.length - 1);
+                    const lo = Math.floor(f), hi = Math.ceil(f), frac = f - lo;
+                    const pLo = positions[lo], pHi = positions[hi];
+                    return { x: toCanvasX(pLo.x + frac * (pHi.x - pLo.x)), z: toCanvasZ(pLo.z + frac * (pHi.z - pLo.z)) };
                 };
 
-                if (force.renderStyle === 'arrows') {
-                    const segments: Array<{
-                        distribution: Array<{ xi: number; value: number }>;
-                        sign: 1 | -1;
-                    }> = [];
+                const pxPerUnit = force.scale ?? defaultArrowPxPerUnit;
 
-                    let currentPoints: Array<{ xi: number; value: number }> = [force.distribution[0]];
-                    for (let i = 0; i < force.distribution.length - 1; i++) {
-                        const p0 = force.distribution[i];
-                        const p1 = force.distribution[i + 1];
+                if (force.renderStyle === 'arrows')
+                    return renderArrowsForce(force, nx, ny, getDeformedPosAtXi, pxPerUnit, LOAD_GAP);
 
-                        if (p0.value * p1.value < 0) {
-                            const xi_0 = p0.xi + (0 - p0.value) / (p1.value - p0.value) * (p1.xi - p0.xi);
-                            const zeroPt = { xi: xi_0, value: 0 };
-                            currentPoints.push(zeroPt);
-                            
-                            const nonZeroPt = currentPoints.find(p => Math.abs(p.value) > 1e-10);
-                            const segmentSign = nonZeroPt ? (nonZeroPt.value >= 0 ? 1 : -1) : 1;
-                            
-                            segments.push({
-                                distribution: currentPoints,
-                                sign: segmentSign as any
-                            });
-                            currentPoints = [zeroPt, p1];
-                        } else {
-                            currentPoints.push(p1);
-                        }
-                    }
-                    const nonZeroPt = currentPoints.find(p => Math.abs(p.value) > 1e-10);
-                    const segmentSign = nonZeroPt ? (nonZeroPt.value >= 0 ? 1 : -1) : 1;
-                    segments.push({
-                        distribution: currentPoints,
-                        sign: segmentSign as any
-                    });
-
-                    const pxPerUnit = force.scale !== undefined ? force.scale : defaultArrowPxPerUnit;
-
-                    const loadNx = -nx;
-                    const loadNy = -ny;
-                    const forceAngle = force.angle ?? 0;
-                    const theta = (forceAngle * Math.PI) / 180;
-                    const O_x = loadNx * Math.cos(theta) + loadNy * Math.sin(theta);
-                    const O_y = -loadNx * Math.sin(theta) + loadNy * Math.cos(theta);
-
-                    const parallel = Math.abs(Math.sin(theta)) > Math.sin((75 * Math.PI) / 180);
-
-                    return (
-                        <React.Fragment key={`dist-force-${force.id}`}>
-                            {segments.map((seg, segIdx) => {
-                                const segmentDist = seg.distribution;
-                                const segmentSign = seg.sign;
-
-                                const envelopePoints: number[] = [];
-                                const basePoints: number[] = [];
-
-                                const mappedPts = segmentDist.map(pt => {
-                                    const basePos = getDeformedPosAtXi(pt.xi);
-                                    const val = pt.value;
-                                    const absVal = Math.abs(val);
-
-                                    const nearX = basePos.x + loadNx * segmentSign * LOAD_GAP;
-                                    const nearY = basePos.z + loadNy * segmentSign * LOAD_GAP;
-
-                                    const farX = nearX + O_x * segmentSign * absVal * pxPerUnit;
-                                    const farY = nearY + O_y * segmentSign * absVal * pxPerUnit;
-
-                                    return { nearX, nearY, farX, farY, value: val };
-                                });
-
-                                mappedPts.forEach(pt => {
-                                    basePoints.push(pt.nearX, pt.nearY);
-                                });
-                                for (let k = mappedPts.length - 1; k >= 0; k--) {
-                                    envelopePoints.push(mappedPts[k].farX, mappedPts[k].farY);
-                                }
-                                const fullPolyPoints = [...basePoints, ...envelopePoints];
-
-                                const ticks: React.ReactNode[] = [];
-                                for (let k = 0; k < TICK_COUNT; k++) {
-                                    const t = k / (TICK_COUNT - 1);
-                                    
-                                    let val = 0;
-                                    let nearX = 0, nearY = 0, farX = 0, farY = 0;
-                                    
-                                    if (mappedPts.length === 2) {
-                                        val = mappedPts[0].value + t * (mappedPts[1].value - mappedPts[0].value);
-                                        nearX = mappedPts[0].nearX + t * (mappedPts[1].nearX - mappedPts[0].nearX);
-                                        nearY = mappedPts[0].nearY + t * (mappedPts[1].nearY - mappedPts[0].nearY);
-                                        farX = mappedPts[0].farX + t * (mappedPts[1].farX - mappedPts[0].farX);
-                                        farY = mappedPts[0].farY + t * (mappedPts[1].farY - mappedPts[0].farY);
-                                    } else {
-                                        const targetXi = segmentDist[0].xi + t * (segmentDist[segmentDist.length - 1].xi - segmentDist[0].xi);
-                                        let segIndex = 0;
-                                        for (let i = 0; i < segmentDist.length - 1; i++) {
-                                            if (targetXi >= segmentDist[i].xi && targetXi <= segmentDist[i + 1].xi) {
-                                                segIndex = i;
-                                                break;
-                                            }
-                                        }
-                                        const p0 = segmentDist[segIndex];
-                                        const p1 = segmentDist[segIndex + 1];
-                                        const segT = (p1.xi - p0.xi) > 1e-6 ? (targetXi - p0.xi) / (p1.xi - p0.xi) : 0;
-                                        
-                                        const m0 = mappedPts[segIndex];
-                                        const m1 = mappedPts[segIndex + 1];
-
-                                        val = p0.value + segT * (p1.value - p0.value);
-                                        nearX = m0.nearX + segT * (m1.nearX - m0.nearX);
-                                        nearY = m0.nearY + segT * (m1.nearY - m0.nearY);
-                                        farX = m0.farX + segT * (m1.farX - m0.farX);
-                                        farY = m0.farY + segT * (m1.farY - m0.farY);
-                                    }
-
-                                    if (Math.abs(val) < 1e-10) continue;
-
-                                    const arrowColor = typeof force.color === 'string' ? force.color : (val >= 0 ? force.color.positive : force.color.negative);
-
-                                    ticks.push(
-                                        <Arrow
-                                            key={`tick-${force.id}-${segIdx}-${k}`}
-                                            points={[farX, farY, nearX, nearY]}
-                                            fill={arrowColor} stroke={arrowColor} strokeWidth={1.5}
-                                            pointerLength={6} pointerWidth={5} listening={false}
-                                        />
-                                    );
-                                }
-
-                                const strokeColor = typeof force.color === 'string' ? force.color : force.color.positive;
-                                const fillColor = strokeColor.startsWith('rgba') 
-                                    ? strokeColor.replace(/[\d\.]+\)$/, '0.15)')
-                                    : 'rgba(239, 68, 68, 0.15)';
-
-                                return (
-                                    <React.Fragment key={`seg-${segIdx}`}>
-                                        {!parallel && (
-                                            <Line
-                                                points={fullPolyPoints}
-                                                fill={fillColor} stroke={strokeColor} strokeWidth={1.5}
-                                                closed listening={false}
-                                            />
-                                        )}
-                                        {ticks}
-                                    </React.Fragment>
-                                );
-                            })}
-                        </React.Fragment>
-                    );
-                } else {
-                    const pxScale = force.scale ?? 1.0;
-                    const diagNx = -nx;
-                    const diagNy = -ny;
-
-                    const curvePoints = force.distribution.map(pt => {
-                        const basePos = getDeformedPosAtXi(pt.xi);
-                        const offsetHeight = pt.value * pxScale;
-                        
-                        return {
-                            x: basePos.x + diagNx * offsetHeight,
-                            y: basePos.z + diagNy * offsetHeight,
-                            val: pt.value,
-                            xi: pt.xi
-                        };
-                    });
-
-                    const polyPoints: number[] = [];
-                    for (let k = 0; k < positions.length; k++) {
-                        polyPoints.push(toCanvasX(positions[k].x), toCanvasZ(positions[k].z));
-                    }
-                    for (let k = curvePoints.length - 1; k >= 0; k--) {
-                        polyPoints.push(curvePoints[k].x, curvePoints[k].y);
-                    }
-
-                    const avgVal = curvePoints.reduce((acc, p) => acc + p.val, 0) / curvePoints.length;
-                    let strokeColor = 'rgba(16, 185, 129, 0.7)';
-                    let fillColor = 'rgba(16, 185, 129, 0.12)';
-
-                    if (typeof force.color === 'string') {
-                        strokeColor = force.color;
-                        fillColor = force.color.startsWith('rgba')
-                            ? force.color.replace(/[\d\.]+\)$/, '0.12)')
-                            : force.color + '22';
-                    } else {
-                        const c = avgVal >= 0 ? force.color.positive : force.color.negative;
-                        strokeColor = c;
-                        fillColor = c.startsWith('rgba')
-                            ? c.replace(/[\d\.]+\)$/, '0.12)')
-                            : c + '22';
-                    }
-
-                    const hatchLines: React.ReactNode[] = [];
-                    curvePoints.forEach((cPt, k) => {
-                        if (k === 0 || k === curvePoints.length - 1 || k % 3 === 0) {
-                            const basePos = getDeformedPosAtXi(cPt.xi);
-                            hatchLines.push(
-                                <Line
-                                    key={`hatch-${force.id}-${k}`}
-                                    points={[basePos.x, basePos.z, cPt.x, cPt.y]}
-                                    stroke={strokeColor}
-                                    strokeWidth={1}
-                                    opacity={0.4}
-                                />
-                            );
-                        }
-                    });
-
-                    const labels: React.ReactNode[] = [];
-                    if (force.showLabels && curvePoints.length >= 2) {
-                        const startVal = curvePoints[0].val;
-                        const endVal = curvePoints[curvePoints.length - 1].val;
-                        
-                        let peakIndex = 0;
-                        let maxAbsVal = -1;
-                        for (let k = 0; k < curvePoints.length; k++) {
-                            const absVal = Math.abs(curvePoints[k].val);
-                            if (absVal > maxAbsVal) {
-                                maxAbsVal = absVal;
-                                peakIndex = k;
-                            }
-                        }
-                        const peakVal = curvePoints[peakIndex].val;
-
-                        const labelFormat = (val: number) => {
-                            return Math.abs(val) < 1e-1 ? '0' : `${val > 0 ? '+' : ''}${val.toFixed(1)}`;
-                        };
-
-                        const threshold = 1e-1;
-                        if (Math.abs(startVal) > threshold) {
-                            labels.push(
-                                <Text
-                                    key={`lbl-start-${force.id}`}
-                                    x={curvePoints[0].x + diagNx * 5}
-                                    y={curvePoints[0].y + diagNy * 5}
-                                    text={labelFormat(startVal)}
-                                    fontSize={10}
-                                    fill={theme.nodeText}
-                                    align="center"
-                                />
-                            );
-                        }
-                        if (Math.abs(endVal) > threshold && Math.abs(endVal - startVal) > threshold) {
-                            labels.push(
-                                <Text
-                                    key={`lbl-end-${force.id}`}
-                                    x={curvePoints[curvePoints.length - 1].x + diagNx * 5}
-                                    y={curvePoints[curvePoints.length - 1].y + diagNy * 5}
-                                    text={labelFormat(endVal)}
-                                    fontSize={10}
-                                    fill={theme.nodeText}
-                                    align="center"
-                                />
-                            );
-                        }
-                        if (peakIndex > 0 && peakIndex < curvePoints.length - 1 && Math.abs(peakVal) > threshold) {
-                            labels.push(
-                                <Text
-                                    key={`lbl-peak-${force.id}`}
-                                    x={curvePoints[peakIndex].x + diagNx * 5}
-                                    y={curvePoints[peakIndex].y + diagNy * 5}
-                                    text={labelFormat(peakVal)}
-                                    fontSize={10}
-                                    fontStyle="bold"
-                                    fill={theme.nodeText}
-                                    align="center"
-                                />
-                            );
-                        }
-                    }
-
-                    const boundaryPoints = curvePoints.flatMap(p => [p.x, p.y]);
-
-                    return (
-                        <React.Fragment key={`dist-diag-${force.id}`}>
-                            <Line
-                                points={polyPoints}
-                                fill={fillColor}
-                                closed={true}
-                            />
-                            <Line
-                                points={boundaryPoints}
-                                stroke={strokeColor}
-                                strokeWidth={1.5}
-                            />
-                            {hatchLines}
-                            {labels}
-                        </React.Fragment>
-                    );
-                }
+                return renderDiagramForce(force, nx, ny, positions.flatMap(p => [toCanvasX(p.x), toCanvasZ(p.z)]), getDeformedPosAtXi, theme);
             })}
         </Layer>
     );
 });
 
-// ─── Animated layer (deformed active system) ──────────────────────────────────
+
+// #endregion
+
+// #region AnimatedLayer ────────────────────────────────────────────────────────
 
 const SELECTION_COLOR  = '#f59e0b'; // amber-400 — glow ring / element highlight
 const SELECTION_FILL   = '#fde68a'; // amber-200 — bearing & node body fill
@@ -677,8 +564,8 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                 line.points(positions.flatMap(({ x, z }) => [toCanvasXRef.current(x), toCanvasZRef.current(z)]));
                 if (labelGroup) {
                     const mi = (positions.length - 1) / 2;
-                    const lo = Math.floor(mi), hi = Math.ceil(mi), t = mi - lo;
-                    const mid = { x: positions[lo].x + t * (positions[hi].x - positions[lo].x), z: positions[lo].z + t * (positions[hi].z - positions[lo].z) };
+                    const lo = Math.floor(mi), hi = Math.ceil(mi), frac = mi - lo;
+                    const mid = { x: positions[lo].x + frac * (positions[hi].x - positions[lo].x), z: positions[lo].z + frac * (positions[hi].z - positions[lo].z) };
                     labelGroup.x(toCanvasXRef.current(mid.x) - TEXT_BOX_SIZE / 2);
                     labelGroup.y(toCanvasZRef.current(mid.z) - TEXT_BOX_SIZE / 2);
                 }
@@ -789,7 +676,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                     <React.Fragment key={el.id}>
                         {/* Actual element stroke */}
                         <Line
-                            ref={n => { n ? elementLineRefs.current.set(el.id, n) : elementLineRefs.current.delete(el.id); }}
+                            ref={refSetter(elementLineRefs, el.id)}
                             stroke={isElSelected ? SELECTION_COLOR : theme.elementStroke}
                             strokeWidth={theme.elementStrokeWidth}
                             points={initialPoints}
@@ -805,7 +692,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                         />
                         {showReferenceFiber && (
                             <Line
-                                ref={n => { n ? referenceFiberRefs.current.set(el.id, n) : referenceFiberRefs.current.delete(el.id); }}
+                                ref={refSetter(referenceFiberRefs, el.id)}
                                 stroke="#94a3b8"
                                 strokeWidth={1.5}
                                 dash={[3, 3]}
@@ -813,7 +700,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                             />
                         )}
                         <Group
-                            ref={n => { n ? elementLabelGroupRefs.current.set(el.id, n) : elementLabelGroupRefs.current.delete(el.id); }}
+                            ref={refSetter(elementLabelGroupRefs, el.id)}
                             x={toCanvasX(mid.x) - TEXT_BOX_SIZE / 2}
                             y={toCanvasZ(mid.z) - TEXT_BOX_SIZE / 2}
                             onClick={() => onElementClick?.(el.id)}
@@ -838,14 +725,14 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                         </Group>
                         {showHinges && el.releases_i.theta && (
                             <Circle
-                                ref={c => { c ? hingeCircleRefs.current.set(`${el.id}-i`, c) : hingeCircleRefs.current.delete(`${el.id}-i`); }}
+                                ref={refSetter(hingeCircleRefs, `${el.id}-i`)}
                                 x={hcxi + HINGE_OFFSET * hdxi} y={hcyi + HINGE_OFFSET * hdyi}
                                 radius={HINGE_RADIUS} fill={theme.hingeFill} stroke={theme.hingeStroke} strokeWidth={1.5}
                             />
                         )}
                         {showHinges && el.releases_j.theta && (
                             <Circle
-                                ref={c => { c ? hingeCircleRefs.current.set(`${el.id}-j`, c) : hingeCircleRefs.current.delete(`${el.id}-j`); }}
+                                ref={refSetter(hingeCircleRefs, `${el.id}-j`)}
                                 x={hcxj + HINGE_OFFSET * hdxj} y={hcyj + HINGE_OFFSET * hdyj}
                                 radius={HINGE_RADIUS} fill={theme.hingeFill} stroke={theme.hingeStroke} strokeWidth={1.5}
                             />
@@ -862,7 +749,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                 return (
                     <Group
                         key={node.id}
-                        ref={g => { g ? nodeGroupRefs.current.set(node.id, g) : nodeGroupRefs.current.delete(node.id); }}
+                        ref={refSetter(nodeGroupRefs, node.id)}
                         x={toCanvasX(pos.x)} y={toCanvasZ(pos.z)}
                         onClick={() => onNodeClick?.(node.id)}
                         onTap={() => onNodeClick?.(node.id)}
@@ -874,7 +761,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                             showNode={showNodes}
                             showBearing={showBearings}
                             showNodeCross={showNodeCross}
-                            jointRef={g => { g ? nodeJointRefs.current.set(node.id, g) : nodeJointRefs.current.delete(node.id); }}
+                            jointRef={refSetter(nodeJointRefs, node.id)}
                         />
                         {/* Extra glow ring when selected */}
                         {isNodeSelected && (
@@ -886,6 +773,10 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
         </Layer>
     );
 }
+
+// #endregion
+
+// #region StructuralSystemViewer ───────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
@@ -1001,5 +892,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
         </div>
     );
 });
+
+// #endregion
 
 export default StructuralSystemViewer;
