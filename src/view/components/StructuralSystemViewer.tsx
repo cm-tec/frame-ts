@@ -45,6 +45,7 @@ interface StructuralSystemViewerProps {
     selectedNodeId?: number | null;
     onElementClick?: (elementId: number) => void;
     onNodeClick?: (nodeId: number) => void;
+    showNodeCross?: boolean;
 }
 
 // ─── Visual theme ─────────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ const CONTENT_MAX_RATIO = 5;
 
 type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
-function NodeShape({ node, colors, showNode, showBearing, jointRef }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean; jointRef?: React.Ref<Konva.Group> }) {
+function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false, jointRef }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean; showNodeCross?: boolean; jointRef?: React.Ref<Konva.Group> }) {
     const R = THEME.nodeRadius;
     const B = THEME.bearingSize;
     return <>
@@ -124,8 +125,12 @@ function NodeShape({ node, colors, showNode, showBearing, jointRef }: { node: No
                 ? <Rect visible={showNode} x={-(B-2)} y={-(B-2)} width={2 * (B-2)} height={2 * (B-2)} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
                 : <Group visible={showNode}>
                       <Circle radius={R} fill={colors.nodeCircleFill} stroke={colors.stroke} strokeWidth={2} />
-                      <Line points={[-R + 2, 0, R - 2, 0]} stroke={colors.stroke === THEME.ghostNodeStroke ? '#94a3b8' : 'white'} strokeWidth={1.5} />
-                      <Line points={[0, -R + 2, 0, R - 2]} stroke={colors.stroke === THEME.ghostNodeStroke ? '#94a3b8' : 'white'} strokeWidth={1.5} />
+                      {showNodeCross && (
+                          <>
+                              <Line points={[-R + 2, 0, R - 2, 0]} stroke={colors.stroke === THEME.ghostNodeStroke ? '#94a3b8' : 'white'} strokeWidth={1.5} />
+                              <Line points={[0, -R + 2, 0, R - 2]} stroke={colors.stroke === THEME.ghostNodeStroke ? '#94a3b8' : 'white'} strokeWidth={1.5} />
+                          </>
+                      )}
                   </Group>
             }
         </Group>
@@ -644,9 +649,10 @@ interface AnimatedLayerProps {
     selectedNodeId?: number | null;
     onElementClick?: (elementId: number) => void;
     onNodeClick?: (nodeId: number) => void;
+    showNodeCross?: boolean;
 }
 
-function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme, selectedElementId, selectedNodeId, onElementClick, onNodeClick }: AnimatedLayerProps) {
+function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions, showNodes, showBearings, showHinges = false, showReferenceFiber = false, toCanvasX, toCanvasZ, theme, selectedElementId, selectedNodeId, onElementClick, onNodeClick, showNodeCross = false }: AnimatedLayerProps) {
     const toCanvasXRef          = useRef(toCanvasX);
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
@@ -869,6 +875,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                             colors={nodeColors}
                             showNode={showNodes} 
                             showBearing={showBearings}
+                            showNodeCross={showNodeCross}
                             jointRef={g => { g ? nodeJointRefs.current.set(node.id, g) : nodeJointRefs.current.delete(node.id); }}
                         />
                     </Group>
@@ -880,7 +887,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
     structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
-    selectedElementId, selectedNodeId, onElementClick, onNodeClick,
+    selectedElementId, selectedNodeId, onElementClick, onNodeClick, showNodeCross = false,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -986,6 +993,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     selectedNodeId={selectedNodeId}
                     onElementClick={onElementClick}
                     onNodeClick={onNodeClick}
+                    showNodeCross={showNodeCross}
                 />
             </Stage>
         </div>

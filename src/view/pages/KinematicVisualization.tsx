@@ -85,6 +85,7 @@ export default function KinematicVisualization({ structuralSystem }: { structura
                         showUndeformedSystem={showUndeformedSystem}
                         showNodes={showNodes}
                         showBearings={showBearings}
+                        showNodeCross={true}
                     />
                 </Box>
 
