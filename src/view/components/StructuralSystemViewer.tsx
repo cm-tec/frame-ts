@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Konva from 'konva';
 import { Arrow, Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
@@ -352,10 +352,6 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
     const toCanvasZRef          = useRef(toCanvasZ);
     const getNodePositionRef    = useRef(getNodePosition);
     const getElementPositionsRef = useRef(getElementPositions);
-    useEffect(() => { toCanvasXRef.current = toCanvasX; },           [toCanvasX]);
-    useEffect(() => { toCanvasZRef.current = toCanvasZ; },           [toCanvasZ]);
-    useEffect(() => { getNodePositionRef.current = getNodePosition; }, [getNodePosition]);
-    useEffect(() => { getElementPositionsRef.current = getElementPositions; }, [getElementPositions]);
 
     const elementLineRefs       = useRef<Map<number, Konva.Line>>(new Map());
     const elementLabelGroupRefs = useRef<Map<number, Konva.Group>>(new Map());
@@ -410,7 +406,13 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
     }, [structuralSystem]);
 
     useEffect(() => useAnimationStore.subscribe(state => applyPositions(state.time)), [applyPositions]);
-    useEffect(() => { applyPositions(useAnimationStore.getState().time); }, [toCanvasX, toCanvasZ, applyPositions, showNodes, showBearings]);
+    useLayoutEffect(() => {
+        toCanvasXRef.current = toCanvasX;
+        toCanvasZRef.current = toCanvasZ;
+        getNodePositionRef.current = getNodePosition;
+        getElementPositionsRef.current = getElementPositions;
+        applyPositions(useAnimationStore.getState().time);
+    });
 
     return (
         <Layer>

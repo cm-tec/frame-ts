@@ -16,9 +16,6 @@ Redo Sidebar of StaticView
     - make it use the same function as deformedElementPoints
     - let it keep state of the selected diagrams
 
-Bug in visualization when updating view settings
-
-
 single load seems to differ in visual rotation and actual used rotation in solver.
 
 
