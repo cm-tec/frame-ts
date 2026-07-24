@@ -1,5 +1,6 @@
 import '@mantine/core/styles.css';
-import { AppShell, Badge, Button, Divider, Group, MantineProvider, SegmentedControl, Text, TextInput } from '@mantine/core';
+import { ActionIcon, AppShell, Badge, Button, Divider, Group, MantineProvider, SegmentedControl, Text, TextInput, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from "react";
 
 import { type Node, type Element, type Hinge, type InitialConditions, type Loads } from "./models/models";
@@ -11,9 +12,11 @@ import DynamicVisualization from "./view/pages/DynamicVisualization";
 import EigenmodeVisualization from "./view/pages/EigenmodeVisualization";
 import StaticVisualization from "./view/pages/StaticVisualization";
 import KinematicVisualization from "./view/pages/KinematicVisualization";
+import { AboutModal } from "./view/components/AboutModal";
 
 export default function App() {
   const [editMode, setEditMode]   = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [view,     setView]       = useState<'dynamic' | 'static'>('dynamic');
   const [subView,  setSubView]    = useState<'response' | 'eigenmodes'>('response');
 
@@ -83,10 +86,18 @@ export default function App() {
 
   return (
     <MantineProvider>
+      <AboutModal opened={aboutOpen} onClose={() => setAboutOpen(false)} />
       <AppShell header={{ height: 50 }} padding={0}>
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
-            <Text fw={700} size="lg">Truss</Text>
+            <Group gap={6}>
+              <Text fw={700} size="lg">Truss</Text>
+              <Tooltip label="About — concepts, methods, conventions">
+                <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setAboutOpen(true)} aria-label="About">
+                  <IconInfoCircle size={18} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
 
             <Group gap="xs">
               {!isKinematic && editMode && (
