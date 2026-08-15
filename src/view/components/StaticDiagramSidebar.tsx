@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Box, Divider, Flex, Group, Modal, Text } from '@mantine/core';
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import type { StaticSolution } from '../../solver/StaticSolution';
-import type { Loads } from '../../models/models';
+import type { Loads } from '../../models/inputModels';
 import { elementInternalForces, elementLocalDisplacements } from '../utils/internalForces';
 
 // ── Color map ────────────────────────────────────────────────────────────────

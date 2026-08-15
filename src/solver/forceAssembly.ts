@@ -1,7 +1,7 @@
 import { matrix, zeros } from 'mathjs';
 import type { Matrix } from 'mathjs';
 import type { StructuralSystem } from './StructuralSystem';
-import type { Loads } from '../models/models';
+import type { Loads } from '../models/inputModels';
 
 /**
  * Assembles the global force vector (ndof × 1) from nodal and element loads.
@@ -25,12 +25,9 @@ export function assembleForceVector(structuralSystem: StructuralSystem, loads: L
     loads.elements.forEach(load => {
         const el = structuralSystem.elements.find(e => e.id === load.element_id);
         if (!el) return;
-        const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
-        const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
-        const dx = nj.x - ni.x, dz = nj.z - ni.z;
-        const L = Math.hypot(dx, dz);
+        const L = el.L;
         if (L < 1e-6) return;
-        const sinB = dz / L, cosB = dx / L;
+        const sinB = Math.sin(el.angle), cosB = Math.cos(el.angle);
         const rad = (load.angle * Math.PI) / 180;
         let cosVal = Math.cos(rad);
         let sinVal = Math.sin(rad);

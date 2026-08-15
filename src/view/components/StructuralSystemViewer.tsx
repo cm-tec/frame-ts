@@ -3,7 +3,7 @@ import Konva from 'konva';
 import { Arrow, Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type Node } from "../../models/models";
+import { type NodeInput } from "../../models/inputModels";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
 import { niceInterval, formatGridLabel } from '../utils/grid';
@@ -96,7 +96,7 @@ const CONTENT_MAX_RATIO = 5;
 
 type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
-function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false, jointRef }: { node: Node; colors: NodeColors; showNode: boolean; showBearing: boolean; showNodeCross?: boolean; jointRef?: React.Ref<Konva.Group> }) {
+function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false, jointRef }: { node: NodeInput; colors: NodeColors; showNode: boolean; showBearing: boolean; showNodeCross?: boolean; jointRef?: React.Ref<Konva.Group> }) {
     const R = THEME.nodeRadius;
     const B = THEME.bearingSize;
     return <>
@@ -203,7 +203,7 @@ interface GhostLayerProps {
     show: boolean;
     showNodes: boolean;
     showBearings: boolean;
-    nodeMap: Map<number, Node>;
+    nodeMap: Map<number, NodeInput>;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
 }

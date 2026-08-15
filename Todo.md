@@ -15,3 +15,13 @@ Redo Sidebar of StaticView
     - Group by element not by displacements
     - make it use the same function as deformedElementPoints
     - let it keep state of the selected diagrams
+
+restrain forces
+
+forces should move along with the node
+
+
+
+
+
+applyStaticCondensation -> understand and document

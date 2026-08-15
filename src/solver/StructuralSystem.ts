@@ -1,16 +1,84 @@
-import { type Node, type Element, type Hinge } from "../models/models";
+import { type NodeInput, type ElementInput, type HingeInput } from "../models/inputModels";
 
-export interface StructuralNode extends Node {
-    // e.g., [0, 1, -1] means u=0, v=1, and theta is restrained
+export interface StructuralNode {
+    id: number;
+    
+    x: number;
+    z: number;
+
+    mass: number;
+    
+    angle: number;
+    
+    restraint: { u: boolean; v: boolean; theta: boolean };
     dofs: [number, number, number];
 }
 
-export interface StructuralElement extends Element {
-    // [u_i, v_i, theta_i, u_j, v_j, theta_j]
-    dofs: [number, number, number, number, number, number];
 
-    releases_i: { u: boolean; v: boolean; theta: boolean };
-    releases_j: { u: boolean; v: boolean; theta: boolean };
+/**
+ * Which internal force components are released at one end of an element.
+ *
+ * The resolved form of a HingeInput: the input names an element and an end, this says
+ * what is released, per end, on the element itself.
+ */
+export type Releases = { u: boolean; v: boolean; theta: boolean };
+
+
+export class StructuralElement {
+    readonly id: number;
+
+    readonly n_i: StructuralNode;
+    readonly n_j: StructuralNode;
+
+    readonly ea: number;
+    readonly ei: number;
+    readonly c: number;
+
+    // [u_i, v_i, theta_i, u_j, v_j, theta_j]
+    readonly dofs: [number, number, number, number, number, number];
+
+    readonly releases_i: Releases;
+    readonly releases_j: Releases;
+
+    constructor(
+        element: ElementInput,
+        n_i: StructuralNode,
+        n_j: StructuralNode,
+        hinges: HingeInput[] = [],
+    ) {
+        this.id = element.id;
+        this.n_i = n_i;
+        this.n_j = n_j;
+        this.ea = element.ea;
+        this.ei = element.ei;
+        this.c = element.c;
+
+        this.dofs = [...n_i.dofs, ...n_j.dofs];
+
+        // Rigidly connected by default; each hinge on this element releases what it names.
+        this.releases_i = { u: false, v: false, theta: false };
+        this.releases_j = { u: false, v: false, theta: false };
+
+        for (const h of hinges) {
+            if (h.element_id !== this.id) continue;
+
+            const released = h.end === 'i' ? this.releases_i : this.releases_j;
+            released.u = h.u;
+            released.v = h.v;
+            released.theta = h.theta;
+        }
+    }
+
+    // Element length
+    get L(): number {
+        return Math.hypot(this.n_j.x - this.n_i.x, this.n_j.z - this.n_i.z);
+    }
+
+    
+    // Direction of the local axis i→j, measured from global +x.
+    get angle(): number {
+        return Math.atan2(this.n_j.z - this.n_i.z, this.n_j.x - this.n_i.x);
+    }
 }
 
 
@@ -21,7 +89,7 @@ export class StructuralSystem {
     readonly nodes: StructuralNode[];
     readonly elements: StructuralElement[];
 
-    constructor(rawNodes: Node[], rawElements: Element[], hinges: Hinge[] = []) {
+    constructor(rawNodes: NodeInput[], rawElements: ElementInput[], hinges: HingeInput[] = []) {
         this.ndof = rawNodes.length * 3;
 
         this.nodes = [];
@@ -33,7 +101,12 @@ export class StructuralSystem {
             const dofs: [number, number, number] = [dofCounter, dofCounter+1, dofCounter+2];
 
             this.nodes.push({
-                ...n,
+                id: n.id,
+                x: n.x,
+                z: n.z,
+                mass: n.mass,
+                angle: n.angle,
+                restraint: { ...n.restraint },
                 dofs
             });
 
@@ -50,51 +123,27 @@ export class StructuralSystem {
                 continue;
             }
 
-            // Initialize default values where all internal force components are completely unreleased (rigid)
-            const releases_i = { u: false, v: false, theta: false };
-            const releases_j = { u: false, v: false, theta: false };
-
-            // Find all hinges belonging to this element and bind them to their respective ends
-            const elementHinges = hinges.filter(h => h.element_id === e.id);
-            for (const h of elementHinges) {
-                if (h.end === 'i') {
-                    releases_i.u = h.u;
-                    releases_i.v = h.v;
-                    releases_i.theta = h.theta;
-                } else if (h.end === 'j') {
-                    releases_j.u = h.u;
-                    releases_j.v = h.v;
-                    releases_j.theta = h.theta;
-                }
-            }
-
-            this.elements.push({
-                ...e,
-                dofs: [...n_i.dofs, ...n_j.dofs],
-                releases_i,
-                releases_j
-            });
+            this.elements.push(new StructuralElement(e, n_i, n_j, hinges));
         }
     }
 
 
-    /**
-     * Factory method to construct a pure space-saving Truss System.
-     * Automatically locks down all rotational DOFs at the node level
-     * and introduces moment releases at both ends of every member.
-     */
-    static createPureTruss(rawNodes: Node[], rawElements: Element[]): StructuralSystem {
+    /*
+        Factory method to construct a pure space-saving Truss System.
+        Automatically locks down all rotational DOFs at the node level
+        and introduces moment releases at both ends of every member.
+    */
+    static createPureTruss(rawNodes: NodeInput[], rawElements: ElementInput[]): StructuralSystem {
         // Force all nodes to restrain their rotation (theta: true)
-        const trussNodes: Node[] = rawNodes.map(node => ({
+        const trussNodes: NodeInput[] = rawNodes.map(node => ({
             ...node,
             restraint: {
                 ...node.restraint,
-                theta: true // Every joint is safe from torsion spins
+                theta: true
             }
         }));
 
-        // Dynamically build a full double-ended moment release array for every single element
-        const trussHinges: Hinge[] = [];
+        const trussHinges: HingeInput[] = [];
         let hingeIdCounter = 1;
 
         for (const e of rawElements) {
@@ -118,8 +167,6 @@ export class StructuralSystem {
                 theta: true // Release Moment M_j
             });
         }
-
-        // Return a fully configured StructuralSystem utilizing our internal automated sets
         return new StructuralSystem(trussNodes, rawElements, trussHinges);
     }
 }

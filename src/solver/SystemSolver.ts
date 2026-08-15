@@ -1,117 +1,10 @@
-import { add, eigs, atan2, hypot, identity, index, inv, lusolve, matrix, multiply, rotationMatrix, subset, transpose, zeros, type Matrix, subtract, det } from "mathjs";
+import { add, eigs, identity, index, inv, lusolve, matrix, multiply, subset, transpose, zeros, type Matrix } from "mathjs";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
+import { applyStaticCondensation, c_element, get_rotation_matrix_of_element, k_element } from "./elementMatrices";
 import type { StructuralSystem } from "./StructuralSystem";
 import { KinematicSolution } from "./KinematicSolution";
 import { DynamicSolution } from "./DynamicSolution";
 import { StaticSolution } from "./StaticSolution";
-
-
-function get_rotation_matrix_of_element(v: [number, number], angle_i: number, angle_j: number): Matrix {
-    const dx = v[0];
-    const dz = v[1];
-
-    // The absolute spatial angle of the element itself
-    const theta_element = atan2(dz, dx);
-
-    // Calculate relative angles for Node i and Node j transformations
-    const theta_i = theta_element - angle_i;
-    const theta_j = theta_element - angle_j;
-
-    // Generate the distinct 2x2 rotation components
-    // (Note: math.js rotationMatrix rotates counter-clockwise. Depending on your 
-    // exact local-to-global convention, you may or may not need the transpose here)
-    const t_i = transpose(rotationMatrix(theta_i)) as Matrix;
-    const t_j = transpose(rotationMatrix(theta_j)) as Matrix;
-
-    // Build the final 6x6 transformation matrix
-    const T_e = identity(6) as Matrix;
-    
-    // Inject Node i's specific translation transformation
-    T_e.subset(index([0, 1], [0, 1]), t_i); 
-    
-    // Inject Node j's specific translation transformation
-    T_e.subset(index([3, 4], [3, 4]), t_j); 
-
-    // Rotations (indices 2 and 5) remain 1 on the diagonal 
-    return T_e;
-}
-
-export function k_element(EA: number, EI: number, l: number): Matrix {
-    return matrix([
-        [ EA/l,    0,          0,         -EA/l,   0,          0         ],
-        [ 0,       12*EI/l**3, 6*EI/l**2,  0,     -12*EI/l**3, 6*EI/l**2 ],
-        [ 0,       6*EI/l**2,  4*EI/l,     0,      -6*EI/l**2, 2*EI/l    ],
-        [-EA/l,    0,          0,          EA/l,   0,          0         ],
-        [ 0,      -12*EI/l**3,-6*EI/l**2,  0,      12*EI/l**3, -6*EI/l**2],
-        [ 0,       6*EI/l**2,  2*EI/l,     0,      -6*EI/l**2, 4*EI/l    ]
-    ]);
-}
-export function c_element(c: number): Matrix {
-    return matrix([
-        [ c,  0,  0,  -c,  0,  0 ],
-        [ 0,  0,  0,   0,  0,  0 ],
-        [ 0,  0,  0,   0,  0,  0 ],
-        [-c,  0,  0,   c,  0,  0 ],
-        [ 0,  0,  0,   0,  0,  0 ],
-        [ 0,  0,  0,   0,  0,  0 ]
-    ]);
-}
-
-
-function applyStaticCondensation(k_elem: Matrix, releases_i: any, releases_j: any): Matrix {
-    const all_i_released = releases_i.u && releases_i.v && releases_i.theta;
-    const all_j_released = releases_j.u && releases_j.v && releases_j.theta;
-
-    if (all_i_released || all_j_released) {
-        // If either end is completely disconnected, the element transmits 0 stiffness/damping
-        return matrix(zeros([6, 6]));
-    }
-
-
-    // Array of local DOF indices to condense (0 to 5)
-    // u_i=0, v_i=1, theta_i=2, u_j=3, v_j=4, theta_j=5
-    const cutIdx: number[] = [];
-    if (releases_i.u) cutIdx.push(0);
-    if (releases_i.v) cutIdx.push(1);
-    if (releases_i.theta) cutIdx.push(2);
-    if (releases_j.u) cutIdx.push(3);
-    if (releases_j.v) cutIdx.push(4);
-    if (releases_j.theta) cutIdx.push(5);
-
-    if (cutIdx.length === 0) return k_elem;
-
-
-    const keepIdx = [0, 1, 2, 3, 4, 5].filter(idx => !cutIdx.includes(idx));
-
-    // Split the element matrix into Sub-matrices
-    const K_rr = subset(k_elem, index(keepIdx, keepIdx));
-    const K_rc = subset(k_elem, index(keepIdx, cutIdx));
-    const K_cr = subset(k_elem, index(cutIdx, keepIdx));
-    const K_cc = subset(k_elem, index(cutIdx, cutIdx));
-
-    let K_condensed: Matrix;
-
-    // Check if K_cc is invertible (abs of determinant > tiny threshold)
-    // If it's a 1x1 or larger matrix, math.js det() will tell us if it's singular
-    if (Math.abs(det(K_cc)) < 1e-12) {
-        // If the cut properties are already pure zero (like in the damping matrix),
-        // there is nothing to condense out; K_rr is already the answer.
-        K_condensed = K_rr;
-    } else {
-        K_condensed = subtract(K_rr, multiply(K_rc, multiply(inv(K_cc), K_cr)));
-    }
-    
-    // Reconstruct a full 6x6 matrix with zeros in the cut positions 
-    // so it perfectly fits your existing assembly pipeline
-    let k_final = matrix(zeros([6, 6]));
-    keepIdx.forEach((r, i) => {
-        keepIdx.forEach((c, j) => {
-            k_final.set([r, c], K_condensed.get([i, j]));
-        });
-    });
-
-    return k_final;
-}
 
 
 export class SystemSolver {
@@ -145,19 +38,17 @@ export class SystemSolver {
 
 
         for (const e of system.elements) {
-            let n_i = system.nodes.find(n => n.id === e.node_i)!;
-            let n_j = system.nodes.find(n => n.id === e.node_j)!;
+            let n_i = e.n_i;
+            let n_j = e.n_j;
 
-            const l = hypot(n_j.x - n_i.x, n_j.z - n_i.z);
-
-            let k_e = k_element(e.ea, e.ei, l);
+            let k_e = k_element(e.ea, e.ei, e.L);
             let c_e = c_element(e.c);
 
             k_e = applyStaticCondensation(k_e, e.releases_i, e.releases_j);
             c_e = applyStaticCondensation(c_e, e.releases_i, e.releases_j);
 
             const R_e = get_rotation_matrix_of_element(
-                [n_j.x - n_i.x, n_j.z - n_i.z],
+                e.angle,
                 n_i.angle,
                 n_j.angle
             )

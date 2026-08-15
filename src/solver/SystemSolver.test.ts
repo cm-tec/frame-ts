@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { StructuralSystem } from './StructuralSystem';
-import { c_element, k_element, SystemSolver } from './SystemSolver';
+import { SystemSolver } from './SystemSolver';
 import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
 import {
     getBeam, getRotatedBeam, getCantilever, getCantileverThroughReleases,

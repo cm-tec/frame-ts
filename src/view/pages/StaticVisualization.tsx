@@ -3,7 +3,7 @@ import { index, subset } from "mathjs";
 import { Alert, Box, Checkbox, Divider, Flex, Group, Paper, SegmentedControl, Slider, Text } from "@mantine/core";
 import type { StructuralSystem } from "../../solver/StructuralSystem";
 import { SystemSolver } from "../../solver/SystemSolver";
-import type { Loads } from "../../models/models";
+import type { Loads } from "../../models/inputModels";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { StaticDiagramSidebar } from "../components/StaticDiagramSidebar";
 import { deformedElementPoints } from "../utils/deformedShape";

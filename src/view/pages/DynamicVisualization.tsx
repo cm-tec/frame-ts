@@ -7,7 +7,7 @@ import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { DiagramSidebar } from "../components/DiagramSidebar";
 import { useVisualizationStore } from "../../store/visualizationStore";
 import { PlaybackBar } from "../components/PlaybackBar";
-import type { InitialConditions, Loads } from "../../models/models";
+import type { InitialConditions, Loads } from "../../models/inputModels";
 import { useAnimation } from "../hooks/useAnimation";
 import { deformedElementPoints } from "../utils/deformedShape";
 

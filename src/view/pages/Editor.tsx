@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { ActionIcon, Box, Button, Checkbox, Divider, Flex, Group, NumberInput, ScrollArea, SegmentedControl, Stack, Table, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 
-import { type Node, type Element, type Hinge, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/models";
+import { type NodeInput, type ElementInput, type HingeInput, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/inputModels";
 import { StructuralSystem } from '../../solver/StructuralSystem';
 import StructuralSystemViewer, { type Theme } from '../components/StructuralSystemViewer';
 
@@ -27,12 +27,12 @@ const BLUEPRINT_THEME: Partial<Theme> = {
 
 interface EditorProps {
     view: 'dynamic' | 'static';
-    nodes: Node[];
-    setNodes: React.Dispatch<React.SetStateAction<Node[]>>;
-    elements: Element[];
-    setElements: React.Dispatch<React.SetStateAction<Element[]>>;
-    hinges: Hinge[];
-    setHinges: React.Dispatch<React.SetStateAction<Hinge[]>>;
+    nodes: NodeInput[];
+    setNodes: React.Dispatch<React.SetStateAction<NodeInput[]>>;
+    elements: ElementInput[];
+    setElements: React.Dispatch<React.SetStateAction<ElementInput[]>>;
+    hinges: HingeInput[];
+    setHinges: React.Dispatch<React.SetStateAction<HingeInput[]>>;
     initialConditions: InitialConditions;
     setInitialConditions: React.Dispatch<React.SetStateAction<InitialConditions>>;
     loads: Loads;
@@ -41,7 +41,7 @@ interface EditorProps {
 
 export default function Editor({ view, nodes, setNodes, elements, setElements, hinges, setHinges, initialConditions, setInitialConditions, loads, setLoads }: EditorProps) {
 
-    const updateNode = (id: number, patch: Partial<Omit<Node, 'id'>>) =>
+    const updateNode = (id: number, patch: Partial<Omit<NodeInput, 'id'>>) =>
         setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
 
     const IC_DEFAULTS: InitialConditions[number] = { u0: 0, du0: 0, v0: 0, dv0: 0, theta0: 0, dtheta0: 0 };
@@ -76,7 +76,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
     const deleteNode = (id: number) =>
         setNodes(r => r.filter(row => row.id !== id));
 
-    const updateElement = (id: number, patch: Partial<Omit<Element, 'id'>>) =>
+    const updateElement = (id: number, patch: Partial<Omit<ElementInput, 'id'>>) =>
         setElements(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
 
     const deleteElement = (id: number) =>
@@ -86,7 +86,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         const nextId = hinges.length ? Math.max(...hinges.map(h => h.id)) + 1 : 1;
         setHinges(r => [...r, { id: nextId, element_id: elements[0]?.id ?? 1, end: 'i', u: false, v: false, theta: true }]);
     };
-    const updateHinge = (id: number, patch: Partial<Hinge>) =>
+    const updateHinge = (id: number, patch: Partial<HingeInput>) =>
         setHinges(r => r.map(h => h.id === id ? { ...h, ...patch } : h));
     const deleteHinge = (id: number) =>
         setHinges(r => r.filter(h => h.id !== id));

@@ -3,7 +3,7 @@ import { ActionIcon, AppShell, Badge, Button, Divider, Group, MantineProvider, S
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from "react";
 
-import { type Node, type Element, type Hinge, type InitialConditions, type Loads } from "./models/models";
+import { type NodeInput, type ElementInput, type HingeInput, type InitialConditions, type Loads } from "./models/inputModels";
 import { StructuralSystem } from "./solver/StructuralSystem";
 import { SystemSolver } from "./solver/SystemSolver";
 
@@ -20,18 +20,18 @@ export default function App() {
   const [view,     setView]       = useState<'dynamic' | 'static'>('dynamic');
   const [subView,  setSubView]    = useState<'response' | 'eigenmodes'>('response');
 
-  const [nodes, setNodes] = useState<Node[]>([
+  const [nodes, setNodes] = useState<NodeInput[]>([
     { id: 1, x: 0, z: 0,   mass: 1,  restraint: { u: true,  v: true,  theta: false  }, angle: 0 },
     { id: 2, x: 0, z: 20,  mass: 80, restraint: { u: true,  v: false, theta: false }, angle: 0 },
     { id: 3, x: 0, z: 10,  mass: 8,  restraint: { u: true,  v: false, theta: false }, angle: 0 },
   ]);
 
-  const [elements, setElements] = useState<Element[]>([
+  const [elements, setElements] = useState<ElementInput[]>([
     { id: 1, node_i: 2, node_j: 3, ea: 2000, ei: 10, c: 0 },
     { id: 2, node_i: 3, node_j: 1, ea: 1250, ei: 10, c: 0.6 },
   ]);
 
-  const [hinges, setHinges] = useState<Hinge[]>([]);
+  const [hinges, setHinges] = useState<HingeInput[]>([]);
 
   const [initialConditions, setInitialConditions] = useState<InitialConditions>({
     2: { u0: 0, v0: 1,  theta0: 0, du0: 0, dv0: 0, dtheta0: 0 },

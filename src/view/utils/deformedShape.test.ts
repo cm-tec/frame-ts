@@ -216,11 +216,12 @@ test('elementDisplacementAt — beam with released dof isnt affected by neighbor
     expect(u).toBeCloseTo(0, ACC);
     expect(v).toBeCloseTo(0, ACC);
 
-    // Validate displacement at x=0..25
+    // Validate displacement at midspan: simply supported beam under a triangular load
+    // peaking at node i has δ = 5·q·L⁴/(768·EI) = 5·13/(768·11) = 65/8448
     ({u, v} = elementDisplacementAt(el, n_i, n_j, (dof) => sol.get_w(dof), 0.5, { qi: q, qj: 0 }));
 
     expect(u).toBeCloseTo(0, ACC);
-    expect(v).toBeCloseTo(-5/12288, ACC);
+    expect(v).toBeCloseTo(-65/8448, ACC);
 });
 
 test('elementDisplacementAt — EI = 0 element with one rigid end curves and does not divide by zero', () => {
