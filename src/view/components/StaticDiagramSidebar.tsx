@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react';
 import { Badge, Box, Divider, Flex, Group, Modal, Text } from '@mantine/core';
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import type { StaticSolution } from '../../solver/StaticSolution';
-import type { Loads } from '../../models/inputModels';
-import { elementInternalForces, elementLocalDisplacements } from '../utils/internalForces';
+import type { StructuralLoads } from '../../solver/StructuralLoads';
+import { elementForceField } from '../../solver/internalForces';
+import { elementDisplacementField } from '../../solver/displacementField';
+import { sampleForces, sampleDisplacements } from '../utils/elementCurves';
 
 // ── Color map ────────────────────────────────────────────────────────────────
 const TYPE_COLOR: Record<string, string> = {
@@ -76,13 +78,13 @@ function SVGDiagram({ values, color }: { values: number[]; color: string }) {
 interface StaticDiagramSidebarProps {
     structuralSystem: StructuralSystem;
     solution: StaticSolution;
-    loads: Loads;
+    structuralLoads: StructuralLoads;
     selectedElementId?: number | null;
     selectedNodeId?: number | null;
 }
 
 export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
-    structuralSystem, solution, loads, selectedElementId, selectedNodeId,
+    structuralSystem, solution, structuralLoads, selectedElementId, selectedNodeId,
 }: StaticDiagramSidebarProps) {
     const [expandedChart, setExpandedChart] = useState<{ key: string; label: string } | null>(null);
 
@@ -108,22 +110,17 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
         const getDof = (dof: number) => solution.get_w(dof);
 
         elements.forEach(el => {
-            const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
-            const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
-            const load = loads.elements.find(l => l.element_id === el.id);
-            const loadOpt = load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined;
-
-            const forces = elementInternalForces(el, ni, nj, getDof, loadOpt);
+            const forces = sampleForces(elementForceField(el, structuralLoads, getDof));
             map.set(`N-${el.id}`,  forces.map(p => p.N));
             map.set(`V-${el.id}`,  forces.map(p => p.V));
             map.set(`M-${el.id}`,  forces.map(p => p.M));
 
-            const disps = elementLocalDisplacements(el, ni, nj, getDof, loadOpt);
+            const disps = sampleDisplacements(el, elementDisplacementField(el, structuralLoads, getDof));
             map.set(`dv-${el.id}`, disps.map(p => p.v));
             map.set(`du-${el.id}`, disps.map(p => p.u));
         });
         return map;
-    }, [structuralSystem, solution, loads, elements]);
+    }, [structuralSystem, solution, structuralLoads, elements]);
 
     const getLabel = (key: string) => {
         const [type, id] = key.split('-');
@@ -181,7 +178,7 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
                                 <Flex direction="column" gap={3}>
                                     {[
                                         { label: 'x',     value: fmt(selectedNode.x) },
-                                        { label: 'z',     value: fmt(selectedNode.z) },
+                                        { label: 'z',     value: fmt(selectedNode.y) },
                                         { label: 'angle', value: `${(selectedNode.angle * 180 / Math.PI).toFixed(2)} °` },
                                         null,
                                         { label: 'u',  value: fmt(u) },

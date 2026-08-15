@@ -1,14 +1,16 @@
 import { useState, useMemo, useCallback } from "react";
-import { index, subset } from "mathjs";
 import { Alert, Box, Checkbox, Divider, Flex, Group, Paper, SegmentedControl, Slider, Text } from "@mantine/core";
 import type { StructuralSystem } from "../../solver/StructuralSystem";
+import { StructuralLoads } from "../../solver/StructuralLoads";
 import { SystemSolver } from "../../solver/SystemSolver";
 import type { Loads } from "../../models/inputModels";
+import { toSolverAngles } from "../../models/loadConventions";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { StaticDiagramSidebar } from "../components/StaticDiagramSidebar";
-import { deformedElementPoints } from "../utils/deformedShape";
 import { assembleForceVector } from "../../solver/forceAssembly";
-import { elementInternalForces } from "../utils/internalForces";
+import { elementForceField } from "../../solver/internalForces";
+import { elementDisplacementField } from "../../solver/displacementField";
+import { deformedElementPoints, sampleForces } from "../utils/elementCurves";
 
 export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
@@ -36,24 +38,22 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         setSelectedElementId(null);
     }, []);
 
+
+    const structuralLoads = useMemo(
+        () => new StructuralLoads(structuralSystem, toSolverAngles(loads)),
+        [structuralSystem, loads],
+    );
+
     const solution = useMemo(() => {
         const solver = new SystemSolver(structuralSystem);
-        const F_global = assembleForceVector(structuralSystem, loads);
-        return solver.solveStatic(subset(F_global, index(solver.non_restrained, [0])));
-    }, [structuralSystem, loads]);
+        return solver.solveStatic(assembleForceVector(structuralSystem, structuralLoads));
+    }, [structuralSystem, structuralLoads]);
 
     const autoForceScale = useMemo(() => {
         if (forceMode === 'none') return 1;
         let maxVal = 0;
         for (const el of structuralSystem.elements) {
-            const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
-            const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
-            const load = loads.elements.find(l => l.element_id === el.id);
-            const forces = elementInternalForces(
-                el, ni, nj,
-                (dof) => solution.get_w(dof),
-                load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined,
-            );
+            const forces = sampleForces(elementForceField(el, structuralLoads, dof => solution.get_w(dof)));
             for (const f of forces) {
                 if (forceMode === 'N') maxVal = Math.max(maxVal, Math.abs(f.N));
                 if (forceMode === 'Q') maxVal = Math.max(maxVal, Math.abs(f.V));
@@ -61,27 +61,20 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             }
         }
         return maxVal > 1e-7 ? 30 / maxVal : 1;
-    }, [structuralSystem, solution, loads, forceMode]);
+    }, [structuralSystem, solution, structuralLoads, forceMode]);
 
     const internalForcesData = useMemo(() => {
-        const elementsData = structuralSystem.elements.map(el => {
-            const ni = structuralSystem.nodes.find(n => n.id === el.node_i)!;
-            const nj = structuralSystem.nodes.find(n => n.id === el.node_j)!;
-            const load = loads.elements.find(l => l.element_id === el.id);
-            const points = elementInternalForces(
-                el, ni, nj,
-                (dof) => solution.get_w(dof),
-                load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined,
-            );
-            return { elementId: el.id, points };
-        });
+        const elementsData = structuralSystem.elements.map(el => ({
+            elementId: el.id,
+            points: sampleForces(elementForceField(el, structuralLoads, dof => solution.get_w(dof))),
+        }));
 
         return {
             mode: forceMode,
             scale: autoForceScale * forceScale,
             elements: elementsData
         };
-    }, [structuralSystem, solution, loads, forceMode, autoForceScale, forceScale]);
+    }, [structuralSystem, solution, structuralLoads, forceMode, autoForceScale, forceScale]);
 
     const pointForces = useMemo(() => {
         if (!showNodal) return [];
@@ -158,7 +151,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
         return {
             x: node.x + solution.get_w(node.dofs[0]) * scale,
-            z: node.z + solution.get_w(node.dofs[1]) * scale,
+            z: node.y + solution.get_w(node.dofs[1]) * scale,
             theta: node.angle + solution.get_w(node.dofs[2]) * scale,
         };
     }, [structuralSystem, solution, scale]);
@@ -172,16 +165,10 @@ export default function StaticVisualization({ structuralSystem, loads }: {
 
     const getElementPositions = useCallback((elementId: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
-        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
-        const load = loads.elements.find(l => l.element_id === elementId);
-        return deformedElementPoints(
-            element, ni, nj,
-            (dof) => solution.get_w(dof),
-            scale,
-            load ? { qi: load.q_i, qj: load.q_j, angle: load.angle } : undefined,
-        );
-    }, [structuralSystem, solution, scale, loads]);
+        const field = elementDisplacementField(element, structuralLoads, dof => solution.get_w(dof));
+
+        return deformedElementPoints(element, field, scale);
+    }, [structuralSystem, solution, scale, structuralLoads]);
 
     return (
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>
@@ -215,7 +202,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                 <StaticDiagramSidebar
                     structuralSystem={structuralSystem}
                     solution={solution}
-                    loads={loads}
+                    structuralLoads={structuralLoads}
                     selectedElementId={selectedElementId}
                     selectedNodeId={selectedNodeId}
                 />

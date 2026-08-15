@@ -9,7 +9,9 @@ import { useVisualizationStore } from "../../store/visualizationStore";
 import { PlaybackBar } from "../components/PlaybackBar";
 import type { InitialConditions, Loads } from "../../models/inputModels";
 import { useAnimation } from "../hooks/useAnimation";
-import { deformedElementPoints } from "../utils/deformedShape";
+import { StructuralLoads } from "../../solver/StructuralLoads";
+import { elementDisplacementField } from "../../solver/displacementField";
+import { deformedElementPoints } from "../utils/elementCurves";
 
 export default function DynamicVisualization({ structuralSystem, initialConditions, loads: _loads }: {
     structuralSystem: StructuralSystem;
@@ -49,7 +51,7 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
 
     const getNodeState = useCallback((nodeId: number, time: number) => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        return { x: node.x, z: node.z, u: solution.get_w(node.dofs[0], time), v: solution.get_w(node.dofs[1], time) };
+        return { x: node.x, z: node.y, u: solution.get_w(node.dofs[0], time), v: solution.get_w(node.dofs[1], time) };
     }, [structuralSystem, solution]);
 
     const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number; theta: number } => {
@@ -59,16 +61,18 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
         return { x: x + u, z: z + v, theta: node.angle + theta };
     }, [getNodeState, structuralSystem, solution]);
 
+    // No element loads in this analysis; the displacement field still needs a source.
+    const structuralLoads = useMemo(
+        () => new StructuralLoads(structuralSystem, { nodes: [], elements: [] }),
+        [structuralSystem],
+    );
+
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
-        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
-        return deformedElementPoints(
-            element, ni, nj,
-            (dof) => solution.get_w(dof, time),
-            1,
-        );
-    }, [structuralSystem, solution]);
+        const field = elementDisplacementField(element, structuralLoads, dof => solution.get_w(dof, time));
+
+        return deformedElementPoints(element, field, 1);
+    }, [structuralSystem, solution, structuralLoads]);
 
     return (
         <Flex direction="column" style={{ height: 'calc(100vh - var(--app-shell-header-height, 50px))', overflow: 'hidden' }}>

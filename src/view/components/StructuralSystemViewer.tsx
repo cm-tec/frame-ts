@@ -3,7 +3,7 @@ import Konva from 'konva';
 import { Arrow, Circle, Group, Layer, Line, Rect, Shape, Stage, Text } from 'react-konva';
 import { max, min } from 'mathjs';
 
-import { type NodeInput } from "../../models/inputModels";
+import { type StructuralNode } from "../../solver/StructuralSystem";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
 import { niceInterval, formatGridLabel } from '../utils/grid';
@@ -96,7 +96,7 @@ const CONTENT_MAX_RATIO = 5;
 
 type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
-function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false, jointRef }: { node: NodeInput; colors: NodeColors; showNode: boolean; showBearing: boolean; showNodeCross?: boolean; jointRef?: React.Ref<Konva.Group> }) {
+function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false, jointRef }: { node: StructuralNode; colors: NodeColors; showNode: boolean; showBearing: boolean; showNodeCross?: boolean; jointRef?: React.Ref<Konva.Group> }) {
     const R = THEME.nodeRadius;
     const B = THEME.bearingSize;
     return <>
@@ -203,22 +203,18 @@ interface GhostLayerProps {
     show: boolean;
     showNodes: boolean;
     showBearings: boolean;
-    nodeMap: Map<number, NodeInput>;
     toCanvasX: (x: number) => number;
     toCanvasZ: (z: number) => number;
 }
 
-const GhostLayer = React.memo(({ structuralSystem, show, showNodes, showBearings, nodeMap, toCanvasX, toCanvasZ }: GhostLayerProps) => (
+const GhostLayer = React.memo(({ structuralSystem, show, showNodes, showBearings, toCanvasX, toCanvasZ }: GhostLayerProps) => (
     <Layer listening={false}>
         {show && structuralSystem.elements.map(el => {
-            const ni = nodeMap.get(el.node_i);
-            const nj = nodeMap.get(el.node_j);
-            if (!ni || !nj) return null;
             return <Line key={el.id} stroke={THEME.ghostElementStroke} strokeWidth={THEME.ghostElementStrokeWidth} dash={THEME.ghostElementDash}
-                points={[toCanvasX(ni.x), toCanvasZ(ni.z), toCanvasX(nj.x), toCanvasZ(nj.z)]} />;
+                points={[toCanvasX(el.n_i.x), toCanvasZ(el.n_i.y), toCanvasX(el.n_j.x), toCanvasZ(el.n_j.y)]} />;
         })}
         {show && structuralSystem.nodes.map(node => (
-            <Group key={node.id} x={toCanvasX(node.x)} y={toCanvasZ(node.z)}>
+            <Group key={node.id} x={toCanvasX(node.x)} y={toCanvasZ(node.y)}>
                 <NodeShape node={node} colors={{ stroke: THEME.ghostNodeStroke, nodeFill: THEME.ghostNodeFill, nodeCircleFill: THEME.ghostNodeFill, supportFill: THEME.ghostSupportFill, text: THEME.ghostNodeText }} showNode={showNodes} showBearing={showBearings} />
             </Group>
         ))}
@@ -444,7 +440,7 @@ export const ForceVisualizationLayer = React.memo(({
                 const node = structuralSystem.nodes.find(n => n.id === force.nodeId);
                 if (!node) return null;
                 const cx = toCanvasX(node.x);
-                const cy = toCanvasZ(node.z);
+                const cy = toCanvasZ(node.y);
 
                 const rad = (force.angle * Math.PI) / 180;
                 const sign = force.magnitude >= 0 ? 1 : -1;
@@ -799,7 +795,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     const { contentCx, contentCz, contentWidth, contentHeight } = useMemo(() => {
         const xs = structuralSystem.nodes.map(n => n.x);
-        const zs = structuralSystem.nodes.map(n => n.z);
+        const zs = structuralSystem.nodes.map(n => n.y);
         if (xs.length === 0) return { contentCx: 0, contentCz: 0, contentWidth: CONTENT_MIN_DIM, contentHeight: CONTENT_MIN_DIM };
         const rawMinX = min(xs), rawMaxX = max(xs);
         const rawMinZ = min(zs), rawMaxZ = max(zs);
@@ -815,7 +811,6 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
         };
     }, [structuralSystem]);
 
-    const nodeMap = useMemo(() => new Map(structuralSystem.nodes.map(n => [n.id, n])), [structuralSystem]);
 
     const { width: canvasWidth, height: canvasHeight } = stageSize;
 
@@ -862,7 +857,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     structuralSystem={structuralSystem}
                     show={showUndeformedSystem}
                     showNodes={showNodes} showBearings={showBearings}
-                    nodeMap={nodeMap} toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
+                    toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                 />
                 {(pointForces || distributedForces) && (
                     <ForceVisualizationLayer

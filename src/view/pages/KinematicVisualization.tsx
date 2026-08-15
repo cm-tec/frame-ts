@@ -5,7 +5,9 @@ import type { StructuralSystem } from "../../solver/StructuralSystem";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { PlaybackBar } from "../components/PlaybackBar";
 import { useAnimation } from "../hooks/useAnimation";
-import { deformedElementPoints } from "../utils/deformedShape";
+import { StructuralLoads } from "../../solver/StructuralLoads";
+import { elementDisplacementField } from "../../solver/displacementField";
+import { deformedElementPoints } from "../utils/elementCurves";
 
 
 export default function KinematicVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
@@ -27,7 +29,7 @@ export default function KinematicVisualization({ structuralSystem }: { structura
         if (!solution.modes[selectedMode]) return 1;
 
         const xs = structuralSystem.nodes.map(n => n.x);
-        const zs = structuralSystem.nodes.map(n => n.z);
+        const zs = structuralSystem.nodes.map(n => n.y);
         const extent = Math.max(
             Math.max(...xs) - Math.min(...xs),
             Math.max(...zs) - Math.min(...zs),
@@ -45,20 +47,24 @@ export default function KinematicVisualization({ structuralSystem }: { structura
 
     const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number; theta: number } => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
-        if (!solution.modes[selectedMode]) return { x: node.x, z: node.z, theta: node.angle };
+        if (!solution.modes[selectedMode]) return { x: node.x, z: node.y, theta: node.angle };
 
         const factor = autoScale * scale * Math.cos(time);
         return {
             x: node.x + solution.get_w(selectedMode, node.dofs[0]) * factor,
-            z: node.z + solution.get_w(selectedMode, node.dofs[1]) * factor,
+            z: node.y + solution.get_w(selectedMode, node.dofs[1]) * factor,
             theta: node.angle + solution.get_w(selectedMode, node.dofs[2]) * factor,
         };
     }, [structuralSystem, solution, selectedMode, autoScale, scale]);
 
+    // No element loads in this analysis; the displacement field still needs a source.
+    const structuralLoads = useMemo(
+        () => new StructuralLoads(structuralSystem, { nodes: [], elements: [] }),
+        [structuralSystem],
+    );
+
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
-        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
 
         const getDof = (dof: number): number => {
             if (!solution.modes[selectedMode]) return 0;
@@ -66,8 +72,10 @@ export default function KinematicVisualization({ structuralSystem }: { structura
             return solution.get_w(selectedMode, dof) * factor;
         };
 
-        return deformedElementPoints(element, ni, nj, getDof, 1);
-    }, [structuralSystem, solution, selectedMode, autoScale, scale]);
+        const field = elementDisplacementField(element, structuralLoads, getDof);
+
+        return deformedElementPoints(element, field, 1);
+    }, [structuralSystem, solution, selectedMode, autoScale, scale, structuralLoads]);
 
     const selectMode = useCallback((i: number) => {
         setSelectedMode(i);

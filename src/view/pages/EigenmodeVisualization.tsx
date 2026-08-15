@@ -6,7 +6,9 @@ import { matrix, zeros } from "mathjs";
 import StructuralSystemViewer from "../components/StructuralSystemViewer";
 import { PlaybackBar } from "../components/PlaybackBar";
 import { useAnimation } from "../hooks/useAnimation";
-import { deformedElementPoints } from "../utils/deformedShape";
+import { StructuralLoads } from "../../solver/StructuralLoads";
+import { elementDisplacementField } from "../../solver/displacementField";
+import { deformedElementPoints } from "../utils/elementCurves";
 
 
 export default function EigenmodeVisualization({ structuralSystem }: { structuralSystem: StructuralSystem }) {
@@ -51,7 +53,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
         if (!mode) return 1;
 
         const xs = structuralSystem.nodes.map(n => n.x);
-        const zs = structuralSystem.nodes.map(n => n.z);
+        const zs = structuralSystem.nodes.map(n => n.y);
         const extent = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
 
         const tSample = mode.omegaD > 0 ? Math.PI / (2 * mode.omegaD) : 1;
@@ -67,7 +69,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
     const getNodePosition = useCallback((nodeId: number, time: number): { x: number; z: number; theta: number } => {
         const node = structuralSystem.nodes.find(n => n.id === nodeId)!;
         const mode = modes[selectedMode];
-        if (!mode) return { x: node.x, z: node.z, theta: node.angle };
+        if (!mode) return { x: node.x, z: node.y, theta: node.angle };
 
         const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
         const factor = autoScale * scale;
@@ -76,17 +78,21 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
         const ti = solution.non_restrained.indexOf(node.dofs[2]);
         return {
             x: node.x + (ui >= 0 ? disp.get([ui]) * factor : 0),
-            z: node.z + (vi >= 0 ? disp.get([vi]) * factor : 0),
+            z: node.y + (vi >= 0 ? disp.get([vi]) * factor : 0),
             theta: node.angle + (ti >= 0 ? disp.get([ti]) * factor : 0),
         };
     }, [structuralSystem, solution, modes, selectedMode, autoScale, scale]);
 
+    // No element loads in this analysis; the displacement field still needs a source.
+    const structuralLoads = useMemo(
+        () => new StructuralLoads(structuralSystem, { nodes: [], elements: [] }),
+        [structuralSystem],
+    );
+
     const getElementPositions = useCallback((elementId: number, time: number): Array<{ x: number; z: number }> => {
         const element = structuralSystem.elements.find(e => e.id === elementId)!;
-        const ni = structuralSystem.nodes.find(n => n.id === element.node_i)!;
-        const nj = structuralSystem.nodes.find(n => n.id === element.node_j)!;
         const mode = modes[selectedMode];
-        if (!mode) return [getNodePosition(element.node_i, time), getNodePosition(element.node_j, time)];
+        if (!mode) return [getNodePosition(element.n_i.id, time), getNodePosition(element.n_j.id, time)];
 
         const getDof = (dof: number): number => {
             const disp = solution.get_w_total_of_eigenmode(mode.stateSpaceIndex, time);
@@ -95,8 +101,10 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
             return idx >= 0 ? disp.get([idx]) * factor : 0;
         };
 
-        return deformedElementPoints(element, ni, nj, getDof, 1);
-    }, [structuralSystem, solution, modes, selectedMode, autoScale, scale, getNodePosition]);
+        const field = elementDisplacementField(element, structuralLoads, getDof);
+
+        return deformedElementPoints(element, field, 1);
+    }, [structuralSystem, solution, modes, selectedMode, autoScale, scale, getNodePosition, structuralLoads]);
 
     const selectMode = useCallback((i: number) => {
         setSelectedMode(i);
