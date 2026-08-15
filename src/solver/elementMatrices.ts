@@ -1,6 +1,5 @@
-import { det, identity, index, inv, matrix, multiply, rotationMatrix, subset, subtract, transpose, zeros, type Matrix } from "mathjs";
+import { det, index, inv, matrix, multiply, subset, subtract, zeros, type Matrix } from "mathjs";
 import type { Releases } from "./StructuralSystem";
-
 /*
     Closed-form element matrices for the two-node Euler-Bernoulli beam element, in the
     local DOF order [u_i, v_i, theta_i, u_j, v_j, theta_j].
@@ -9,14 +8,16 @@ import type { Releases } from "./StructuralSystem";
 
 
 
+
+
 export function k_element(EA: number, EI: number, l: number): Matrix {
     return matrix([
-        [ EA/l,    0,          0,         -EA/l,   0,          0         ],
-        [ 0,       12*EI/l**3, 6*EI/l**2,  0,     -12*EI/l**3, 6*EI/l**2 ],
-        [ 0,       6*EI/l**2,  4*EI/l,     0,      -6*EI/l**2, 2*EI/l    ],
-        [-EA/l,    0,          0,          EA/l,   0,          0         ],
-        [ 0,      -12*EI/l**3,-6*EI/l**2,  0,      12*EI/l**3, -6*EI/l**2],
-        [ 0,       6*EI/l**2,  2*EI/l,     0,      -6*EI/l**2, 4*EI/l    ]
+        [ EA/l,  0,            0,           -EA/l,  0,            0          ],
+        [ 0,     12*EI/l**3,   6*EI/l**2,    0,    -12*EI/l**3,   6*EI/l**2  ],
+        [ 0,     6*EI/l**2,    4*EI/l,       0,    -6*EI/l**2,    2*EI/l     ],
+        [-EA/l,  0,            0,            EA/l,  0,            0          ],
+        [ 0,    -12*EI/l**3,  -6*EI/l**2,    0,     12*EI/l**3,  -6*EI/l**2  ],
+        [ 0,     6*EI/l**2,    2*EI/l,       0,    -6*EI/l**2,    4*EI/l     ]
     ]);
 }
 
@@ -34,17 +35,20 @@ export function c_element(c: number): Matrix {
 
 // Transformation from global to local element coordinates.
 export function get_rotation_matrix_of_element(theta_element: number, angle_i: number, angle_j: number): Matrix {
-    const theta_i = theta_element - angle_i;
-    const theta_j = theta_element - angle_j;
+    const b_i = theta_element - angle_i;
+    const b_j = theta_element - angle_j;
 
-    const t_i = transpose(rotationMatrix(theta_i)) as Matrix;
-    const t_j = transpose(rotationMatrix(theta_j)) as Matrix;
+    const ci = Math.cos(b_i), si = Math.sin(b_i);
+    const cj = Math.cos(b_j), sj = Math.sin(b_j);
 
-    const T_e = identity(6) as Matrix;
-    T_e.subset(index([0, 1], [0, 1]), t_i);
-    T_e.subset(index([3, 4], [3, 4]), t_j);
-
-    return T_e;
+    return matrix([
+        [ ci,  si,  0,   0,   0,  0],
+        [-si,  ci,  0,   0,   0,  0],
+        [  0,   0,  1,   0,   0,  0],
+        [  0,   0,  0,  cj,  sj,  0],
+        [  0,   0,  0, -sj,  cj,  0],
+        [  0,   0,  0,   0,   0,  1]
+    ]);
 }
 
 /**

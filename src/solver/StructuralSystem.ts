@@ -4,7 +4,7 @@ export interface StructuralNode {
     id: number;
     
     x: number;
-    z: number;
+    y: number;
 
     mass: number;
     
@@ -64,13 +64,13 @@ export class StructuralElement {
 
     // Element length
     get L(): number {
-        return Math.hypot(this.n_j.x - this.n_i.x, this.n_j.z - this.n_i.z);
+        return Math.hypot(this.n_j.x - this.n_i.x, this.n_j.y - this.n_i.y);
     }
 
     
     // Direction of the local axis i→j, measured from global +x.
     get angle(): number {
-        return Math.atan2(this.n_j.z - this.n_i.z, this.n_j.x - this.n_i.x);
+        return Math.atan2(this.n_j.y - this.n_i.y, this.n_j.x - this.n_i.x);
     }
 }
 
@@ -96,7 +96,8 @@ export class StructuralSystem {
             this.nodes.push({
                 id: n.id,
                 x: n.x,
-                z: n.z,
+                // NodeInput still calls the vertical axis z; in the solver it is y.
+                y: n.z,
                 mass: n.mass,
                 angle: n.angle,
                 restraint: { ...n.restraint },

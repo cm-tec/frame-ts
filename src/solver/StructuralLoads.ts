@@ -9,11 +9,11 @@ export type ElementLoadField = {
 
 export type NodalForce = {
     fx: number;
-    fz: number;
+    fy: number;
 };
 
 const NO_ELEMENT_LOAD: ElementLoadField = { q_trans: Polynomial.ZERO, q_axial: Polynomial.ZERO };
-const NO_NODAL_FORCE: NodalForce = { fx: 0, fz: 0 };
+const NO_NODAL_FORCE: NodalForce = { fx: 0, fy: 0 };
 
 export class StructuralLoads {
     private readonly elementLoads = new Map<number, ElementLoadField>();
@@ -34,8 +34,8 @@ export class StructuralLoads {
             const applied = this.ofElement(load.element_id);
 
             this.elementLoads.set(load.element_id, {
-                q_trans: applied.q_trans.plus(q.scaled(cos)),
-                q_axial: applied.q_axial.plus(q.scaled(sin)),
+                q_axial: applied.q_axial.plus(q.scaled(cos)),
+                q_trans: applied.q_trans.plus(q.scaled(sin)),
             });
         }
 
@@ -49,8 +49,8 @@ export class StructuralLoads {
             const applied = this.ofNode(load.node_id);
 
             this.nodalForces.set(load.node_id, {
-                fx: applied.fx + load.magnitude * sin,
-                fz: applied.fz - load.magnitude * cos,
+                fx: applied.fx + load.magnitude * cos,
+                fy: applied.fy + load.magnitude * sin,
             });
         }
     }

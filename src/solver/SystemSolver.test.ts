@@ -1,7 +1,10 @@
 import { expect, test } from 'vitest';
 import { StructuralSystem } from './StructuralSystem';
 import { SystemSolver } from './SystemSolver';
-import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
+import { abs, index, matrix, max, sqrt, subset, subtract, zeros } from 'mathjs';
+import { assembleForceVector } from './forceAssembly';
+import { StructuralLoads } from './StructuralLoads';
+import type { Loads } from '../models/inputModels';
 import {
     getBeam, getRotatedBeam, getCantilever, getCantileverThroughReleases,
     getFlippedCantilever, getBeamWithCenterNode, getPortalFrame, getCantileverWithSupport,
@@ -9,6 +12,21 @@ import {
 
 
 const ACC = 10;
+
+function solveWith(system: StructuralSystem, loads: Loads) {
+    const solver = new SystemSolver(system);
+    const F = assembleForceVector(system, new StructuralLoads(system, loads));
+
+    return solver.solveStatic(subset(F, index(solver.non_restrained, [0])));
+}
+
+function nodalLoad(node_id: number, magnitude: number, angle: number) {
+    return { id: node_id, node_id, magnitude, angle, frequency: 0, phase_shift: 0 };
+}
+
+function elementLoad(element_id: number, q: number) {
+    return { id: element_id, element_id, q_i: q, q_j: q, angle: 270, frequency: 0, phase_shift: 0 };
+}
 
 function makeForces(ndofs: number, entries: [dof: number, value: number][]): math.Matrix {
     const f = matrix(zeros([ndofs, 1]));
@@ -167,16 +185,16 @@ test('assembly of cantilever with a 180-degree flipped node system', () => {
 
 
     const expected_k_11 = matrix([
-        [ea,  0,       0      ],
-        [0,   12 * ei, 6 * ei ], // Sign flipped from -6*ei to +6*ei
-        [0,   6 * ei,  4 * ei ]  // Sign flipped from -6*ei to +6*ei
+        [ea,  0,       0          ],
+        [0,   12 * ei, 6 * ei ],
+        [0,   6 * ei,  4 * ei ]
     ]);
     expect(areMatricesClose(solver.k_11, expected_k_11)).toBe(true);
 
     const expected_k_12 = matrix([
-        [ea,  0,        0      ], // Baseline -ea becomes +ea
-        [0,   12 * ei,  6 * ei], // Baseline -12*ei becomes +12*ei and -6*ei becomes +6*ei
-        [0,   6 * ei,   2 * ei]
+        [ea,  0,          0         ],
+        [0,   12 * ei,    6 * ei],
+        [0,   6 * ei, 2 * ei    ]
     ]);
     expect(areMatricesClose(solver.k_12, expected_k_12)).toBe(true);
 
@@ -188,7 +206,7 @@ test('assembly of cantilever with a 180-degree flipped node system', () => {
     expect(areMatricesClose(solver.c_11, expected_c_11)).toBe(true);
     
     expect(areMatricesClose(solver.c_12, matrix([
-        [c, 0, 0], // Baseline -c becomes +c
+        [c, 0, 0],
         [0, 0, 0],
         [0, 0, 0]
     ]))).toBe(true);
@@ -261,9 +279,7 @@ test('solveStatic — beam with central point load', () => {
     const [ea, ei, P] = [7, 11, 13];
     const system = getBeamWithCenterNode(ea, ei);
 
-    let f = matrix([0, 0, -P, 0, 0, 0]);
-
-    const sol = new SystemSolver(system).solveStatic(f);
+    const sol = solveWith(system, { nodes: [nodalLoad(2, P, 270)], elements: [] });
 
     const L = 1.0;
     const expectedDeflection = (P * Math.pow(L, 3)) / (48 * ei);
@@ -274,7 +290,7 @@ test('solveStatic — beam with central point load', () => {
     expect(sol.get_w(2)).toBeCloseTo(-expectedBoundarySlope, ACC);
 
     expect(sol.get_w(3)).toBe(0);
-    expect(sol.get_w(4)).toBeCloseTo(-expectedDeflection,ACC);
+    expect(sol.get_w(4)).toBeCloseTo(-expectedDeflection, ACC);
     expect(sol.get_w(5)).toBe(0);
 
     expect(sol.get_w(6)).toBe(0);
@@ -288,14 +304,8 @@ test('solveStatic — beam with uniform distributed load (UDL)', () => {
     const system = getBeamWithCenterNode(ea, ei);
 
     const L = 1.0;
-    const l = L / 2;
 
-    const m_fixed = (q * Math.pow(l, 2)) / 12;
-    const v_fixed_center = (q * l / 2) + (q * l / 2);
-
-    let f = matrix([-m_fixed, 0, -v_fixed_center, 0, 0, m_fixed]);
-
-    const sol = new SystemSolver(system).solveStatic(f);
+    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q), elementLoad(2, q)] });
 
     const expectedDeflection = (5 * q * Math.pow(L, 4)) / (384 * ei);
     const expectedBoundarySlope = (q * Math.pow(L, 3)) / (24 * ei);
@@ -324,12 +334,8 @@ test('solveStatic — beam with uniform distributed load (UDL)', () => {
 test('solveStatic - Frame under point load', () => {
     const [ea, ei] = [1, 1];
     const system = getPortalFrame(ea, ei);
-    const solver = new SystemSolver(system);
 
-
-    let f = matrix([0, 1, -1, 0, 0, 0, 0, 0]);
-
-    const sol = solver.solveStatic(f);
+    const sol = solveWith(system, { nodes: [nodalLoad(2, Math.SQRT2, 315)], elements: [] });
 
     expect(sol.get_w(0)).toBe(0);
     expect(sol.get_w(1)).toBe(0);

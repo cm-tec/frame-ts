@@ -1,79 +1,95 @@
-import { matrix, zeros } from 'mathjs';
-import type { Matrix } from 'mathjs';
-import type { StructuralSystem } from './StructuralSystem';
-import type { Loads } from '../models/inputModels';
+import { det, index, inv, matrix, multiply, subset, subtract, transpose, zeros, type Matrix } from 'mathjs';
+import { Polynomial } from './Polynomial';
+import { get_rotation_matrix_of_element, k_element } from './elementMatrices';
+import type { StructuralLoads } from './StructuralLoads';
+import type { StructuralElement, StructuralSystem } from './StructuralSystem';
 
-/**
- * Assembles the global force vector (ndof × 1) from nodal and element loads.
- *
- * Nodal loads: magnitude applied at angle (degrees), 0° = downward (−z), 90° = rightward (+x).
- * Element loads: trapezoidal distributed load q_i/q_j, positive = downward (local −v).
- *   Fixed-end forces:  V_i = L/20·(7qi+3qj),  M_i = L²/60·(3qi+2qj)
- *                      V_j = L/20·(3qi+7qj),  M_j = −L²/60·(2qi+3qj)
- */
-export function assembleForceVector(structuralSystem: StructuralSystem, loads: Loads): Matrix {
-    const F = matrix(zeros([structuralSystem.ndof, 1])) as Matrix;
 
-    loads.nodes.forEach(load => {
-        const node = structuralSystem.nodes.find(n => n.id === load.node_id);
-        if (!node) return;
-        const rad = (load.angle * Math.PI) / 180;
-        F.set([node.dofs[0], 0], F.get([node.dofs[0], 0]) + load.magnitude * Math.sin(rad));
-        F.set([node.dofs[1], 0], F.get([node.dofs[1], 0]) - load.magnitude * Math.cos(rad));
-    });
 
-    loads.elements.forEach(load => {
-        const el = structuralSystem.elements.find(e => e.id === load.element_id);
-        if (!el) return;
-        const L = el.L;
-        if (L < 1e-6) return;
-        const sinB = Math.sin(el.angle), cosB = Math.cos(el.angle);
-        const rad = (load.angle * Math.PI) / 180;
-        let cosVal = Math.cos(rad);
-        let sinVal = Math.sin(rad);
-        if (Math.abs(cosVal) < 1e-12) cosVal = 0;
-        if (Math.abs(sinVal) < 1e-12) sinVal = 0;
+const N_AXIAL_I = new Polynomial([1, -1]);
+const N_AXIAL_J = new Polynomial([0, 1]);
 
-        const qi_trans = load.q_i * cosVal;
-        const qj_trans = load.q_j * cosVal;
-        const qi_axial = load.q_i * sinVal;
-        const qj_axial = load.q_j * sinVal;
+const N_1 = new Polynomial([1, 0, -3, 2]);
+const N_2 = new Polynomial([0, 1, -2, 1]);
+const N_3 = new Polynomial([0, 0, 3, -2]);
+const N_4 = new Polynomial([0, 0, -1, 1]);
 
-        let vi = (L / 20) * (7 * qi_trans + 3 * qj_trans);
-        let mi = (L * L / 60) * (3 * qi_trans + 2 * qj_trans);
-        let vj = (L / 20) * (3 * qi_trans + 7 * qj_trans);
-        let mj = -(L * L / 60) * (2 * qi_trans + 3 * qj_trans);
+export function assembleForceVector(system: StructuralSystem, loads: StructuralLoads): Matrix {
+    const F = matrix(zeros([system.ndof, 1])) as Matrix;
 
-        const ui = (L / 6) * (2 * qi_axial + qj_axial);
-        const uj = (L / 6) * (qi_axial + 2 * qj_axial);
+    for (const node of system.nodes) {
+        const { fx, fy } = loads.ofNode(node.id);
+        if (fx === 0 && fy === 0) continue;
 
-        // Condense FEF for moment releases (K_fr * K_rr⁻¹ * f_released).
-        if (el.releases_i.theta && el.releases_j.theta) {
-            const delta = (mi + mj) / L;
-            vi -= delta; vj += delta;
-            mi = 0; mj = 0;
-        } else if (el.releases_i.theta) {
-            vi -= (3 / (2 * L)) * mi;
-            vj += (3 / (2 * L)) * mi;
-            mj -= 0.5 * mi;
-            mi = 0;
-        } else if (el.releases_j.theta) {
-            vi -= (3 / (2 * L)) * mj;
-            mi -= 0.5 * mj;
-            vj += (3 / (2 * L)) * mj;
-            mj = 0;
-        }
+        const c = Math.cos(node.angle);
+        const s = Math.sin(node.angle);
 
-        const gf = [
-            vi * sinB + ui * cosB,
-            -vi * cosB + ui * sinB,
-            -mi,
-            vj * sinB + uj * cosB,
-            -vj * cosB + uj * sinB,
-            -mj
-        ];
-        el.dofs.forEach((d, i) => F.set([d, 0], F.get([d, 0]) + gf[i]));
-    });
+        F.set([node.dofs[0], 0], F.get([node.dofs[0], 0]) + c * fx + s * fy);
+        F.set([node.dofs[1], 0], F.get([node.dofs[1], 0]) - s * fx + c * fy);
+    }
+
+    for (const element of system.elements) {
+        const { q_trans, q_axial } = loads.ofElement(element.id);
+        if (q_trans.isZero && q_axial.isZero) continue;
+
+        const f_local = equivalentNodalLoad(element, q_trans, q_axial);
+
+        const R = get_rotation_matrix_of_element(element.angle, element.n_i.angle, element.n_j.angle);
+        const f = multiply(transpose(R), condenseForReleases(element, f_local)) as Matrix;
+
+        element.dofs.forEach((dof, i) => F.set([dof, 0], F.get([dof, 0]) + f.get([i, 0])));
+    }
 
     return F;
+}
+
+function equivalentNodalLoad(element: StructuralElement, q_trans: Polynomial, q_axial: Polynomial): Matrix {
+    const L = element.L;
+
+    return matrix([
+        [ L     * q_axial.times(N_AXIAL_I).integral()],
+        [L     * q_trans.times(N_1).integral()],
+        [L * L * q_trans.times(N_2).integral()],
+        [ L     * q_axial.times(N_AXIAL_J).integral()],
+        [L     * q_trans.times(N_3).integral()],
+        [L * L * q_trans.times(N_4).integral()],
+    ]) as Matrix;
+}
+
+function condenseForReleases(element: StructuralElement, f: Matrix): Matrix {
+    const { releases_i, releases_j } = element;
+
+    if (releases_i.u && releases_i.v && releases_i.theta) return matrix(zeros([6, 1])) as Matrix;
+    if (releases_j.u && releases_j.v && releases_j.theta) return matrix(zeros([6, 1])) as Matrix;
+
+    const cut: number[] = [];
+    if (releases_i.u) cut.push(0);
+    if (releases_i.v) cut.push(1);
+    if (releases_i.theta) cut.push(2);
+    if (releases_j.u) cut.push(3);
+    if (releases_j.v) cut.push(4);
+    if (releases_j.theta) cut.push(5);
+
+    if (cut.length === 0) return f;
+
+    const keep = [0, 1, 2, 3, 4, 5].filter(i => !cut.includes(i));
+
+    const k = k_element(element.ea, element.ei, element.L);
+    const K_cc = subset(k, index(cut, cut)) as Matrix;
+
+    const condensed = matrix(zeros([6, 1])) as Matrix;
+
+    if (Math.abs(det(K_cc)) < 1e-12) {
+        keep.forEach(r => condensed.set([r, 0], f.get([r, 0])));
+        return condensed;
+    }
+
+    const K_kc = subset(k, index(keep, cut)) as Matrix;
+    const f_cut = subset(f, index(cut, [0])) as Matrix;
+    const f_keep = subset(f, index(keep, [0])) as Matrix;
+
+    const corrected = subtract(f_keep, multiply(K_kc, multiply(inv(K_cc), f_cut))) as Matrix;
+    keep.forEach((r, i) => condensed.set([r, 0], corrected.get([i, 0])));
+
+    return condensed;
 }
