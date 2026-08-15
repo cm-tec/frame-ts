@@ -1,4 +1,4 @@
-import { add, eigs, identity, index, inv, lusolve, matrix, multiply, subset, transpose, zeros, type Matrix } from "mathjs";
+import { add, eigs, identity, index, inv, lusolve, matrix, multiply, subset, subtract, transpose, zeros, type Matrix } from "mathjs";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
 import { applyStaticCondensation, c_element, get_rotation_matrix_of_element, k_element } from "./elementMatrices";
 import type { StructuralSystem } from "./StructuralSystem";
@@ -121,8 +121,19 @@ export class SystemSolver {
     }
 
     solveStatic(force: Matrix): StaticSolution {
-        const w_non_restrained = lusolve(this.k_11, force);
-        const r_restrained = multiply(this.k_12, w_non_restrained);
+        const column = (dofs: number[]) => matrix(dofs.map(dof => [force.get([dof, 0])])) as Matrix;
+
+        const w_non_restrained = this.ndof_non_restrained === 0
+            ? matrix(zeros([0, 1])) as Matrix
+            : lusolve(this.k_11, column(this.non_restrained)) as Matrix;
+
+        const k_w = this.ndof_non_restrained === 0
+            ? matrix(zeros([this.ndof_restrained, 1])) as Matrix
+            : multiply(this.k_12, w_non_restrained) as Matrix;
+
+        const r_restrained = this.ndof_restrained === 0
+            ? matrix(zeros([0, 1])) as Matrix
+            : subtract(k_w, column(this.restrained)) as Matrix;
 
         return new StaticSolution(
             w_non_restrained,

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { StructuralSystem } from './StructuralSystem';
 import { SystemSolver } from './SystemSolver';
-import { abs, index, matrix, max, sqrt, subset, subtract, zeros } from 'mathjs';
+import { abs, matrix, max, sqrt, subtract, zeros } from 'mathjs';
 import { assembleForceVector } from './forceAssembly';
 import { StructuralLoads } from './StructuralLoads';
 import type { Loads } from '../models/inputModels';
@@ -17,7 +17,7 @@ function solveWith(system: StructuralSystem, loads: Loads) {
     const solver = new SystemSolver(system);
     const F = assembleForceVector(system, new StructuralLoads(system, loads));
 
-    return solver.solveStatic(subset(F, index(solver.non_restrained, [0])));
+    return solver.solveStatic(F);
 }
 
 function nodalLoad(node_id: number, magnitude: number, angle: number) {
@@ -26,12 +26,6 @@ function nodalLoad(node_id: number, magnitude: number, angle: number) {
 
 function elementLoad(element_id: number, q: number) {
     return { id: element_id, element_id, q_i: q, q_j: q, angle: 270, frequency: 0, phase_shift: 0 };
-}
-
-function makeForces(ndofs: number, entries: [dof: number, value: number][]): math.Matrix {
-    const f = matrix(zeros([ndofs, 1]));
-    for (const [dof, val] of entries) (f as math.Matrix).set([dof, 0], val);
-    return f as math.Matrix;
 }
 
 function areMatricesClose(A: math.Matrix, B: math.Matrix, epsilon = 1e-9) {
@@ -360,21 +354,8 @@ test('solveStatic - Frame under point load', () => {
 test('solveStatic — cantilever arm with additional strut support', () => {
     const [ea, ei, q] = [1, 1, 1];
     const system = getCantileverWithSupport(ea, ei);
-    const solver = new SystemSolver(system);
 
-
-    const m_fixed = (q * Math.pow(1, 2)) / 12;
-    const v_fixed = (q * 1) / 2;
-
-
-    let f = matrix([
-        0,
-        -v_fixed,
-        m_fixed,
-        0
-    ]);
-
-    const sol = solver.solveStatic(f);
+    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q)] });
 
     expect(sol.get_w(0)).toBe(0);
     expect(sol.get_w(1)).toBe(0);
@@ -392,11 +373,8 @@ test('solveStatic — cantilever arm with additional strut support', () => {
 test('solveStatic — reaction forces of beam', () => {
     const [ea, ei, P] = [7, 11, 13];
     const system = getBeamWithCenterNode(ea, ei);
-    const solver = new SystemSolver(system);
 
-    let f = matrix([0, 0, -P, 0, 0, 0]);
-
-    const sol = solver.solveStatic(f);
+    const sol = solveWith(system, { nodes: [nodalLoad(2, P, 270)], elements: [] });
 
     expect(sol.get_r(0)).toBe(0);
     expect(sol.get_r(1)).toBeCloseTo(P/2, ACC);
@@ -414,11 +392,8 @@ test('solveStatic — reaction forces of beam', () => {
 test('solveStatic — reaction forces of frame', () => {
  const [ea, ei] = [1, 1];
     const system = getPortalFrame(ea, ei);
-    const solver = new SystemSolver(system);
 
-    let f = matrix([0, 1, -1, 0, 0, 0, 0, 0]);
-
-    const sol = solver.solveStatic(f);
+    const sol = solveWith(system, { nodes: [nodalLoad(2, Math.SQRT2, 315)], elements: [] });
 
     expect(sol.get_r(0)).toBeCloseTo(-1, ACC);
     expect(sol.get_r(1)).toBeCloseTo(0, ACC);
@@ -441,16 +416,38 @@ test('solveStatic — reaction forces of frame', () => {
 test('solveStatic — reaction forces of cantilever arm with additional strut support', () => {
     const [ea, ei, q] = [1, 1, 1];
     const system = getCantileverWithSupport(ea, ei);
-    const solver = new SystemSolver(system);
 
+    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q)] });
 
-    const m_fixed = (q * Math.pow(1, 2)) / 12;
-    const v_fixed = (q * 1) / 2;
+    // The two supports carry the whole span load of q * L = 1.
+    const fixedEnd = sol.get_r(system.nodes[0].dofs[1]);
+    const strutBase = sol.get_r(system.nodes[2].dofs[1]);
 
+    expect(fixedEnd + strutBase).toBeCloseTo(q * 1, ACC);
+    expect(fixedEnd).toBeCloseTo(29 / 32, ACC);
+});
 
-    let f = matrix([0, -v_fixed, m_fixed, 0]);
+test('a reaction includes the load applied directly at that support', () => {
+    const [ea, ei, P] = [1e9, 1000, 7];
+    const system = getCantilever(ea, ei);
+    const support = system.nodes[0];
 
-    const sol = solver.solveStatic(f);
+    // Everything is restrained at node 1, so the structure does not move at all and the
+    // support alone carries the load. A reaction of K_21*w would read zero here.
+    const sol = solveWith(system, { nodes: [nodalLoad(1, P, 270)], elements: [] });
 
-    expect(sol.get_r(1)).toBeCloseTo(13/32, ACC);
+    expect(sol.get_r(support.dofs[1])).toBeCloseTo(P, ACC);
+});
+
+test('a reaction includes the fixed-end forces of a span load reaching the support', () => {
+    const [ea, ei, q] = [1e9, 1000, 7];
+    const L = 1;
+    const system = getCantilever(ea, ei);
+    const support = system.nodes[0];
+
+    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q)] });
+
+    // The single support carries the whole span load and its moment about the support.
+    expect(sol.get_r(support.dofs[1])).toBeCloseTo(q * L, ACC);
+    expect(sol.get_r(support.dofs[2])).toBeCloseTo(q * L * L / 2, ACC);
 });

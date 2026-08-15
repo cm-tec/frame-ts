@@ -15,7 +15,7 @@ function fieldOf(system: StructuralSystem, loads: Loads, elementId: number) {
     const solver = new SystemSolver(system);
     const structuralLoads = new StructuralLoads(system, loads);
     const F = assembleForceVector(system, structuralLoads);
-    const solution = solver.solveStatic(subset(F, index(solver.non_restrained, [0])));
+    const solution = solver.solveStatic(F);
 
     const element = system.elements.find(e => e.id === elementId)!;
     return elementForceField(element, structuralLoads, dof => solution.get_w(dof));

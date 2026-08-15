@@ -15,7 +15,7 @@ function fieldOf(system: StructuralSystem, loads: Loads, elementId: number) {
     const solver = new SystemSolver(system);
     const structuralLoads = new StructuralLoads(system, loads);
     const F = assembleForceVector(system, structuralLoads);
-    const solution = solver.solveStatic(subset(F, index(solver.non_restrained, [0])));
+    const solution = solver.solveStatic(F);
 
     const element = system.elements.find(e => e.id === elementId)!;
     return elementDisplacementField(element, structuralLoads, dof => solution.get_w(dof));
@@ -111,7 +111,7 @@ test('the ends of the curve are the nodal displacements the solver produced', ()
     const solver = new SystemSolver(system);
     const structuralLoads = new StructuralLoads(system, loads);
     const F = assembleForceVector(system, structuralLoads);
-    const solution = solver.solveStatic(subset(F, index(solver.non_restrained, [0])));
+    const solution = solver.solveStatic(F);
     const get = (dof: number) => solution.get_w(dof);
 
     const first = elementDisplacementField(system.elements[0], structuralLoads, get);
