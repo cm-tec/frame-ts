@@ -14,13 +14,6 @@ export interface StructuralNode {
     dofs: [number, number, number];
 }
 
-
-/**
- * Which internal force components are released at one end of an element.
- *
- * The resolved form of a HingeInput: the input names an element and an end, this says
- * what is released, per end, on the element itself.
- */
 export type Releases = { u: boolean; v: boolean; theta: boolean };
 
 
@@ -113,7 +106,6 @@ export class StructuralSystem {
             dofCounter += 3;
         }
 
-        // 2. Map Elements by merging the node DOF arrays
         for (const e of rawElements) {
             const n_i = this.nodes.find(n => n.id === e.node_i);
             const n_j = this.nodes.find(n => n.id === e.node_j);
