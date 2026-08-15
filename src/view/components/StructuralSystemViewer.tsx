@@ -980,6 +980,19 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     showNodes={showNodes} showBearings={showBearings}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                 />
+                 <AnimatedLayer
+                    structuralSystem={structuralSystem}
+                    getNodePosition={getNodePosition} getElementPositions={getElementPositions}
+                    showNodes={showNodes} showBearings={showBearings} showHinges={showHinges}
+                    showReferenceFiber={showReferenceFiber}
+                    toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
+                    theme={effectiveTheme}
+                    selectedElementId={selectedElementId}
+                    selectedNodeId={selectedNodeId}
+                    onElementClick={onElementClick}
+                    onNodeClick={onNodeClick}
+                    showNodeCross={showNodeCross}
+                />
                 {(pointForces || pointMoments || distributedForces) && (
                     <ForceVisualizationLayer
                         structuralSystem={structuralSystem}
@@ -994,19 +1007,6 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                         theme={effectiveTheme}
                     />
                 )}
-                 <AnimatedLayer
-                    structuralSystem={structuralSystem}
-                    getNodePosition={getNodePosition} getElementPositions={getElementPositions}
-                    showNodes={showNodes} showBearings={showBearings} showHinges={showHinges}
-                    showReferenceFiber={showReferenceFiber}
-                    toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
-                    theme={effectiveTheme}
-                    selectedElementId={selectedElementId}
-                    selectedNodeId={selectedNodeId}
-                    onElementClick={onElementClick}
-                    onNodeClick={onNodeClick}
-                    showNodeCross={showNodeCross}
-                />
             </Stage>
         </div>
     );
