@@ -96,6 +96,17 @@ const CONTENT_MAX_RATIO = 5;
 
 type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
+// The corners of whatever bearing glyphs NodeShape draws for this node, in the same
+// canvas coordinates. Kept next to the shapes so the two cannot drift apart.
+function supportOutline(node: StructuralNode, B: number): Array<[number, number]> {
+    const corners: Array<[number, number]> = [];
+
+    if (node.restraint.u) corners.push([0, 0], [-3 * B, -2 * B], [-3 * B, 2 * B]);
+    if (node.restraint.v) corners.push([0, 0], [-2 * B, 3 * B], [2 * B, 3 * B]);
+
+    return corners;
+}
+
 function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false, jointRef }: { node: StructuralNode; colors: NodeColors; showNode: boolean; showBearing: boolean; showNodeCross?: boolean; jointRef?: React.Ref<Konva.Group> }) {
     const R = THEME.nodeRadius;
     const B = THEME.bearingSize;
@@ -406,8 +417,10 @@ interface ForceVisualizationLayerProps {
     canvasWidth: number;
     canvasHeight: number;
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
+    getNodePosition: (nodeId: number, time: number) => { x: number; z: number; theta?: number };
     pointForces?: PointForce[];
     distributedForces?: DistributedForce[];
+    showBearings?: boolean;
     theme: Theme;
 }
 
@@ -418,8 +431,10 @@ export const ForceVisualizationLayer = React.memo(({
     canvasWidth,
     canvasHeight,
     getElementPositions,
+    getNodePosition,
     pointForces = [],
     distributedForces = [],
+    showBearings = false,
     theme
 }: ForceVisualizationLayerProps) => {
     let maxArrowVal = 1e-10;
@@ -439,8 +454,9 @@ export const ForceVisualizationLayer = React.memo(({
             {pointForces.map(force => {
                 const node = structuralSystem.nodes.find(n => n.id === force.nodeId);
                 if (!node) return null;
-                const cx = toCanvasX(node.x);
-                const cy = toCanvasZ(node.y);
+                const drawnAt = getNodePosition(node.id, 0);
+                const cx = toCanvasX(drawnAt.x);
+                const cy = toCanvasZ(drawnAt.z);
 
                 const rad = (force.angle * Math.PI) / 180;
                 const sign = force.magnitude >= 0 ? 1 : -1;
@@ -450,8 +466,17 @@ export const ForceVisualizationLayer = React.memo(({
                 const pxPerUnit = force.scale !== undefined ? force.scale : defaultArrowPxPerUnit;
                 const len = Math.abs(force.magnitude) * pxPerUnit;
 
-                const headX = cx - dx * (theme.nodeRadius + LOAD_GAP);
-                const headY = cy - dy * (theme.nodeRadius + LOAD_GAP);
+                // How far the drawn support reaches along the arrow's own direction, so a
+                // reaction starts outside its bearing rather than on top of it.
+                const clearance = showBearings
+                    ? supportOutline(node, theme.bearingSize)
+                        .reduce((furthest, [vx, vy]) => Math.max(furthest, vx * -dx + vy * -dy), 0)
+                    : 0;
+
+                const standoff = Math.max(theme.nodeRadius + LOAD_GAP, clearance + 8);
+
+                const headX = cx - dx * standoff;
+                const headY = cy - dy * standoff;
 
                 const tailX = headX - dx * len;
                 const tailY = headY - dy * len;
@@ -463,17 +488,31 @@ export const ForceVisualizationLayer = React.memo(({
                             fill={force.color} stroke={force.color} strokeWidth={2.5}
                             pointerLength={10} pointerWidth={8} listening={false}
                         />
-                        {force.label && (
-                            <Text
-                                x={tailX - dx * 10}
-                                y={tailY - dy * 10}
-                                text={force.label}
-                                fontSize={11}
-                                fontStyle="bold"
-                                fill={force.color}
-                                align="center"
-                            />
-                        )}
+                        {force.label && (() => {
+                            // Alongside the shaft rather than past its end: above a
+                            // horizontal arrow, to the right of a vertical one.
+                            let px = -dy, py = dx;
+                            if (py > 1e-6 || (Math.abs(py) <= 1e-6 && px < 0)) { px = -px; py = -py; }
+
+                            const anchorX = (tailX + headX) / 2 + px * 8;
+                            const anchorY = (tailY + headY) / 2 + py * 8;
+
+                            const boxW = 90;
+                            const lineH = 13;
+
+                            return (
+                                <Text
+                                    x={anchorX + ((px - 1) / 2) * boxW}
+                                    y={anchorY + ((py - 1) / 2) * lineH}
+                                    width={boxW}
+                                    text={force.label}
+                                    fontSize={11}
+                                    fontStyle="bold"
+                                    fill={force.color}
+                                    align={px > 0.3 ? 'left' : px < -0.3 ? 'right' : 'center'}
+                                />
+                            );
+                        })()}
                     </Group>
                 );
             })}
@@ -865,8 +904,10 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                         toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                         canvasWidth={canvasWidth} canvasHeight={canvasHeight}
                         getElementPositions={getElementPositions}
+                        getNodePosition={getNodePosition}
                         pointForces={pointForces}
                         distributedForces={distributedForces}
+                        showBearings={showBearings}
                         theme={effectiveTheme}
                     />
                 )}

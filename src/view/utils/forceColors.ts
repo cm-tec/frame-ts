@@ -12,6 +12,9 @@ export const DISPLACEMENT_COLOR = {
     u: '#0891b2',
 } as const;
 
+export const LOAD_COLOR = 'rgba(239, 68, 68, 0.8)';
+export const REACTION_COLOR = '#0d9488';
+
 export function withOpacity(hex: string, alpha: number): string {
     const value = parseInt(hex.slice(1), 16);
 

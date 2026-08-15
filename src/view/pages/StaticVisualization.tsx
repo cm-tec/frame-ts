@@ -5,13 +5,13 @@ import { StructuralLoads } from "../../solver/StructuralLoads";
 import { SystemSolver } from "../../solver/SystemSolver";
 import type { Loads } from "../../models/inputModels";
 import { toSolverAngles } from "../../models/loadConventions";
-import StructuralSystemViewer from "../components/StructuralSystemViewer";
+import StructuralSystemViewer, { type PointForce } from "../components/StructuralSystemViewer";
 import { StaticDiagramSidebar } from "../components/StaticDiagramSidebar";
 import { assembleForceVector } from "../../solver/forceAssembly";
 import { elementForceField } from "../../solver/internalForces";
 import { elementDisplacementField } from "../../solver/displacementField";
 import { deformedElementPoints, sampleForces } from "../utils/elementCurves";
-import { FORCE_COLOR, withOpacity } from "../utils/forceColors";
+import { FORCE_COLOR, LOAD_COLOR, REACTION_COLOR, withOpacity } from "../utils/forceColors";
 
 export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
@@ -22,6 +22,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
     const [showBearings, setShowBearings] = useState(true);
     const [showNodal, setShowNodal] = useState(true);
     const [showElement, setShowElement] = useState(true);
+    const [showReactions, setShowReactions] = useState(true);
     const [showReferenceFiber, setShowReferenceFiber] = useState(true);
     const [scale, setScale] = useState(1);
     const [forceMode, setForceMode] = useState<'none' | 'N' | 'Q' | 'M'>('none');
@@ -84,9 +85,45 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             nodeId: load.node_id,
             magnitude: load.magnitude,
             angle: load.angle,
-            color: 'rgba(239, 68, 68, 0.8)',
+            color: LOAD_COLOR,
         }));
     }, [loads.nodes, showNodal]);
+
+    // One arrow per restrained translation, along the bearing's own axes, so an inclined
+    // support reports its reaction parallel and orthogonal to itself rather than in x/z.
+    const reactionForces = useMemo(() => {
+        if (!showReactions) return [];
+
+        const arrows: PointForce[] = [];
+
+        for (const node of structuralSystem.nodes) {
+            const c = Math.cos(node.angle);
+            const s = Math.sin(node.angle);
+
+            const components = [
+                { active: node.restraint.u, dof: node.dofs[0], name: 'u', wx:  c, wy: s },
+                { active: node.restraint.v, dof: node.dofs[1], name: 'v', wx: -s, wy: c },
+            ];
+
+            for (const component of components) {
+                if (!component.active) continue;
+
+                const value = solution.get_r(component.dof);
+                if (Math.abs(value) < 1e-9) continue;
+
+                arrows.push({
+                    id: `reaction-${node.id}-${component.name}`,
+                    nodeId: node.id,
+                    magnitude: value,
+                    // The viewer measures arrow angles clockwise from straight down.
+                    angle: Math.atan2(component.wx, -component.wy) * 180 / Math.PI,
+                    color: REACTION_COLOR,
+                    label: Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(2),
+                });
+            }
+        }
+        return arrows;
+    }, [structuralSystem, solution, showReactions]);
 
     const distributedForces = useMemo(() => {
         const list: Array<any> = [];
@@ -101,7 +138,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         { xi: 1, value: load.q_j }
                     ],
                     angle: load.angle,
-                    color: 'rgba(239, 68, 68, 0.8)',
+                    color: LOAD_COLOR,
                     renderStyle: 'arrows',
                 });
             });
@@ -181,7 +218,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         showBearings={showBearings}
                         showHinges={true}
                         showReferenceFiber={showReferenceFiber}
-                        pointForces={pointForces}
+                        pointForces={[...pointForces, ...reactionForces]}
                         distributedForces={distributedForces}
                         selectedElementId={selectedElementId}
                         selectedNodeId={selectedNodeId}
@@ -249,6 +286,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         <Checkbox label="Orientation"     checked={showReferenceFiber}    onChange={(e) => setShowReferenceFiber(e.currentTarget.checked)}    size="sm" />
                         <Checkbox label="Nodal Loads"     checked={showNodal}             onChange={(e) => setShowNodal(e.currentTarget.checked)}             size="sm" />
                         <Checkbox label="Element Loads"   checked={showElement}           onChange={(e) => setShowElement(e.currentTarget.checked)}           size="sm" />
+                        <Checkbox label="Reactions"       checked={showReactions}         onChange={(e) => setShowReactions(e.currentTarget.checked)}         size="sm" />
                     </Group>
                 </Group>
             </Paper>
