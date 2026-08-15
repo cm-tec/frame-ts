@@ -3,7 +3,7 @@ import type { ElementForceField } from "../../solver/internalForces";
 import type { StructuralElement } from "../../solver/StructuralSystem";
 
 const N_CURVE_POINTS = 20;
-const N_DIAGRAM_POINTS = 30;
+const N_DIAGRAM_POINTS = 31;
 
 // Turns the solver's polynomials into the point lists the canvas draws.
 //
@@ -46,9 +46,9 @@ export function sampleDisplacements(
     element: StructuralElement,
     field: ElementDisplacementField,
     nPoints = N_DIAGRAM_POINTS,
-): Array<{ x: number; u: number; v: number }> {
+): Array<{ xi: number; x: number; u: number; v: number }> {
     return Array.from({ length: nPoints }, (_, k) => {
         const xi = k / (nPoints - 1);
-        return { x: xi * element.L, u: field.u.at(xi), v: field.v.at(xi) };
+        return { xi, x: xi * element.L, u: field.u.at(xi), v: field.v.at(xi) };
     });
 }

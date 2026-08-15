@@ -36,15 +36,20 @@ const LABEL_STYLE: React.CSSProperties = {
     whiteSpace: 'nowrap',
 };
 
-function SVGDiagram({ values, color, invert = false }: { values: number[]; color: string; invert?: boolean }) {
+type DiagramPoint = { xi: number; value: number };
+
+function SVGDiagram({ points, color, invert = false }: { points: DiagramPoint[]; color: string; invert?: boolean }) {
     const W = 300, H = 108;
     const padT = 16, padB = 16, padL = 8, padR = 16;
     const cW = W - padL - padR;
     const cH = H - padT - padB;
 
-    const n = values.length;
-    const maxV = Math.max(...values);
-    const minV = Math.min(...values);
+    if (points.length < 2) return null;
+
+    const maxPoint = points.reduce((a, b) => (b.value > a.value ? b : a));
+    const minPoint = points.reduce((a, b) => (b.value < a.value ? b : a));
+    const maxV = maxPoint.value;
+    const minV = minPoint.value;
     const range = maxV - minV;
     const span = Math.max(Math.abs(maxV), Math.abs(minV), 1e-10);
 
@@ -66,8 +71,10 @@ function SVGDiagram({ values, color, invert = false }: { values: number[]; color
     const zerY = toY(0);
     const clampZerY = Math.max(padT, Math.min(padT + cH, zerY));
 
-    const pts = values.map((v, i) => `${padL + (i / (n - 1)) * cW},${toY(v)}`).join(' ');
-    const poly = `${padL},${clampZerY} ${pts} ${padL + cW},${clampZerY}`;
+    const toX = (xi: number): number => padL + xi * cW;
+
+    const pts = points.map(p => `${toX(p.xi)},${toY(p.value)}`).join(' ');
+    const poly = `${toX(points[0].xi)},${clampZerY} ${pts} ${toX(points[points.length - 1].xi)},${clampZerY}`;
 
     const fmt = (v: number) => {
         const a = Math.abs(v);
@@ -82,9 +89,9 @@ function SVGDiagram({ values, color, invert = false }: { values: number[]; color
 
     // Sits on the point it describes, on the far side of the baseline so it never covers
     // the curve, and pulled inside the card near the edges.
-    const atPoint = (i: number, v: number) => {
-        const fraction = (padL + (i / (n - 1)) * cW) / W;
-        const y = toY(v);
+    const atPoint = (p: DiagramPoint) => {
+        const fraction = toX(p.xi) / W;
+        const y = toY(p.value);
         const shiftY = y <= clampZerY ? 'translateY(-115%)' : 'translateY(15%)';
 
         if (fraction < 0.18) return { left: pctX(padL), top: pctY(y), transform: shiftY };
@@ -103,10 +110,10 @@ function SVGDiagram({ values, color, invert = false }: { values: number[]; color
             </svg>
 
             {Math.abs(maxV) > span * 1e-4 && (
-                <span style={{ ...LABEL_STYLE, color, ...atPoint(values.indexOf(maxV), maxV) }}>{fmt(maxV)}</span>
+                <span style={{ ...LABEL_STYLE, color, ...atPoint(maxPoint) }}>{fmt(maxV)}</span>
             )}
             {range > span * 1e-4 && (
-                <span style={{ ...LABEL_STYLE, color, ...atPoint(values.indexOf(minV), minV) }}>{fmt(minV)}</span>
+                <span style={{ ...LABEL_STYLE, color, ...atPoint(minPoint) }}>{fmt(minV)}</span>
             )}
         </div>
     );
@@ -144,18 +151,18 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
 
     // Pre-compute chart data for the selected element only
     const allData = useMemo(() => {
-        const map = new Map<string, number[]>();
+        const map = new Map<string, DiagramPoint[]>();
         const getDof = (dof: number) => solution.get_w(dof);
 
         elements.forEach(el => {
             const forces = sampleForces(elementForceField(el, structuralLoads, getDof));
-            map.set(`N-${el.id}`,  forces.map(p => p.N));
-            map.set(`V-${el.id}`,  forces.map(p => p.V));
-            map.set(`M-${el.id}`,  forces.map(p => p.M));
+            map.set(`N-${el.id}`,  forces.map(p => ({ xi: p.xi, value: p.N })));
+            map.set(`V-${el.id}`,  forces.map(p => ({ xi: p.xi, value: p.V })));
+            map.set(`M-${el.id}`,  forces.map(p => ({ xi: p.xi, value: p.M })));
 
             const disps = sampleDisplacements(el, elementDisplacementField(el, structuralLoads, getDof));
-            map.set(`dv-${el.id}`, disps.map(p => p.v));
-            map.set(`du-${el.id}`, disps.map(p => p.u));
+            map.set(`dv-${el.id}`, disps.map(p => ({ xi: p.xi, value: p.v })));
+            map.set(`du-${el.id}`, disps.map(p => ({ xi: p.xi, value: p.u })));
         });
         return map;
     }, [structuralSystem, solution, structuralLoads, elements]);
@@ -178,7 +185,7 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
                     const values = allData.get(expandedChart.key) ?? [];
                     return (
                         <Box style={{ height: 400 }}>
-                            <SVGDiagram values={values} color={TYPE_COLOR[type] ?? '#555'} invert={type === 'M'} />
+                            <SVGDiagram points={values} color={TYPE_COLOR[type] ?? '#555'} invert={type === 'M'} />
                         </Box>
                     );
                 })()}
@@ -261,7 +268,7 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
                                     }}
                                     onClick={() => setExpandedChart({ key, label })}
                                 >
-                                    <SVGDiagram values={values} color={color} invert={type === 'M'} />
+                                    <SVGDiagram points={values} color={color} invert={type === 'M'} />
                                 </Box>
                             </Box>
                         );
