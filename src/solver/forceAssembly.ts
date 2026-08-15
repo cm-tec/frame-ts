@@ -43,7 +43,7 @@ export function assembleForceVector(system: StructuralSystem, loads: StructuralL
     return F;
 }
 
-function equivalentNodalLoad(element: StructuralElement, q_trans: Polynomial, q_axial: Polynomial): Matrix {
+export function equivalentNodalLoad(element: StructuralElement, q_trans: Polynomial, q_axial: Polynomial): Matrix {
     const L = element.L;
 
     return matrix([
@@ -56,7 +56,7 @@ function equivalentNodalLoad(element: StructuralElement, q_trans: Polynomial, q_
     ]) as Matrix;
 }
 
-function condenseForReleases(element: StructuralElement, f: Matrix): Matrix {
+export function condenseForReleases(element: StructuralElement, f: Matrix): Matrix {
     const { releases_i, releases_j } = element;
 
     if (releases_i.u && releases_i.v && releases_i.theta) return matrix(zeros([6, 1])) as Matrix;
