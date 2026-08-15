@@ -104,6 +104,7 @@ const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
 const CONTENT_MIN_DIM = 1.0;
 const CONTENT_MAX_RATIO = 5;
+const MIN_ZOOM = 0.5;
 
 type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: string; stroke: string; text: string };
 
@@ -935,12 +936,26 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     const { width: canvasWidth, height: canvasHeight } = stageSize;
 
+    const [zoom, setZoom] = useState(1);
+
+    const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
+        e.evt.preventDefault();
+
+        const step = e.evt.deltaY > 0 ? 0.94 : 1 / 0.94;
+        setZoom(current => Math.min(1, Math.max(MIN_ZOOM, current * step)));
+    }, []);
+
     const scaleParams = useMemo(() => {
         if (canvasWidth === 0 || canvasHeight === 0) return null;
         const sx = (1 - 2 * MARGIN_X) * canvasWidth  / contentWidth;
         const sz = (1 - 2 * MARGIN_Z) * canvasHeight / contentHeight;
-        return { scale: Math.min(sx, sz), cx: contentCx, cz: contentCz };
-    }, [canvasWidth, canvasHeight, contentWidth, contentHeight, contentCx, contentCz]);
+
+        // 1 is fit-to-content; below that the structure shrinks and more surroundings
+        // come into view. Zooming past the fit is not allowed, so nothing can be cropped.
+        const fit = Math.min(Math.max(zoom, MIN_ZOOM), 1);
+
+        return { scale: Math.min(sx, sz) * fit, cx: contentCx, cz: contentCz };
+    }, [canvasWidth, canvasHeight, contentWidth, contentHeight, contentCx, contentCz, zoom]);
 
     const toCanvasX = useCallback((x: number) => {
         if (!scaleParams) return 0;
@@ -965,7 +980,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
-            <Stage width={canvasWidth} height={canvasHeight}>
+            <Stage width={canvasWidth} height={canvasHeight} onWheel={handleWheel}>
                 <GridLayer
                     canvasWidth={canvasWidth} canvasHeight={canvasHeight}
                     {...worldBounds}
