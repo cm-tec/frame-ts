@@ -6,7 +6,7 @@ import type { StructuralLoads } from '../../solver/StructuralLoads';
 import { elementForceField } from '../../solver/internalForces';
 import { elementDisplacementField } from '../../solver/displacementField';
 import { sampleForces, sampleDisplacements } from '../utils/elementCurves';
-import { DISPLACEMENT_COLOR, FORCE_COLOR } from '../utils/forceColors';
+import { DISPLACEMENT_COLOR, FORCE_COLOR, REACTION_COLOR } from '../utils/forceColors';
 
 // ── Color map ────────────────────────────────────────────────────────────────
 const TYPE_COLOR: Record<string, string> = {
@@ -229,11 +229,22 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
                                         { label: 'u',  value: fmt(u) },
                                         { label: 'v',  value: fmt(v) },
                                         { label: 'θ',  value: fmt(th) + ' rad' },
+                                        // A reaction only exists where the node is held, and it is
+                                        // reported along that bearing's own axes.
+                                        ...(restraintLabel === 'free' ? [] : [
+                                            null,
+                                            ...(selectedNode.restraint.u
+                                                ? [{ label: 'R u', value: fmt(solution.get_r(selectedNode.dofs[0])), accent: true }] : []),
+                                            ...(selectedNode.restraint.v
+                                                ? [{ label: 'R v', value: fmt(solution.get_r(selectedNode.dofs[1])), accent: true }] : []),
+                                            ...(selectedNode.restraint.theta
+                                                ? [{ label: 'R θ', value: fmt(solution.get_r(selectedNode.dofs[2])), accent: true }] : []),
+                                        ]),
                                     ].map((row, i) =>
                                         row === null ? <Divider key={`sp-${i}`} my={4} color="gray.2" /> : (
                                             <Group key={row.label} justify="space-between">
-                                                <Text size="xs" c="dimmed" ff="monospace">{row.label}</Text>
-                                                <Text size="xs" fw={600} ff="monospace">{row.value}</Text>
+                                                <Text size="xs" c={row.accent ? REACTION_COLOR : 'dimmed'} ff="monospace">{row.label}</Text>
+                                                <Text size="xs" fw={600} ff="monospace" c={row.accent ? REACTION_COLOR : undefined}>{row.value}</Text>
                                             </Group>
                                         )
                                     )}
