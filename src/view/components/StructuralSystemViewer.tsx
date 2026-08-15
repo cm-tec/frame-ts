@@ -18,6 +18,14 @@ export interface PointForce {
     label?: string;
 }
 
+export interface PointMoment {
+    id: string | number;
+    nodeId: number;
+    magnitude: number;
+    color: string;
+    label?: string;
+}
+
 export interface DistributedForce {
     id: string | number;
     elementId: number;
@@ -39,6 +47,7 @@ interface StructuralSystemViewerProps {
     showHinges?: boolean;
     showReferenceFiber?: boolean;
     pointForces?: PointForce[];
+    pointMoments?: PointMoment[];
     distributedForces?: DistributedForce[];
     themeOverride?: Partial<Theme>;
     selectedElementId?: number | null;
@@ -88,6 +97,8 @@ export type Theme = typeof THEME;
 
 const TEXT_BOX_SIZE = 20;
 const HINGE_RADIUS  = 7;
+const MOMENT_MIN_RADIUS = 30;
+const MOMENT_CENTRE_DEG = 220;
 const HINGE_OFFSET  = THEME.nodeRadius + HINGE_RADIUS;
 const MARGIN_X = 0.05;
 const MARGIN_Z = 0.1;
@@ -419,6 +430,7 @@ interface ForceVisualizationLayerProps {
     getElementPositions: (elementId: number, time: number) => Array<{ x: number; z: number }>;
     getNodePosition: (nodeId: number, time: number) => { x: number; z: number; theta?: number };
     pointForces?: PointForce[];
+    pointMoments?: PointMoment[];
     distributedForces?: DistributedForce[];
     showBearings?: boolean;
     theme: Theme;
@@ -433,6 +445,7 @@ export const ForceVisualizationLayer = React.memo(({
     getElementPositions,
     getNodePosition,
     pointForces = [],
+    pointMoments = [],
     distributedForces = [],
     showBearings = false,
     theme
@@ -510,6 +523,75 @@ export const ForceVisualizationLayer = React.memo(({
                                     fontStyle="bold"
                                     fill={force.color}
                                     align={px > 0.3 ? 'left' : px < -0.3 ? 'right' : 'center'}
+                                />
+                            );
+                        })()}
+                    </Group>
+                );
+            })}
+
+            {/* ─── Render Point Moments ─── */}
+            {pointMoments.map(moment => {
+                const node = structuralSystem.nodes.find(n => n.id === moment.nodeId);
+                if (!node) return null;
+
+                const drawnAt = getNodePosition(node.id, 0);
+                const cx = toCanvasX(drawnAt.x);
+                const cy = toCanvasZ(drawnAt.z);
+
+                const reach = showBearings
+                    ? supportOutline(node, theme.bearingSize)
+                        .reduce((r, [vx, vy]) => Math.max(r, Math.hypot(vx, vy)), theme.nodeRadius)
+                    : theme.nodeRadius;
+
+                const radius = Math.max(reach + 10, MOMENT_MIN_RADIUS);
+
+                // The canvas y axis points down, so decreasing the angle traces the arc
+                // counter-clockwise on screen, which is the positive sense.
+                const direction = moment.magnitude >= 0 ? -1 : 1;
+
+                // Centred to the lower right: clear of the bearing glyphs, and below the
+                // node number, which sits just above and right of the node. Swept the same
+                // span either way, so only the arrowhead betrays the sign.
+                const middle = MOMENT_CENTRE_DEG * Math.PI / 180;
+                const sweep = 110 * Math.PI / 180;
+                const start = middle - direction * sweep / 2;
+
+                const arc: number[] = [];
+                for (let i = 0; i <= 24; i++) {
+                    const a = start + direction * sweep * (i / 24);
+                    arc.push(cx + radius * Math.cos(a), cy + radius * Math.sin(a));
+                }
+
+                return (
+                    <Group key={`pt-moment-${moment.id}`}>
+                        <Arrow
+                            points={arc}
+                            stroke={moment.color} fill={moment.color} strokeWidth={2.5}
+                            pointerLength={9} pointerWidth={7} listening={false}
+                        />
+                        {moment.label && (() => {
+                            // Anchored by whichever edge faces the node, so the text runs
+                            // outwards instead of back across the arc.
+                            const ox = Math.cos(middle);
+                            const oy = Math.sin(middle);
+
+                            const anchorX = cx + (radius + 8) * ox;
+                            const anchorY = cy + (radius + 8) * oy;
+
+                            const boxW = 90;
+                            const lineH = 13;
+
+                            return (
+                                <Text
+                                    x={ox > 0.3 ? anchorX : ox < -0.3 ? anchorX - boxW : anchorX - boxW / 2}
+                                    y={oy > 0.3 ? anchorY : oy < -0.3 ? anchorY - lineH : anchorY - lineH / 2}
+                                    width={boxW}
+                                    text={moment.label}
+                                    fontSize={11}
+                                    fontStyle="bold"
+                                    fill={moment.color}
+                                    align={ox > 0.3 ? 'left' : ox < -0.3 ? 'right' : 'center'}
                                 />
                             );
                         })()}
@@ -814,7 +896,7 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
 // #region StructuralSystemViewer ───────────────────────────────────────────────
 
 const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
-    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, distributedForces, themeOverride,
+    structuralSystem, getNodePosition, getElementPositions, showUndeformedSystem, showNodes, showBearings, showHinges, showReferenceFiber, pointForces, pointMoments, distributedForces, themeOverride,
     selectedElementId, selectedNodeId, onElementClick, onNodeClick, showNodeCross = false,
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
@@ -898,7 +980,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                     showNodes={showNodes} showBearings={showBearings}
                     toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
                 />
-                {(pointForces || distributedForces) && (
+                {(pointForces || pointMoments || distributedForces) && (
                     <ForceVisualizationLayer
                         structuralSystem={structuralSystem}
                         toCanvasX={toCanvasX} toCanvasZ={toCanvasZ}
@@ -906,6 +988,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
                         getElementPositions={getElementPositions}
                         getNodePosition={getNodePosition}
                         pointForces={pointForces}
+                        pointMoments={pointMoments}
                         distributedForces={distributedForces}
                         showBearings={showBearings}
                         theme={effectiveTheme}

@@ -5,7 +5,7 @@ import { StructuralLoads } from "../../solver/StructuralLoads";
 import { SystemSolver } from "../../solver/SystemSolver";
 import type { Loads } from "../../models/inputModels";
 import { toSolverAngles } from "../../models/loadConventions";
-import StructuralSystemViewer, { type PointForce } from "../components/StructuralSystemViewer";
+import StructuralSystemViewer, { type PointForce, type PointMoment } from "../components/StructuralSystemViewer";
 import { StaticDiagramSidebar } from "../components/StaticDiagramSidebar";
 import { assembleForceVector } from "../../solver/forceAssembly";
 import { elementForceField } from "../../solver/internalForces";
@@ -125,6 +125,28 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         return arrows;
     }, [structuralSystem, solution, showReactions]);
 
+    const reactionMoments = useMemo(() => {
+        if (!showReactions) return [];
+
+        const moments: PointMoment[] = [];
+
+        for (const node of structuralSystem.nodes) {
+            if (!node.restraint.theta) continue;
+
+            const value = solution.get_r(node.dofs[2]);
+            if (Math.abs(value) < 1e-9) continue;
+
+            moments.push({
+                id: `reaction-${node.id}-theta`,
+                nodeId: node.id,
+                magnitude: value,
+                color: REACTION_COLOR,
+                label: Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(2),
+            });
+        }
+        return moments;
+    }, [structuralSystem, solution, showReactions]);
+
     const distributedForces = useMemo(() => {
         const list: Array<any> = [];
 
@@ -219,6 +241,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         showHinges={true}
                         showReferenceFiber={showReferenceFiber}
                         pointForces={[...pointForces, ...reactionForces]}
+                        pointMoments={reactionMoments}
                         distributedForces={distributedForces}
                         selectedElementId={selectedElementId}
                         selectedNodeId={selectedNodeId}
