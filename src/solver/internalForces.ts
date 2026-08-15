@@ -37,9 +37,7 @@ function memberEndForces(
     q_axial: Polynomial,
     getDof: (dof: number) => number,
 ): number[] {
-    const R = get_rotation_matrix_of_element(element.angle, element.n_i.angle, element.n_j.angle);
-    const w_global = matrix(element.dofs.map(dof => [getDof(dof)])) as Matrix;
-    const w_local = multiply(R, w_global) as Matrix;
+    const w_local = localDisplacements(element, getDof);
 
     const k = applyStaticCondensation(
         k_element(element.ea, element.ei, element.L),
@@ -51,4 +49,12 @@ function memberEndForces(
     const s = subtract(multiply(k, w_local), f) as Matrix;
 
     return [0, 1, 2, 3, 4, 5].map(i => s.get([i, 0]));
+}
+
+// The element's end displacements in its own frame: [u_i, v_i, phi_i, u_j, v_j, phi_j].
+export function localDisplacements(element: StructuralElement, getDof: (dof: number) => number): Matrix {
+    const R = get_rotation_matrix_of_element(element.angle, element.n_i.angle, element.n_j.angle);
+    const w_global = matrix(element.dofs.map(dof => [getDof(dof)])) as Matrix;
+
+    return multiply(R, w_global) as Matrix;
 }
