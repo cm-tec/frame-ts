@@ -11,6 +11,7 @@ import { assembleForceVector } from "../../solver/forceAssembly";
 import { elementForceField } from "../../solver/internalForces";
 import { elementDisplacementField } from "../../solver/displacementField";
 import { deformedElementPoints, sampleForces } from "../utils/elementCurves";
+import { FORCE_COLOR, withOpacity } from "../utils/forceColors";
 
 export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
@@ -119,17 +120,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                     return { xi: p.xi, value };
                 });
 
-                let color: string | { positive: string; negative: string } = 'rgba(16, 185, 129, 0.7)';
-                if (forceMode === 'N') {
-                    color = {
-                        positive: 'rgba(59, 130, 246, 0.7)',
-                        negative: 'rgba(239, 68, 68, 0.7)',
-                    };
-                } else if (forceMode === 'Q') {
-                    color = 'rgba(139, 92, 246, 0.7)';
-                } else if (forceMode === 'M') {
-                    color = 'rgba(16, 185, 129, 0.7)';
-                }
+                const color = withOpacity(FORCE_COLOR[forceMode === 'Q' ? 'V' : forceMode], 0.7);
 
                 list.push({
                     id: `internal-${forceMode}-${elData.elementId}`,
