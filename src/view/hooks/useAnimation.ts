@@ -13,7 +13,7 @@ export function useAnimation(speed: number) {
         document.body.style.overflow = 'hidden';
         const anim = new Konva.Animation((frame) => {
             if (!frame) return;
-            useAnimationStore.setState({ time: speedRef.current * frame.time / 1000 });
+            useAnimationStore.setState(({ time }) => ({ time: time + speedRef.current * frame.timeDiff / 1000 }));
         });
         animRef.current = anim;
         return () => { document.body.style.overflow = ''; anim.stop(); };
