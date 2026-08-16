@@ -19,29 +19,15 @@ import { migrateSystemFile, SYSTEM_FILE_VERSION, type SystemFile } from "./model
 import { useViewerStageStore } from "./store/viewerStageStore";
 import { downloadThumbnail, toFilenameStem } from "./view/utils/thumbnail";
 
-// What "Start from scratch" opens: a small damped two-element system with something to see.
-const DEFAULT_SYSTEM: SystemFile = {
+const EMPTY_SYSTEM: SystemFile = {
   version: SYSTEM_FILE_VERSION,
   name: 'My Structure',
   view: 'dynamic',
-  nodes: [
-    { id: 1, x: 0, z: 0,   mass: 1,  restraint: { D1: true,  D2: true,  D3: false }, angle: 0 },
-    { id: 2, x: 0, z: 20,  mass: 80, restraint: { D1: true,  D2: false, D3: false }, angle: 0 },
-    { id: 3, x: 0, z: 10,  mass: 8,  restraint: { D1: true,  D2: false, D3: false }, angle: 0 },
-  ],
-  elements: [
-    { id: 1, node_i: 2, node_j: 3, ea: 2000, ei: 10, c: 0 },
-    { id: 2, node_i: 3, node_j: 1, ea: 1250, ei: 10, c: 0.6 },
-  ],
+  nodes: [],
+  elements: [],
   hinges: [],
-  initialConditions: {
-    2: { D1_0: 0, D2_0: 1,  D3_0: 0, dD1_0: 0, dD2_0: 0, dD3_0: 0 },
-    3: { D1_0: 0, D2_0: -1, D3_0: 0, dD1_0: 0, dD2_0: 0, dD3_0: 0 },
-  },
-  loads: {
-    nodes:    [{ id: 1, node_id: 2, magnitude: 10, angle: 0, frequency: 0, phase_shift: 0 }],
-    elements: [{ id: 1, element_id: 1, q_i: 5, q_j: 5, angle: 0, frequency: 0, phase_shift: 0 }],
-  },
+  initialConditions: {},
+  loads: { nodes: [], elements: [] },
 };
 
 export default function App() {
@@ -51,11 +37,11 @@ export default function App() {
   const [view,     setView]       = useState<'dynamic' | 'static'>('dynamic');
   const [subView,  setSubView]    = useState<'response' | 'eigenmodes'>('response');
 
-  const [nodes, setNodes] = useState<NodeInput[]>(DEFAULT_SYSTEM.nodes!);
-  const [elements, setElements] = useState<ElementInput[]>(DEFAULT_SYSTEM.elements!);
-  const [hinges, setHinges] = useState<HingeInput[]>(DEFAULT_SYSTEM.hinges!);
-  const [initialConditions, setInitialConditions] = useState<InitialConditions>(DEFAULT_SYSTEM.initialConditions!);
-  const [loads, setLoads] = useState<Loads>(DEFAULT_SYSTEM.loads!);
+  const [nodes, setNodes] = useState<NodeInput[]>(EMPTY_SYSTEM.nodes!);
+  const [elements, setElements] = useState<ElementInput[]>(EMPTY_SYSTEM.elements!);
+  const [hinges, setHinges] = useState<HingeInput[]>(EMPTY_SYSTEM.hinges!);
+  const [initialConditions, setInitialConditions] = useState<InitialConditions>(EMPTY_SYSTEM.initialConditions!);
+  const [loads, setLoads] = useState<Loads>(EMPTY_SYSTEM.loads!);
 
 
   const [systemName, setSystemName] = useState('My Structure');
@@ -92,15 +78,19 @@ export default function App() {
       return false;
     }
 
+    applySystem(d);
+    return true;
+  };
+
+  const applySystem = (d: SystemFile) => {
     setLoadError(null);
     setSystemName(d.name?.trim() || 'My Structure');
     setView(d.view === 'static' ? 'static' : 'dynamic');
-    setNodes(d.nodes);
-    setElements(d.elements);
+    setNodes(d.nodes ?? []);
+    setElements(d.elements ?? []);
     setHinges(d.hinges ?? []);
     setInitialConditions(d.initialConditions ?? {});
     setLoads(d.loads ?? { nodes: [], elements: [] });
-    return true;
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,7 +130,7 @@ export default function App() {
   };
 
   const startFromScratch = () => {
-    loadSystem(DEFAULT_SYSTEM);
+    applySystem(EMPTY_SYSTEM);
     setEditMode(true);
     setGalleryOpen(false);
   };

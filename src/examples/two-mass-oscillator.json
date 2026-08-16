@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "name": "Two-Mass Oscillator",
+  "description": "Two masses on a vertical chain of axial springs, the lower element damped, released from opposing initial displacements.",
+  "view": "dynamic",
+  "nodes": [
+    {
+      "id": 1,
+      "x": 0,
+      "z": 0,
+      "mass": 1,
+      "restraint": {
+        "D1": true,
+        "D2": true,
+        "D3": false
+      },
+      "angle": 0
+    },
+    {
+      "id": 2,
+      "x": 0,
+      "z": 20,
+      "mass": 80,
+      "restraint": {
+        "D1": true,
+        "D2": false,
+        "D3": false
+      },
+      "angle": 0
+    },
+    {
+      "id": 3,
+      "x": 0,
+      "z": 10,
+      "mass": 8,
+      "restraint": {
+        "D1": true,
+        "D2": false,
+        "D3": false
+      },
+      "angle": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "node_i": 2,
+      "node_j": 3,
+      "ea": 2000,
+      "ei": 10,
+      "c": 0
+    },
+    {
+      "id": 2,
+      "node_i": 3,
+      "node_j": 1,
+      "ea": 1250,
+      "ei": 10,
+      "c": 0.6
+    }
+  ],
+  "hinges": [],
+  "initialConditions": {
+    "2": {
+      "D1_0": 0,
+      "dD1_0": 0,
+      "D2_0": 1,
+      "dD2_0": 0,
+      "D3_0": 0,
+      "dD3_0": 0
+    },
+    "3": {
+      "D1_0": 0,
+      "dD1_0": 0,
+      "D2_0": -1,
+      "dD2_0": 0,
+      "D3_0": 0,
+      "dD3_0": 0
+    }
+  },
+  "loads": {
+    "nodes": [
+      {
+        "id": 1,
+        "node_id": 2,
+        "magnitude": 10,
+        "angle": 0,
+        "frequency": 0,
+        "phase_shift": 0
+      }
+    ],
+    "elements": [
+      {
+        "id": 1,
+        "element_id": 1,
+        "q_i": 5,
+        "q_j": 5,
+        "angle": 0,
+        "frequency": 0,
+        "phase_shift": 0
+      }
+    ]
+  }
+}
