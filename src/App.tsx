@@ -15,12 +15,13 @@ import KinematicVisualization from "./view/pages/KinematicVisualization";
 import { AboutModal } from "./view/components/AboutModal";
 import Welcome from "./view/pages/Welcome";
 import { examples } from "./examples";
-import type { SystemFile } from "./models/systemFile";
+import { migrateSystemFile, SYSTEM_FILE_VERSION, type SystemFile } from "./models/systemFile";
 import { useViewerStageStore } from "./store/viewerStageStore";
 import { downloadThumbnail, toFilenameStem } from "./view/utils/thumbnail";
 
 // What "Start from scratch" opens: a small damped two-element system with something to see.
 const DEFAULT_SYSTEM: SystemFile = {
+  version: SYSTEM_FILE_VERSION,
   name: 'My Structure',
   view: 'dynamic',
   nodes: [
@@ -64,7 +65,7 @@ export default function App() {
   const viewerStage = useViewerStageStore(s => s.stage);
 
   const handleExport = () => {
-    const json = JSON.stringify({ name: systemName.trim() || 'My Structure', view, nodes, elements, hinges, initialConditions, loads }, null, 2);
+    const json = JSON.stringify({ version: SYSTEM_FILE_VERSION, name: systemName.trim() || 'My Structure', view, nodes, elements, hinges, initialConditions, loads }, null, 2);
     const url  = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const a    = document.createElement('a');
     const filename = systemName.trim() ? `${systemName.trim()}.json` : 'structure.json';
@@ -76,10 +77,15 @@ export default function App() {
     if (viewerStage) downloadThumbnail(viewerStage, `${toFilenameStem(systemName)}.png`);
   };
 
-  // The one way a structure enters the app - used by Import and by the example gallery.
-  // Missing collections are cleared rather than kept, so no trace of the previous
-  // structure can survive into the new one.
-  const loadSystem = (d: SystemFile): boolean => {
+  
+  const loadSystem = (raw: SystemFile): boolean => {
+    const migrated = migrateSystemFile(raw);
+    if (!migrated.ok) {
+      console.warn(`Cannot load structure: ${migrated.reason}`);
+      return false;
+    }
+
+    const d = migrated.file;
     if (!Array.isArray(d.nodes) || d.nodes.length === 0 || !Array.isArray(d.elements)) return false;
 
     setSystemName(d.name?.trim() || 'My Structure');
