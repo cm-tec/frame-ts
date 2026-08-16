@@ -85,7 +85,7 @@ export default function EigenmodeVisualization({ structuralSystem }: { structura
 
     // No element loads in this analysis; the displacement field still needs a source.
     const structuralLoads = useMemo(
-        () => new StructuralLoads(structuralSystem, { nodes: [], elements: [] }),
+        () => new StructuralLoads(structuralSystem, { nodes: [], moments: [], elements: [] }),
         [structuralSystem],
     );
 

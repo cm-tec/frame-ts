@@ -269,11 +269,28 @@ test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
 
 // Test the solution of a static system
 
+test('solveStatic — cantilever with a moment at the free end', () => {
+    const [ea, ei, M] = [7, 11, 13];
+    const system = getCantilever(ea, ei);
+    const L = 1.0;
+
+    const sol = solveWith(system, {
+        nodes: [],
+        moments: [{ id: 1, node_id: 2, magnitude: M, frequency: 0, phase_shift: 0 }],
+        elements: [],
+    });
+
+    expect(sol.get_w(4)).toBeCloseTo(M * L * L / (2 * ei), ACC);
+    expect(sol.get_w(5)).toBeCloseTo(M * L / ei, ACC);
+
+    expect(sol.get_r(2)).toBeCloseTo(-M, ACC);
+});
+
 test('solveStatic — beam with central point load', () => {
     const [ea, ei, P] = [7, 11, 13];
     const system = getBeamWithCenterNode(ea, ei);
 
-    const sol = solveWith(system, { nodes: [nodalLoad(2, P, 270)], elements: [] });
+    const sol = solveWith(system, { nodes: [nodalLoad(2, P, 270)], moments: [], elements: [] });
 
     const L = 1.0;
     const expectedDeflection = (P * Math.pow(L, 3)) / (48 * ei);
@@ -299,7 +316,7 @@ test('solveStatic — beam with uniform distributed load (UDL)', () => {
 
     const L = 1.0;
 
-    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q), elementLoad(2, q)] });
+    const sol = solveWith(system, { nodes: [], moments: [], elements: [elementLoad(1, q), elementLoad(2, q)] });
 
     const expectedDeflection = (5 * q * Math.pow(L, 4)) / (384 * ei);
     const expectedBoundarySlope = (q * Math.pow(L, 3)) / (24 * ei);
@@ -329,7 +346,7 @@ test('solveStatic - Frame under point load', () => {
     const [ea, ei] = [1, 1];
     const system = getPortalFrame(ea, ei);
 
-    const sol = solveWith(system, { nodes: [nodalLoad(2, Math.SQRT2, 315)], elements: [] });
+    const sol = solveWith(system, { nodes: [nodalLoad(2, Math.SQRT2, 315)], moments: [], elements: [] });
 
     expect(sol.get_w(0)).toBe(0);
     expect(sol.get_w(1)).toBe(0);
@@ -355,7 +372,7 @@ test('solveStatic — cantilever arm with additional strut support', () => {
     const [ea, ei, q] = [1, 1, 1];
     const system = getCantileverWithSupport(ea, ei);
 
-    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q)] });
+    const sol = solveWith(system, { nodes: [], moments: [], elements: [elementLoad(1, q)] });
 
     expect(sol.get_w(0)).toBe(0);
     expect(sol.get_w(1)).toBe(0);
@@ -374,7 +391,7 @@ test('solveStatic — reaction forces of beam', () => {
     const [ea, ei, P] = [7, 11, 13];
     const system = getBeamWithCenterNode(ea, ei);
 
-    const sol = solveWith(system, { nodes: [nodalLoad(2, P, 270)], elements: [] });
+    const sol = solveWith(system, { nodes: [nodalLoad(2, P, 270)], moments: [], elements: [] });
 
     expect(sol.get_r(0)).toBe(0);
     expect(sol.get_r(1)).toBeCloseTo(P/2, ACC);
@@ -393,7 +410,7 @@ test('solveStatic — reaction forces of frame', () => {
  const [ea, ei] = [1, 1];
     const system = getPortalFrame(ea, ei);
 
-    const sol = solveWith(system, { nodes: [nodalLoad(2, Math.SQRT2, 315)], elements: [] });
+    const sol = solveWith(system, { nodes: [nodalLoad(2, Math.SQRT2, 315)], moments: [], elements: [] });
 
     expect(sol.get_r(0)).toBeCloseTo(-1, ACC);
     expect(sol.get_r(1)).toBeCloseTo(0, ACC);
@@ -417,7 +434,7 @@ test('solveStatic — reaction forces of cantilever arm with additional strut su
     const [ea, ei, q] = [1, 1, 1];
     const system = getCantileverWithSupport(ea, ei);
 
-    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q)] });
+    const sol = solveWith(system, { nodes: [], moments: [], elements: [elementLoad(1, q)] });
 
     // The two supports carry the whole span load of q * L = 1.
     const fixedEnd = sol.get_r(system.nodes[0].dofs[1]);
@@ -434,7 +451,7 @@ test('a reaction includes the load applied directly at that support', () => {
 
     // Everything is restrained at node 1, so the structure does not move at all and the
     // support alone carries the load. A reaction of K_21*w would read zero here.
-    const sol = solveWith(system, { nodes: [nodalLoad(1, P, 270)], elements: [] });
+    const sol = solveWith(system, { nodes: [nodalLoad(1, P, 270)], moments: [], elements: [] });
 
     expect(sol.get_r(support.dofs[1])).toBeCloseTo(P, ACC);
 });
@@ -445,7 +462,7 @@ test('a reaction includes the fixed-end forces of a span load reaching the suppo
     const system = getCantilever(ea, ei);
     const support = system.nodes[0];
 
-    const sol = solveWith(system, { nodes: [], elements: [elementLoad(1, q)] });
+    const sol = solveWith(system, { nodes: [], moments: [], elements: [elementLoad(1, q)] });
 
     // The single support carries the whole span load and its moment about the support.
     expect(sol.get_r(support.dofs[1])).toBeCloseTo(q * L, ACC);

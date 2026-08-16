@@ -38,6 +38,7 @@ export type InitialConditions = {
 
 export type Loads = {
     nodes: NodalLoad[];
+    moments: MomentLoad[];
     elements: ElementLoad[];
 };
 
@@ -46,6 +47,14 @@ export type NodalLoad = {
     node_id: number;
     magnitude: number;
     angle: number;
+    frequency: number;
+    phase_shift: number;
+};
+
+export type MomentLoad = {
+    id: number;
+    node_id: number;
+    magnitude: number; // positive counter-clockwise
     frequency: number;
     phase_shift: number;
 };

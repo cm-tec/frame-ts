@@ -93,6 +93,17 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         }));
     }, [loads.nodes, showNodal]);
 
+    const momentLoads = useMemo(() => {
+        if (!showNodal) return [];
+        return loads.moments.map((load): PointMoment => ({
+            id: `moment-load-${load.id}`,
+            nodeId: load.node_id,
+            magnitude: load.magnitude,
+            color: LOAD_COLOR,
+            rotationDeg: 135,
+        }));
+    }, [loads.moments, showNodal]);
+
     // One arrow per restrained translation, along the bearing's own axes, so an inclined
     // support reports its reaction parallel and orthogonal to itself rather than in x/z.
     const reactionForces = useMemo(() => {
@@ -246,7 +257,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                         showHinges={true}
                         showReferenceFiber={showReferenceFiber}
                         pointForces={[...pointForces, ...reactionForces]}
-                        pointMoments={reactionMoments}
+                        pointMoments={[...momentLoads, ...reactionMoments]}
                         distributedForces={distributedForces}
                         selectedElementId={selectedElementId}
                         selectedNodeId={selectedNodeId}

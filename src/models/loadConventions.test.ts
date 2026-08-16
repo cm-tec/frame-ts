@@ -7,7 +7,7 @@ import type { Loads } from './inputModels';
 const ACC = 12;
 
 function editorLoads(loads: Partial<Loads>): Loads {
-    return { nodes: [], elements: [], ...loads };
+    return { nodes: [], moments: [], elements: [], ...loads };
 }
 
 test('an editor nodal load at 0 degrees still pulls downwards', () => {

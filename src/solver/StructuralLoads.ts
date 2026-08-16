@@ -10,10 +10,11 @@ export type ElementLoadField = {
 export type NodalForce = {
     fx: number;
     fy: number;
+    m: number;
 };
 
 const NO_ELEMENT_LOAD: ElementLoadField = { q_trans: Polynomial.ZERO, q_axial: Polynomial.ZERO };
-const NO_NODAL_FORCE: NodalForce = { fx: 0, fy: 0 };
+const NO_NODAL_FORCE: NodalForce = { fx: 0, fy: 0, m: 0 };
 
 export class StructuralLoads {
     private readonly elementLoads = new Map<number, ElementLoadField>();
@@ -49,9 +50,21 @@ export class StructuralLoads {
             const applied = this.ofNode(load.node_id);
 
             this.nodalForces.set(load.node_id, {
+                ...applied,
                 fx: applied.fx + load.magnitude * cos,
                 fy: applied.fy + load.magnitude * sin,
             });
+        }
+
+        for (const load of loads.moments) {
+            if (!nodeIds.has(load.node_id)) {
+                console.warn(`Moment load ${load.id} references non-existent node: ${load.node_id}`);
+                continue;
+            }
+
+            const applied = this.ofNode(load.node_id);
+
+            this.nodalForces.set(load.node_id, { ...applied, m: applied.m + load.magnitude });
         }
     }
 

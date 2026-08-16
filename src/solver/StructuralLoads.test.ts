@@ -14,7 +14,7 @@ function nodalLoad(id: number, node_id: number, magnitude: number, angle: number
 }
 
 function loadsOf(elements: Loads['elements'] = [], nodes: Loads['nodes'] = []): Loads {
-    return { nodes, elements };
+    return { nodes, moments: [], elements };
 }
 
 test('an element load at angle 0 is purely axial', () => {
@@ -105,7 +105,7 @@ test('several nodal loads on one node superpose', () => {
 test('an unloaded node reports zero', () => {
     const loads = new StructuralLoads(getBeam(), loadsOf());
 
-    expect(loads.ofNode(1)).toEqual({ fx: 0, fy: 0 });
+    expect(loads.ofNode(1)).toEqual({ fx: 0, fy: 0, m: 0 });
 });
 
 test('loads referencing a missing element or node are warned about and dropped', () => {
@@ -118,7 +118,7 @@ test('loads referencing a missing element or node are warned about and dropped',
 
     expect(warn).toHaveBeenCalledTimes(2);
     expect(loads.ofElement(99).q_trans.isZero).toBe(true);
-    expect(loads.ofNode(99)).toEqual({ fx: 0, fy: 0 });
+    expect(loads.ofNode(99)).toEqual({ fx: 0, fy: 0, m: 0 });
 
     warn.mockRestore();
 });

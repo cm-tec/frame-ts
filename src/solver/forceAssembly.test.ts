@@ -22,7 +22,7 @@ function horizontalBeam(nodeAngle: number = 0) {
 }
 
 function elementLoads(angle: number, q_i = 10, q_j = 10): Loads {
-    return { nodes: [], elements: [{ id: 1, element_id: 1, q_i, q_j, angle, frequency: 0, phase_shift: 0 }] };
+    return { nodes: [], moments: [], elements: [{ id: 1, element_id: 1, q_i, q_j, angle, frequency: 0, phase_shift: 0 }] };
 }
 
 function assemble(system: StructuralSystem, loads: Loads) {
@@ -85,8 +85,26 @@ test('a quadratic element load integrates exactly', () => {
 });
 
 function nodalLoads(angle: number, magnitude = 100): Loads {
-    return { nodes: [{ id: 1, node_id: 2, magnitude, angle, frequency: 0, phase_shift: 0 }], elements: [] };
+    return { nodes: [{ id: 1, node_id: 2, magnitude, angle, frequency: 0, phase_shift: 0 }], moments: [], elements: [] };
 }
+
+function momentLoads(magnitude: number): Loads {
+    return { nodes: [], moments: [{ id: 1, node_id: 2, magnitude, frequency: 0, phase_shift: 0 }], elements: [] };
+}
+
+test('a nodal moment lands on the rotational DOF alone, positive CCW', () => {
+    const F = assemble(horizontalBeam(), momentLoads(42));
+
+    expect(F.get([3, 0])).toBeCloseTo(0, ACC);
+    expect(F.get([4, 0])).toBeCloseTo(0, ACC);
+    expect(F.get([5, 0])).toBeCloseTo(42, ACC);
+});
+
+test('a nodal moment is unaffected by the rotation of the node it sits on', () => {
+    const rotated = assemble(horizontalBeam(Math.PI / 3), momentLoads(42));
+
+    expect(rotated.get([5, 0])).toBeCloseTo(42, ACC);
+});
 
 test('nodal load angles are measured CCW from the x axis', () => {
     const system = horizontalBeam();

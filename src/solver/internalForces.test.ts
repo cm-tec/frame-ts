@@ -44,7 +44,7 @@ function cantilever(L: number, ea: number, ei: number) {
 
 test('cantilever with a tip point load — V constant, M linear to -PL at the support', () => {
     const [L, P, ei] = [4, 7, 1000];
-    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: DOWN, frequency: 0, phase_shift: 0 }], elements: [] };
+    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: DOWN, frequency: 0, phase_shift: 0 }], moments: [], elements: [] };
 
     const { N, V, M } = fieldOf(cantilever(L, 1e9, ei), loads, 1);
 
@@ -61,7 +61,7 @@ test('cantilever with a tip point load — V constant, M linear to -PL at the su
 
 test('cantilever under UDL — V linear, M parabolic to -qL^2/2', () => {
     const [L, q, ei] = [4, 7, 1000];
-    const loads: Loads = { nodes: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
+    const loads: Loads = { nodes: [], moments: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
 
     const { V, M } = fieldOf(cantilever(L, 1e9, ei), loads, 1);
 
@@ -74,7 +74,7 @@ test('cantilever under UDL — V linear, M parabolic to -qL^2/2', () => {
 
 test('simply supported beam under UDL — M is qL^2/8 at midspan and zero at both ends', () => {
     const [L, q, ei] = [3, 11, 1000];
-    const loads: Loads = { nodes: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
+    const loads: Loads = { nodes: [], moments: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
 
     const { V, M } = fieldOf(beam(L, 1e9, ei), loads, 1);
 
@@ -89,7 +89,7 @@ test('simply supported beam under UDL — M is qL^2/8 at midspan and zero at bot
 
 test('dM/dx = V and dV/dx = q_trans hold as polynomial identities', () => {
     const [L, q, ei] = [3, 11, 1000];
-    const loads: Loads = { nodes: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: 2 * q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
+    const loads: Loads = { nodes: [], moments: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: 2 * q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
 
     const { V, M } = fieldOf(beam(L, 1e9, ei), loads, 1);
 
@@ -105,7 +105,7 @@ test('dM/dx = V and dV/dx = q_trans hold as polynomial identities', () => {
 
 test('a moment release reports exactly zero moment at that end', () => {
     const [L, q, ei] = [3, 11, 1000];
-    const loads: Loads = { nodes: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
+    const loads: Loads = { nodes: [], moments: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
 
     const system = beam(L, 1e9, ei, [{ id: 1, element_id: 1, end: 'i', D1: false, D2: false, D3: true }]);
     const { M } = fieldOf(system, loads, 1);
@@ -115,7 +115,7 @@ test('a moment release reports exactly zero moment at that end', () => {
 
 test('axial load gives a linear N, tension positive', () => {
     const [L, P, ea] = [4, 7, 1000];
-    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: 0, frequency: 0, phase_shift: 0 }], elements: [] };
+    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: 0, frequency: 0, phase_shift: 0 }], moments: [], elements: [] };
 
     const { N } = fieldOf(cantilever(L, ea, 1000), loads, 1);
 
@@ -126,7 +126,7 @@ test('axial load gives a linear N, tension positive', () => {
 test('the internal forces of an inclined member match the same member rotated flat', () => {
     const [L, q, ei] = [4, 7, 1000];
     const elementLoad = { id: 1, element_id: 1, q_i: q, q_j: q, angle: 90, frequency: 0, phase_shift: 0 };
-    const loads: Loads = { nodes: [], elements: [elementLoad] };
+    const loads: Loads = { nodes: [], moments: [], elements: [elementLoad] };
 
     const flat = fieldOf(cantilever(L, 1e9, ei), loads, 1);
 

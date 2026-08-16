@@ -63,7 +63,7 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
 
     // No element loads in this analysis; the displacement field still needs a source.
     const structuralLoads = useMemo(
-        () => new StructuralLoads(structuralSystem, { nodes: [], elements: [] }),
+        () => new StructuralLoads(structuralSystem, { nodes: [], moments: [], elements: [] }),
         [structuralSystem],
     );
 

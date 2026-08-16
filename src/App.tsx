@@ -27,7 +27,7 @@ const EMPTY_SYSTEM: SystemFile = {
   elements: [],
   hinges: [],
   initialConditions: {},
-  loads: { nodes: [], elements: [] },
+  loads: { nodes: [], moments: [], elements: [] },
 };
 
 export default function App() {
@@ -90,7 +90,7 @@ export default function App() {
     setElements(d.elements ?? []);
     setHinges(d.hinges ?? []);
     setInitialConditions(d.initialConditions ?? {});
-    setLoads(d.loads ?? { nodes: [], elements: [] });
+    setLoads({ nodes: [], moments: [], elements: [], ...d.loads });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {

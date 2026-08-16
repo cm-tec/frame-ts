@@ -23,7 +23,7 @@ mechanical model:
 |---|---|---|
 | Element | Beam element, moment-rigid at both ends unless a hinge is defined | Pin-jointed truss member (moment released at both ends) |
 | Nodal DOFs | `D1`, `D2`, `D3` | `D1`, `D2` (rotations restrained) |
-| Inputs | Nodal loads, element loads, hinges, supports incl. rotational restraint | Nodal masses, axial dampers, initial conditions |
+| Inputs | Nodal loads and moments, element loads, hinges, supports incl. rotational restraint | Nodal masses, axial dampers, initial conditions |
 | Results | Deformed shape, `N` / `Q` / `M` diagrams, nodal displacements, support reactions | Animated time response, displacement & velocity time histories, eigenfrequencies, damping ratios, animated eigenmodes |
 
 Rotational degrees of freedom and loading in Dynamic mode are planned; the data model and solver
@@ -74,6 +74,8 @@ and restraining all nodal rotations — this is exactly what the Dynamic mode us
 ### Loads
 
 - **Nodal loads:** magnitude and direction angle `α` (0° = downwards, 90° = to the right).
+- **Nodal moments:** magnitude `M₀`, positive counter-clockwise, applied to the rotational DOF
+  `D3` of the node. A nodal rotation angle does not affect them.
 - **Element loads:** trapezoidal distributed load with the ordinate `qᵢ` at the start node and
   `qⱼ` at the end node, plus a direction angle relative to the member normal (0° = perpendicular
   to the member axis, 90° = along the axis). They are converted into **consistent fixed-end
@@ -149,7 +151,8 @@ or bracing easy to spot.
 **Editor**
 
 - Tabular input of nodes (coordinates, mass, supports `D1` / `D2` / `D3`), elements (`EA`, `EI`,
-  damper `c`), hinges (element and end), nodal loads, element loads and initial conditions.
+  damper `c`), hinges (element and end), nodal loads, nodal moments, element loads and initial
+  conditions.
 - Live blueprint preview of the structure next to the tables, including supports, hinge symbols,
   joint types and load arrows.
 - Inputs are filtered by mode, so only quantities that the active model actually uses are shown.

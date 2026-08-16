@@ -27,6 +27,8 @@ export interface PointMoment {
     magnitude: number;
     color: string;
     label?: string;
+    // Turns the arc around the node, clockwise on screen, away from its default corner.
+    rotationDeg?: number;
 }
 
 export interface DistributedForce {
@@ -557,7 +559,7 @@ export const ForceVisualizationLayer = React.memo(({
                 // Centred to the lower right: clear of the bearing glyphs, and below the
                 // node number, which sits just above and right of the node. Swept the same
                 // span either way, so only the arrowhead betrays the sign.
-                const middle = MOMENT_CENTRE_DEG * Math.PI / 180;
+                const middle = (MOMENT_CENTRE_DEG + (moment.rotationDeg ?? 0)) * Math.PI / 180;
                 const sweep = 110 * Math.PI / 180;
                 const start = middle - direction * sweep / 2;
 

@@ -22,7 +22,7 @@ function fieldOf(system: StructuralSystem, loads: Loads, elementId: number) {
 }
 
 function udl(q: number): Loads {
-    return { nodes: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
+    return { nodes: [], moments: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
 }
 
 function beam(L: number, ea: number, ei: number, hinges: HingeInput[] = []) {
@@ -67,7 +67,7 @@ test('cantilever under UDL — tip is qL^4/8EI and midspan 17qL^4/384EI', () => 
 
 test('cantilever with a tip load — tip is PL^3/3EI', () => {
     const [L, P, ei] = [4, 7, 1000];
-    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: DOWN, frequency: 0, phase_shift: 0 }], elements: [] };
+    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: DOWN, frequency: 0, phase_shift: 0 }], moments: [], elements: [] };
 
     const { v } = fieldOf(cantilever(L, 1e9, ei), loads, 1);
 
@@ -77,7 +77,7 @@ test('cantilever with a tip load — tip is PL^3/3EI', () => {
 
 test('axial load stretches the bar linearly to PL/EA', () => {
     const [L, P, ea] = [4, 7, 1000];
-    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: 0, frequency: 0, phase_shift: 0 }], elements: [] };
+    const loads: Loads = { nodes: [{ id: 1, node_id: 2, magnitude: P, angle: 0, frequency: 0, phase_shift: 0 }], moments: [], elements: [] };
 
     const { u } = fieldOf(cantilever(L, ea, 1000), loads, 1);
 
@@ -102,6 +102,7 @@ test('the ends of the curve are the nodal displacements the solver produced', ()
     );
     const loads: Loads = {
         nodes: [],
+        moments: [],
         elements: [
             { id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 },
             { id: 2, element_id: 2, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 },
@@ -142,7 +143,7 @@ test('a truss member with EI = 0 stays straight instead of dividing by zero', ()
         { id: 2, element_id: 1, end: 'j', D1: false, D2: false, D3: true },
     ]);
 
-    const { v } = fieldOf(trussy, { nodes: [], elements: [] }, 1);
+    const { v } = fieldOf(trussy, { nodes: [], moments: [], elements: [] }, 1);
 
     expect(Number.isFinite(v.at(0.5))).toBe(true);
     expect(v.degree).toBeLessThanOrEqual(1);

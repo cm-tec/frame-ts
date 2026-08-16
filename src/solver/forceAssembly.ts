@@ -18,14 +18,15 @@ export function assembleForceVector(system: StructuralSystem, loads: StructuralL
     const F = matrix(zeros([system.ndof, 1])) as Matrix;
 
     for (const node of system.nodes) {
-        const { fx, fy } = loads.ofNode(node.id);
-        if (fx === 0 && fy === 0) continue;
+        const { fx, fy, m } = loads.ofNode(node.id);
+        if (fx === 0 && fy === 0 && m === 0) continue;
 
         const c = Math.cos(node.angle);
         const s = Math.sin(node.angle);
 
         F.set([node.dofs[0], 0], F.get([node.dofs[0], 0]) + c * fx + s * fy);
         F.set([node.dofs[1], 0], F.get([node.dofs[1], 0]) - s * fx + c * fy);
+        F.set([node.dofs[2], 0], F.get([node.dofs[2], 0]) + m);
     }
 
     for (const element of system.elements) {

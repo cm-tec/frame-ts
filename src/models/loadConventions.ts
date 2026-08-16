@@ -8,6 +8,7 @@ import type { Loads } from './inputModels';
 export function toSolverAngles(loads: Loads): Loads {
     return {
         nodes: loads.nodes.map(load => ({ ...load, angle: load.angle - 90 })),
+        moments: loads.moments,
         elements: loads.elements.map(load => ({ ...load, angle: load.angle - 90 })),
     };
 }

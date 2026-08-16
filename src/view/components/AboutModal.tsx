@@ -52,7 +52,7 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                             </Table.Tr>
                             <Table.Tr>
                                 <Table.Td fw={600}>Inputs</Table.Td>
-                                <Table.Td>Nodal and element loads, hinges, supports incl. rotation</Table.Td>
+                                <Table.Td>Nodal loads and moments, element loads, hinges, supports incl. rotation</Table.Td>
                                 <Table.Td>Nodal masses, axial dampers, initial conditions</Table.Td>
                             </Table.Tr>
                             <Table.Tr>
@@ -93,7 +93,8 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                             condensed consistently.
                         </List.Item>
                         <List.Item>
-                            <b>Loads.</b> Nodal loads with magnitude and direction; trapezoidal element
+                            <b>Loads.</b> Nodal loads with magnitude and direction; nodal moments
+                            (positive counter-clockwise); trapezoidal element
                             loads <Code>qᵢ</Code>/<Code>qⱼ</Code> converted into consistent fixed-end forces.
                         </List.Item>
                         <List.Item>

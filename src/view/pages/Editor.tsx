@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { ActionIcon, Box, Button, Checkbox, Divider, Flex, Group, NumberInput, ScrollArea, SegmentedControl, Stack, Table, Text } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
 
-import { type NodeInput, type ElementInput, type HingeInput, type InitialConditions, type Loads, type NodalLoad, type ElementLoad } from "../../models/inputModels";
+import { type NodeInput, type ElementInput, type HingeInput, type InitialConditions, type Loads, type NodalLoad, type MomentLoad, type ElementLoad } from "../../models/inputModels";
 import { StructuralSystem } from '../../solver/StructuralSystem';
 import StructuralSystemViewer, { type Theme } from '../components/StructuralSystemViewer';
 
@@ -52,6 +52,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         }));
 
     const NODAL_LOAD_DEFAULTS: Omit<NodalLoad, 'id' | 'node_id'> = { magnitude: 0, angle: 0, frequency: 0, phase_shift: 0 };
+    const MOMENT_LOAD_DEFAULTS: Omit<MomentLoad, 'id' | 'node_id'> = { magnitude: 0, frequency: 0, phase_shift: 0 };
     const ELEMENT_LOAD_DEFAULTS: Omit<ElementLoad, 'id' | 'element_id'> = { q_i: 0, q_j: 0, angle: 0, frequency: 0, phase_shift: 0 };
     const nextLoadId = (list: { id: number }[]) => list.length ? Math.max(...list.map(l => l.id)) + 1 : 1;
 
@@ -63,6 +64,15 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         setLoads(prev => ({ ...prev, nodes: prev.nodes.map(l => l.id === id ? { ...l, ...patch } : l) }));
     const deleteNodalLoad = (id: number) =>
         setLoads(prev => ({ ...prev, nodes: prev.nodes.filter(l => l.id !== id) }));
+
+    const addMomentLoad = () => setLoads(prev => ({
+        ...prev,
+        moments: [...prev.moments, { id: nextLoadId(prev.moments), node_id: nodes[0]?.id ?? 0, ...MOMENT_LOAD_DEFAULTS }],
+    }));
+    const updateMomentLoad = (id: number, patch: Partial<MomentLoad>) =>
+        setLoads(prev => ({ ...prev, moments: prev.moments.map(l => l.id === id ? { ...l, ...patch } : l) }));
+    const deleteMomentLoad = (id: number) =>
+        setLoads(prev => ({ ...prev, moments: prev.moments.filter(l => l.id !== id) }));
 
     const addElementLoad = () => setLoads(prev => ({
         ...prev,
@@ -137,6 +147,17 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
         }));
     }, [loads.nodes, view]);
 
+    const pointMoments = useMemo(() => {
+        if (view !== 'static') return undefined;
+        return loads.moments.map((load) => ({
+            id: `moment-load-${load.id}`,
+            nodeId: load.node_id,
+            magnitude: load.magnitude,
+            color: 'rgba(239, 68, 68, 0.8)',
+            rotationDeg: 135,
+        }));
+    }, [loads.moments, view]);
+
     const distributedForces = useMemo(() => {
         if (view !== 'static') return undefined;
         return loads.elements.map((load) => ({
@@ -181,6 +202,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                     showHinges={true}
                     showReferenceFiber={true}
                     pointForces={pointForces}
+                    pointMoments={pointMoments}
                     distributedForces={distributedForces}
                     themeOverride={BLUEPRINT_THEME}
                 />
@@ -314,6 +336,39 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                                         </Table.Td>
                                         <Table.Td>
                                             <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteNodalLoad(row.id)}>
+                                                <IconTrash size={14} />
+                                            </ActionIcon>
+                                        </Table.Td>
+                                    </Table.Tr>
+                                ))}
+                            </Table.Tbody>
+                        </Table>
+                    </div>
+
+                    <div>
+                        <Group justify="space-between" mb="xs">
+                            <Text fw={600}>Nodal Moments</Text>
+                            <Button size="xs" variant="light" onClick={addMomentLoad}>Add</Button>
+                        </Group>
+                        <Table highlightOnHover withColumnBorders verticalSpacing="0">
+                            <Table.Thead>
+                                <Table.Tr>
+                                    <Table.Th bg="gray.1" w={ID_COL_WIDTH}>Node</Table.Th>
+                                    <Table.Th>M₀</Table.Th>
+                                    <Table.Th />
+                                </Table.Tr>
+                            </Table.Thead>
+                            <Table.Tbody>
+                                {loads.moments.map((row) => (
+                                    <Table.Tr key={row.id}>
+                                        <Table.Td bg="gray.1" w={ID_COL_WIDTH}>
+                                            <NumberInput value={row.node_id} onChange={(e) => updateMomentLoad(row.id, { node_id: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <NumberInput value={row.magnitude} onChange={(e) => updateMomentLoad(row.id, { magnitude: Number(e) || 0 })} variant="unstyled" hideControls />
+                                        </Table.Td>
+                                        <Table.Td>
+                                            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => deleteMomentLoad(row.id)}>
                                                 <IconTrash size={14} />
                                             </ActionIcon>
                                         </Table.Td>
