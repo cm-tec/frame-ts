@@ -59,6 +59,7 @@ export default function App() {
 
 
   const [systemName, setSystemName] = useState('My Structure');
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -81,13 +82,17 @@ export default function App() {
   const loadSystem = (raw: SystemFile): boolean => {
     const migrated = migrateSystemFile(raw);
     if (!migrated.ok) {
-      console.warn(`Cannot load structure: ${migrated.reason}`);
+      setLoadError(migrated.reason);
       return false;
     }
 
     const d = migrated.file;
-    if (!Array.isArray(d.nodes) || d.nodes.length === 0 || !Array.isArray(d.elements)) return false;
+    if (!Array.isArray(d.nodes) || d.nodes.length === 0 || !Array.isArray(d.elements)) {
+      setLoadError('This file describes no nodes or elements.');
+      return false;
+    }
 
+    setLoadError(null);
     setSystemName(d.name?.trim() || 'My Structure');
     setView(d.view === 'static' ? 'static' : 'dynamic');
     setNodes(d.nodes);
@@ -106,7 +111,9 @@ export default function App() {
     reader.onload = ev => {
       try {
         if (loadSystem(JSON.parse(ev.target?.result as string))) setGalleryOpen(false);
-      } catch { /* ignore malformed files */ }
+      } catch {
+        setLoadError('This file is not valid JSON.');
+      }
     };
     reader.readAsText(file);
   };
@@ -138,11 +145,18 @@ export default function App() {
     setGalleryOpen(false);
   };
 
+  const loadErrorAlert = loadError && (
+    <Alert color="red" title="Could not load file" variant="light" m="md" withCloseButton onClose={() => setLoadError(null)}>
+      <Text size="sm">{loadError}</Text>
+    </Alert>
+  );
+
   if (galleryOpen) {
     return (
       <MantineProvider>
         <AboutModal opened={aboutOpen} onClose={() => setAboutOpen(false)} />
         <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+        {loadErrorAlert}
         <Welcome
           examples={examples}
           onSelect={openExample}
@@ -237,6 +251,7 @@ export default function App() {
         </AppShell.Header>
 
         <AppShell.Main>
+          {loadErrorAlert}
           {editMode && (
             <Editor
               view={view}
