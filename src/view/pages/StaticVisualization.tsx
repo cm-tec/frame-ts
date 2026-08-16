@@ -14,6 +14,8 @@ import { elementDisplacementField } from "../../solver/displacementField";
 import { deformedElementPoints, sampleForces } from "../utils/elementCurves";
 import { FORCE_COLOR, LOAD_COLOR, REACTION_COLOR, withOpacity } from "../utils/forceColors";
 
+const fmtMagnitude = (value: number) => Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(2);
+
 export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
     loads: Loads;
@@ -90,6 +92,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             magnitude: load.magnitude,
             angle: load.angle,
             color: LOAD_COLOR,
+            label: fmtMagnitude(load.magnitude),
         }));
     }, [loads.nodes, showNodal]);
 
@@ -101,6 +104,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             magnitude: load.magnitude,
             color: LOAD_COLOR,
             rotationDeg: 135,
+            label: fmtMagnitude(load.magnitude),
         }));
     }, [loads.moments, showNodal]);
 
@@ -133,7 +137,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                     // The viewer measures arrow angles clockwise from straight down.
                     angle: Math.atan2(component.wx, -component.wy) * 180 / Math.PI,
                     color: REACTION_COLOR,
-                    label: Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(2),
+                    label: fmtMagnitude(value),
                     flipOnNegative: false,
                 });
             }
@@ -157,7 +161,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                 nodeId: node.id,
                 magnitude: value,
                 color: REACTION_COLOR,
-                label: Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(2),
+                label: fmtMagnitude(value),
             });
         }
         return moments;
