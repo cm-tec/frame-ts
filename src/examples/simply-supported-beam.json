@@ -1,0 +1,56 @@
+{
+  "name": "Simply Supported Beam",
+  "view": "static",
+  "nodes": [
+    {
+      "id": 1,
+      "x": 0,
+      "z": 0,
+      "mass": 1,
+      "restraint": {
+        "u": true,
+        "v": true,
+        "theta": false
+      },
+      "angle": 0
+    },
+    {
+      "id": 2,
+      "x": 1,
+      "z": 0,
+      "mass": 0,
+      "restraint": {
+        "u": false,
+        "v": true,
+        "theta": false
+      },
+      "angle": 0
+    }
+  ],
+  "elements": [
+    {
+      "id": 1,
+      "node_i": 1,
+      "node_j": 2,
+      "ea": 2000,
+      "ei": 10,
+      "c": 0
+    }
+  ],
+  "hinges": [],
+  "initialConditions": {},
+  "loads": {
+    "nodes": [],
+    "elements": [
+      {
+        "id": 1,
+        "element_id": 1,
+        "q_i": 10,
+        "q_j": 10,
+        "angle": 0,
+        "frequency": 0,
+        "phase_shift": 0
+      }
+    ]
+  }
+}

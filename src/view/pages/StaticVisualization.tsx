@@ -119,6 +119,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                     angle: Math.atan2(component.wx, -component.wy) * 180 / Math.PI,
                     color: REACTION_COLOR,
                     label: Math.abs(value) >= 100 ? value.toFixed(1) : value.toFixed(2),
+                    flipOnNegative: false,
                 });
             }
         }

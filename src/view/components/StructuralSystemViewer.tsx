@@ -6,7 +6,9 @@ import { max, min } from 'mathjs';
 import { type StructuralNode } from "../../solver/StructuralSystem";
 import type { StructuralSystem } from '../../solver/StructuralSystem';
 import { useAnimationStore } from '../../store/animationStore';
+import { useViewerStageStore } from '../../store/viewerStageStore';
 import { niceInterval, formatGridLabel } from '../utils/grid';
+import { GRID_LAYER_NAME } from '../utils/thumbnail';
 
 export interface PointForce {
     id: string | number;
@@ -16,6 +18,7 @@ export interface PointForce {
     color: string;
     scale?: number;
     label?: string;
+    flipOnNegative?: boolean;
 }
 
 export interface PointMoment {
@@ -194,7 +197,7 @@ export const GridLayer = React.memo(({ canvasWidth, canvasHeight, worldLeft, wor
     const labelStep = Math.max(xLines.length, zLines.length) > 8 ? 2 : 1;
 
     return (
-        <Layer listening={false}>
+        <Layer name={GRID_LAYER_NAME} listening={false}>
             {xLines.map((x, i) => {
                 const cx = toCanvasX(x);
                 return (
@@ -473,7 +476,7 @@ export const ForceVisualizationLayer = React.memo(({
                 const cy = toCanvasZ(drawnAt.z);
 
                 const rad = (force.angle * Math.PI) / 180;
-                const sign = force.magnitude >= 0 ? 1 : -1;
+                const sign = (force.flipOnNegative ?? true) && force.magnitude < 0 ? -1 : 1;
                 const dx = Math.sin(rad) * sign;
                 const dy = Math.cos(rad) * sign;
                 
@@ -902,7 +905,14 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 }: StructuralSystemViewerProps) {
     const effectiveTheme = useMemo(() => ({ ...THEME, ...themeOverride }), [themeOverride]);
     const containerRef = useRef<HTMLDivElement>(null);
+    const stageRef = useRef<Konva.Stage>(null);
     const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+
+    // Publish the stage so the thumbnail button can snapshot it.
+    useEffect(() => {
+        useViewerStageStore.setState({ stage: stageRef.current });
+        return () => useViewerStageStore.setState({ stage: null });
+    }, []);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -980,7 +990,7 @@ const StructuralSystemViewer = React.memo(function StructuralSystemViewer({
 
     return (
         <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
-            <Stage width={canvasWidth} height={canvasHeight} onWheel={handleWheel}>
+            <Stage ref={stageRef} width={canvasWidth} height={canvasHeight} onWheel={handleWheel}>
                 <GridLayer
                     canvasWidth={canvasWidth} canvasHeight={canvasHeight}
                     {...worldBounds}

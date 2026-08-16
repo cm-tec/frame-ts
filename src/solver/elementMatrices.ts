@@ -69,7 +69,6 @@ const LOCAL_DOFS = [0, 1, 2, 3, 4, 5];
 export function condenseReleases(a: Matrix, k: Matrix, releases_i: Releases, releases_j: Releases): Matrix {
     const n_cols = a.size()[1];
 
-    // An end with every DOF released transmits nothing at all.
     const all_i_released = releases_i.u && releases_i.v && releases_i.theta;
     const all_j_released = releases_j.u && releases_j.v && releases_j.theta;
     if (all_i_released || all_j_released) return matrix(zeros([LOCAL_DOFS.length, n_cols])) as Matrix;
