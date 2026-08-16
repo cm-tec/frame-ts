@@ -5,6 +5,7 @@ import { StructuralLoads } from "../../solver/StructuralLoads";
 import { SystemSolver } from "../../solver/SystemSolver";
 import type { Loads } from "../../models/inputModels";
 import { toSolverAngles } from "../../models/loadConventions";
+import { useStaticViewStore, type ForceMode } from "../../store/staticViewStore";
 import StructuralSystemViewer, { type PointForce, type PointMoment } from "../components/StructuralSystemViewer";
 import { StaticDiagramSidebar } from "../components/StaticDiagramSidebar";
 import { assembleForceVector } from "../../solver/forceAssembly";
@@ -17,16 +18,19 @@ export default function StaticVisualization({ structuralSystem, loads }: {
     structuralSystem: StructuralSystem;
     loads: Loads;
 }) {
-    const [showUndeformedSystem, setShowUndeformedSystem] = useState(true);
-    const [showNodes, setShowNodes] = useState(true);
-    const [showBearings, setShowBearings] = useState(true);
-    const [showNodal, setShowNodal] = useState(true);
-    const [showElement, setShowElement] = useState(true);
-    const [showReactions, setShowReactions] = useState(true);
-    const [showReferenceFiber, setShowReferenceFiber] = useState(true);
-    const [scale, setScale] = useState(1);
-    const [forceMode, setForceMode] = useState<'none' | 'N' | 'Q' | 'M'>('none');
-    const [forceScale, setForceScale] = useState(1);
+    const {
+        showUndeformedSystem, setShowUndeformedSystem,
+        showNodes, setShowNodes,
+        showBearings, setShowBearings,
+        showReferenceFiber, setShowReferenceFiber,
+        showNodal, setShowNodal,
+        showElement, setShowElement,
+        showReactions, setShowReactions,
+        scale, setScale,
+        forceMode, setForceMode,
+        forceScale, setForceScale,
+    } = useStaticViewStore();
+
     const [selectedElementId, setSelectedElementId] = useState<number | null>(null);
     const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
 
@@ -280,7 +284,7 @@ export default function StaticVisualization({ structuralSystem, loads }: {
                             <Text size="xs" fw={700}>Internal Forces</Text>
                             <SegmentedControl
                                 value={forceMode}
-                                onChange={(v) => setForceMode(v as any)}
+                                onChange={(v) => setForceMode(v as ForceMode)}
                                 data={[
                                     { label: 'None', value: 'none' },
                                     { label: 'N (Axial)', value: 'N' },

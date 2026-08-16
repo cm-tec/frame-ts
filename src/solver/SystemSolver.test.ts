@@ -56,7 +56,7 @@ test('assembly of matrices for beam', () => {
     expect(areMatricesClose(solver.k_22, matrix([[ea, 0, 0], [0, 12*ei, -12*ei], [0, -12*ei, 12*ei]]))).toBe(true);
     expect(areMatricesClose(solver.c_11, matrix([[0, 0, 0], [0, c, 0], [0, 0, 0]]))).toBe(true);
     expect(areMatricesClose(solver.c_22, matrix([[c, 0, 0], [0, 0, 0], [0, 0, 0]]))).toBe(true);
-    expect(areMatricesClose(solver.m_11, matrix([[10, 0, 0], [0, m, 0], [0, 0, 10]]))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix([[0, 0, 0], [0, m, 0], [0, 0, 0]]))).toBe(true);
     expect(areMatricesClose(solver.m_22, matrix([[m, 0, 0], [0, m, 0], [0, 0, m]]))).toBe(true);
 });
 
@@ -78,8 +78,8 @@ test('assembly of matrices for cantilever', () => {
     expect(areMatricesClose(solver.k_22, matrix([[ea, 0, 0], [0, 12*ei, 6*ei], [0, 6*ei, 4*ei]]))).toBe(true);
     expect(areMatricesClose(solver.c_11, matrix([[c, 0, 0], [0, 0, 0], [0, 0, 0]]))).toBe(true);
     expect(areMatricesClose(solver.c_22, matrix([[c, 0, 0], [0, 0, 0], [0, 0, 0]]))).toBe(true);
-    expect(areMatricesClose(solver.m_11, matrix([[m, 0, 0], [0, m, 0], [0, 0, 10]]))).toBe(true);
-    expect(areMatricesClose(solver.m_22, matrix([[m, 0, 0], [0, m, 0], [0, 0, 10]]))).toBe(true);
+    expect(areMatricesClose(solver.m_11, matrix([[m, 0, 0], [0, m, 0], [0, 0, 0]]))).toBe(true);
+    expect(areMatricesClose(solver.m_22, matrix([[m, 0, 0], [0, m, 0], [0, 0, 0]]))).toBe(true);
 });
 
 
@@ -208,7 +208,7 @@ test('assembly of cantilever with a 180-degree flipped node system', () => {
     expect(areMatricesClose(solver.m_11, matrix([
         [m, 0, 0],
         [0, m, 0],
-        [0, 0, 10]
+        [0, 0, 0]
     ]))).toBe(true);
 });
 
@@ -466,5 +466,13 @@ test('a free node without mass leaves the mass matrix singular', () => {
 });
 
 test('a system carrying mass at every free node is not flagged', () => {
-    expect(new SystemSolver(getBeam()).hasMasslessDofs()).toBe(false);
+    const system = StructuralSystem.createPureTruss(
+        [
+            { id: 1, x: 0, z: 0, mass: 5, restraint: { u: true,  v: true,  theta: false }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: 5, restraint: { u: false, v: false, theta: false }, angle: 0 },
+        ],
+        [{ id: 1, node_i: 1, node_j: 2, ea: 1000, ei: 0, c: 0 }],
+    );
+
+    expect(new SystemSolver(system).hasMasslessDofs()).toBe(false);
 });

@@ -64,7 +64,6 @@ export class SystemSolver {
         for (const n of system.nodes) {
             m.set([n.dofs[0], n.dofs[0]], n.mass);
             m.set([n.dofs[1], n.dofs[1]], n.mass);
-            m.set([n.dofs[2], n.dofs[2]], 10);
         }
 
         for (const n of system.nodes) {

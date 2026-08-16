@@ -16,6 +16,8 @@ export interface StructuralNode {
 
 export type Releases = { u: boolean; v: boolean; theta: boolean };
 
+const DEGENERATE_LENGTH = 1e-10;
+
 
 export class StructuralElement {
     readonly id: number;
@@ -116,7 +118,14 @@ export class StructuralSystem {
                 continue;
             }
 
-            this.elements.push(new StructuralElement(e, n_i, n_j, hinges));
+            const element = new StructuralElement(e, n_i, n_j, hinges);
+
+            if (element.L < DEGENERATE_LENGTH) {
+                console.warn(`Element ${e.id} has no length: nodes ${e.node_i} and ${e.node_j} coincide`);
+                continue;
+            }
+
+            this.elements.push(element);
         }
     }
 
