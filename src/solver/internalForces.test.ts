@@ -24,8 +24,8 @@ function fieldOf(system: StructuralSystem, loads: Loads, elementId: number) {
 function beam(L: number, ea: number, ei: number, hinges: HingeInput[] = []) {
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restraint: { u: false, v: true, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true, D2: true, D3: false }, angle: 0 },
+            { id: 2, x: L, z: 0, mass: 0, restraint: { D1: false, D2: true, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea, ei, c: 0 }],
         hinges,
@@ -35,8 +35,8 @@ function beam(L: number, ea: number, ei: number, hinges: HingeInput[] = []) {
 function cantilever(L: number, ea: number, ei: number) {
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true, D2: true, D3: true }, angle: 0 },
+            { id: 2, x: L, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea, ei, c: 0 }],
     );
@@ -107,7 +107,7 @@ test('a moment release reports exactly zero moment at that end', () => {
     const [L, q, ei] = [3, 11, 1000];
     const loads: Loads = { nodes: [], elements: [{ id: 1, element_id: 1, q_i: q, q_j: q, angle: DOWN, frequency: 0, phase_shift: 0 }] };
 
-    const system = beam(L, 1e9, ei, [{ id: 1, element_id: 1, end: 'i', u: false, v: false, theta: true }]);
+    const system = beam(L, 1e9, ei, [{ id: 1, element_id: 1, end: 'i', D1: false, D2: false, D3: true }]);
     const { M } = fieldOf(system, loads, 1);
 
     expect(M.at(0)).toBeCloseTo(0, ACC);
@@ -132,8 +132,8 @@ test('the internal forces of an inclined member match the same member rotated fl
 
     const inclined = new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: L * 0.6, z: L * 0.8, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true, D2: true, D3: true }, angle: 0 },
+            { id: 2, x: L * 0.6, z: L * 0.8, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea: 1e9, ei, c: 0 }],
     );

@@ -2,7 +2,7 @@ import { det, index, inv, matrix, multiply, subset, subtract, zeros, type Matrix
 import type { Releases } from "./StructuralSystem";
 /*
     Closed-form element matrices for the two-node Euler-Bernoulli beam element, in the
-    local DOF order [u_i, v_i, theta_i, u_j, v_j, theta_j].
+    local DOF order [D1_i, D2_i, D3_i, D1_j, D2_j, D3_j].
 */
 
 
@@ -51,7 +51,7 @@ export function get_rotation_matrix_of_element(theta_element: number, angle_i: n
     ]);
 }
 
-// Local DOF indices: u_i=0, v_i=1, theta_i=2, u_j=3, v_j=4, theta_j=5.
+// Local DOF indices: D1_i=0, D2_i=1, D3_i=2, D1_j=3, D2_j=4, D3_j=5.
 const LOCAL_DOFS = [0, 1, 2, 3, 4, 5];
 
 /**
@@ -69,11 +69,11 @@ const LOCAL_DOFS = [0, 1, 2, 3, 4, 5];
 export function condenseReleases(a: Matrix, k: Matrix, releases_i: Releases, releases_j: Releases): Matrix {
     const n_cols = a.size()[1];
 
-    const all_i_released = releases_i.u && releases_i.v && releases_i.theta;
-    const all_j_released = releases_j.u && releases_j.v && releases_j.theta;
+    const all_i_released = releases_i.D1 && releases_i.D2 && releases_i.D3;
+    const all_j_released = releases_j.D1 && releases_j.D2 && releases_j.D3;
     if (all_i_released || all_j_released) return matrix(zeros([LOCAL_DOFS.length, n_cols])) as Matrix;
 
-    const released = [releases_i.u, releases_i.v, releases_i.theta, releases_j.u, releases_j.v, releases_j.theta];
+    const released = [releases_i.D1, releases_i.D2, releases_i.D3, releases_j.D1, releases_j.D2, releases_j.D3];
     const cut = LOCAL_DOFS.filter(dof => released[dof]);
 
     if (cut.length === 0) return a;

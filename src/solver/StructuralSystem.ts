@@ -10,11 +10,11 @@ export interface StructuralNode {
     
     angle: number;
     
-    restraint: { u: boolean; v: boolean; theta: boolean };
+    restraint: { D1: boolean; D2: boolean; D3: boolean };
     dofs: [number, number, number];
 }
 
-export type Releases = { u: boolean; v: boolean; theta: boolean };
+export type Releases = { D1: boolean; D2: boolean; D3: boolean };
 
 const DEGENERATE_LENGTH = 1e-10;
 
@@ -29,7 +29,7 @@ export class StructuralElement {
     readonly ei: number;
     readonly c: number;
 
-    // [u_i, v_i, theta_i, u_j, v_j, theta_j]
+    // [D1_i, D2_i, D3_i, D1_j, D2_j, D3_j]
     readonly dofs: [number, number, number, number, number, number];
 
     readonly releases_i: Releases;
@@ -51,16 +51,16 @@ export class StructuralElement {
         this.dofs = [...n_i.dofs, ...n_j.dofs];
 
         // Rigidly connected by default; each hinge on this element releases what it names.
-        this.releases_i = { u: false, v: false, theta: false };
-        this.releases_j = { u: false, v: false, theta: false };
+        this.releases_i = { D1: false, D2: false, D3: false };
+        this.releases_j = { D1: false, D2: false, D3: false };
 
         for (const h of hinges) {
             if (h.element_id !== this.id) continue;
 
             const released = h.end === 'i' ? this.releases_i : this.releases_j;
-            released.u = h.u;
-            released.v = h.v;
-            released.theta = h.theta;
+            released.D1 = h.D1;
+            released.D2 = h.D2;
+            released.D3 = h.D3;
         }
     }
 
@@ -136,12 +136,12 @@ export class StructuralSystem {
         and introduces moment releases at both ends of every member.
     */
     static createPureTruss(rawNodes: NodeInput[], rawElements: ElementInput[]): StructuralSystem {
-        // Force all nodes to restrain their rotation (theta: true)
+        // Force all nodes to restrain their rotation (D3: true)
         const trussNodes: NodeInput[] = rawNodes.map(node => ({
             ...node,
             restraint: {
                 ...node.restraint,
-                theta: true
+                D3: true
             }
         }));
 
@@ -154,9 +154,9 @@ export class StructuralSystem {
                 id: hingeIdCounter++,
                 element_id: e.id,
                 end: 'i',
-                u: false,
-                v: false,
-                theta: true // Release Moment M_i
+                D1: false,
+                D2: false,
+                D3: true // Release Moment M_i
             });
 
             // Hinge at Node J
@@ -164,9 +164,9 @@ export class StructuralSystem {
                 id: hingeIdCounter++,
                 element_id: e.id,
                 end: 'j',
-                u: false,
-                v: false,
-                theta: true // Release Moment M_j
+                D1: false,
+                D2: false,
+                D3: true // Release Moment M_j
             });
         }
         return new StructuralSystem(trussNodes, rawElements, trussHinges);

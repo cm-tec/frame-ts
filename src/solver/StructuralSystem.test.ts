@@ -4,8 +4,8 @@ import { SystemSolver } from './SystemSolver';
 import type { ElementInput, NodeInput } from '../models/inputModels';
 
 const NODES: NodeInput[] = [
-    { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true,  v: true,  theta: true  }, angle: 0 },
-    { id: 2, x: 1, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+    { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true,  D2: true,  D3: true  }, angle: 0 },
+    { id: 2, x: 1, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
 ];
 
 function systemWith(elements: ElementInput[], nodes: NodeInput[] = NODES) {

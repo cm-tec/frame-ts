@@ -28,8 +28,8 @@ function udl(q: number): Loads {
 function beam(L: number, ea: number, ei: number, hinges: HingeInput[] = []) {
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restraint: { u: false, v: true, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true, D2: true, D3: false }, angle: 0 },
+            { id: 2, x: L, z: 0, mass: 0, restraint: { D1: false, D2: true, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea, ei, c: 0 }],
         hinges,
@@ -39,8 +39,8 @@ function beam(L: number, ea: number, ei: number, hinges: HingeInput[] = []) {
 function cantilever(L: number, ea: number, ei: number) {
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true, D2: true, D3: true }, angle: 0 },
+            { id: 2, x: L, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea, ei, c: 0 }],
     );
@@ -91,9 +91,9 @@ test('the ends of the curve are the nodal displacements the solver produced', ()
 
     const system = new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: true, v: true, theta: false }, angle: 0 },
-            { id: 2, x: L, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
-            { id: 3, x: 2 * L, z: 0, mass: 0, restraint: { u: false, v: true, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: true, D2: true, D3: false }, angle: 0 },
+            { id: 2, x: L, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
+            { id: 3, x: 2 * L, z: 0, mass: 0, restraint: { D1: false, D2: true, D3: false }, angle: 0 },
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: 1e9, ei, c: 0 },
@@ -125,7 +125,7 @@ test('the ends of the curve are the nodal displacements the solver produced', ()
 
 test('a moment release needs no special case — the curve stays continuous through it', () => {
     const [L, q, ei] = [3, 11, 1000];
-    const hinged = beam(L, 1e9, ei, [{ id: 1, element_id: 1, end: 'i', u: false, v: false, theta: true }]);
+    const hinged = beam(L, 1e9, ei, [{ id: 1, element_id: 1, end: 'i', D1: false, D2: false, D3: true }]);
 
     const { v } = fieldOf(hinged, udl(q), 1);
 
@@ -138,8 +138,8 @@ test('a moment release needs no special case — the curve stays continuous thro
 test('a truss member with EI = 0 stays straight instead of dividing by zero', () => {
     const [L, ei] = [3, 0];
     const trussy = beam(L, 1000, ei, [
-        { id: 1, element_id: 1, end: 'i', u: false, v: false, theta: true },
-        { id: 2, element_id: 1, end: 'j', u: false, v: false, theta: true },
+        { id: 1, element_id: 1, end: 'i', D1: false, D2: false, D3: true },
+        { id: 2, element_id: 1, end: 'j', D1: false, D2: false, D3: true },
     ]);
 
     const { v } = fieldOf(trussy, { nodes: [], elements: [] }, 1);

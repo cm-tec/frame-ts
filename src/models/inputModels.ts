@@ -6,7 +6,7 @@ export type NodeInput = {
 
     angle: number;
 
-    restraint: { u: boolean; v: boolean; theta: boolean };
+    restraint: { D1: boolean; D2: boolean; D3: boolean };
 };
 
 export type ElementInput = {
@@ -22,17 +22,17 @@ export type HingeInput = {
     id: number;
     element_id: number;
     end: 'i' | 'j';
-    u: boolean;     // release N (normal/axial force)
-    v: boolean;     // release V (shear)
-    theta: boolean; // release M (moment)
+    D1: boolean; // release N (normal/axial force)
+    D2: boolean; // release V (shear)
+    D3: boolean; // release M (moment)
 };
 
 
 export type InitialConditions = {
     [nodeId: number]: {
-        u0: number; du0: number;
-        v0: number; dv0: number;
-        theta0: number; dtheta0: number
+        D1_0: number; dD1_0: number;
+        D2_0: number; dD2_0: number;
+        D3_0: number; dD3_0: number
     };
 };
 

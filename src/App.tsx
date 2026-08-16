@@ -24,9 +24,9 @@ const DEFAULT_SYSTEM: SystemFile = {
   name: 'My Structure',
   view: 'dynamic',
   nodes: [
-    { id: 1, x: 0, z: 0,   mass: 1,  restraint: { u: true,  v: true,  theta: false }, angle: 0 },
-    { id: 2, x: 0, z: 20,  mass: 80, restraint: { u: true,  v: false, theta: false }, angle: 0 },
-    { id: 3, x: 0, z: 10,  mass: 8,  restraint: { u: true,  v: false, theta: false }, angle: 0 },
+    { id: 1, x: 0, z: 0,   mass: 1,  restraint: { D1: true,  D2: true,  D3: false }, angle: 0 },
+    { id: 2, x: 0, z: 20,  mass: 80, restraint: { D1: true,  D2: false, D3: false }, angle: 0 },
+    { id: 3, x: 0, z: 10,  mass: 8,  restraint: { D1: true,  D2: false, D3: false }, angle: 0 },
   ],
   elements: [
     { id: 1, node_i: 2, node_j: 3, ea: 2000, ei: 10, c: 0 },
@@ -34,8 +34,8 @@ const DEFAULT_SYSTEM: SystemFile = {
   ],
   hinges: [],
   initialConditions: {
-    2: { u0: 0, v0: 1,  theta0: 0, du0: 0, dv0: 0, dtheta0: 0 },
-    3: { u0: 0, v0: -1, theta0: 0, du0: 0, dv0: 0, dtheta0: 0 },
+    2: { D1_0: 0, D2_0: 1,  D3_0: 0, dD1_0: 0, dD2_0: 0, dD3_0: 0 },
+    3: { D1_0: 0, D2_0: -1, D3_0: 0, dD1_0: 0, dD2_0: 0, dD3_0: 0 },
   },
   loads: {
     nodes:    [{ id: 1, node_id: 2, magnitude: 10, angle: 0, frequency: 0, phase_shift: 0 }],

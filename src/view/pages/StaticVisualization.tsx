@@ -105,8 +105,8 @@ export default function StaticVisualization({ structuralSystem, loads }: {
             const s = Math.sin(node.angle);
 
             const components = [
-                { active: node.restraint.u, dof: node.dofs[0], name: 'u', wx:  c, wy: s },
-                { active: node.restraint.v, dof: node.dofs[1], name: 'v', wx: -s, wy: c },
+                { active: node.restraint.D1, dof: node.dofs[0], name: 'D1', wx:  c, wy: s },
+                { active: node.restraint.D2, dof: node.dofs[1], name: 'D2', wx: -s, wy: c },
             ];
 
             for (const component of components) {
@@ -136,13 +136,13 @@ export default function StaticVisualization({ structuralSystem, loads }: {
         const moments: PointMoment[] = [];
 
         for (const node of structuralSystem.nodes) {
-            if (!node.restraint.theta) continue;
+            if (!node.restraint.D3) continue;
 
             const value = solution.get_r(node.dofs[2]);
             if (Math.abs(value) < 1e-9) continue;
 
             moments.push({
-                id: `reaction-${node.id}-theta`,
+                id: `reaction-${node.id}-D3`,
                 nodeId: node.id,
                 magnitude: value,
                 color: REACTION_COLOR,

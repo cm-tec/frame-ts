@@ -8,9 +8,9 @@
       "z": 0,
       "mass": 1,
       "restraint": {
-        "u": true,
-        "v": true,
-        "theta": false
+        "D1": true,
+        "D2": true,
+        "D3": false
       },
       "angle": 0
     },
@@ -20,9 +20,9 @@
       "z": 0,
       "mass": 0,
       "restraint": {
-        "u": false,
-        "v": true,
-        "theta": false
+        "D1": false,
+        "D2": true,
+        "D3": false
       },
       "angle": 0
     }

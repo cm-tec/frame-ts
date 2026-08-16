@@ -47,8 +47,8 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                             </Table.Tr>
                             <Table.Tr>
                                 <Table.Td fw={600}>Nodal DOFs</Table.Td>
-                                <Table.Td style={MONO}>u, v, θ</Table.Td>
-                                <Table.Td style={MONO}>u, v</Table.Td>
+                                <Table.Td style={MONO}>D1, D2, D3</Table.Td>
+                                <Table.Td style={MONO}>D1, D2</Table.Td>
                             </Table.Tr>
                             <Table.Tr>
                                 <Table.Td fw={600}>Inputs</Table.Td>
@@ -75,8 +75,8 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                     <List size="sm" spacing={6}>
                         <List.Item>
                             <b>Discretisation.</b> Every node carries three degrees of freedom — horizontal
-                            displacement <Code>u</Code>, vertical displacement <Code>v</Code> and
-                            rotation <Code>θ</Code>. Nodes may additionally be given a rotation angle, which
+                            displacement <Code>D1</Code>, vertical displacement <Code>D2</Code> and
+                            rotation <Code>D3</Code>. Nodes may additionally be given a rotation angle, which
                             rotates their local coordinate system and thus allows inclined supports and skewed
                             connections.
                         </List.Item>
@@ -168,7 +168,7 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                 <Section title="Sign conventions">
                     <List size="sm" spacing={4}>
                         <List.Item><Code>x</Code> horizontal (positive to the right), <Code>z</Code> vertical (positive upwards)</List.Item>
-                        <List.Item><Code>θ</Code> counter-clockwise, in radians</List.Item>
+                        <List.Item><Code>D3</Code> (rotation) counter-clockwise, in radians</List.Item>
                         <List.Item>Nodal load angle: <Code>0°</Code> = downwards, <Code>90°</Code> = to the right</List.Item>
                         <List.Item>Element load angle: <Code>0°</Code> = perpendicular to the member axis, <Code>90°</Code> = along the axis</List.Item>
                         <List.Item><Code>N &gt; 0</Code> tension, <Code>M &gt; 0</Code> sagging, <Code>Q = dM/dx</Code></List.Item>

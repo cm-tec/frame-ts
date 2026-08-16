@@ -196,14 +196,14 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
 
                     {/* ── Node info card ─────────────────────────────── */}
                     {selectedNode && (() => {
-                        const u  = solution.get_w(selectedNode.dofs[0]);
-                        const v  = solution.get_w(selectedNode.dofs[1]);
-                        const th = solution.get_w(selectedNode.dofs[2]);
+                        const d1 = solution.get_w(selectedNode.dofs[0]);
+                        const d2 = solution.get_w(selectedNode.dofs[1]);
+                        const d3 = solution.get_w(selectedNode.dofs[2]);
                         const fmt = (n: number) => Math.abs(n) < 1e-9 ? '0' : n.toFixed(5);
                         const restraintLabel = [
-                            selectedNode.restraint.u ? 'u' : null,
-                            selectedNode.restraint.v ? 'v' : null,
-                            selectedNode.restraint.theta ? 'θ' : null,
+                            selectedNode.restraint.D1 ? 'D1' : null,
+                            selectedNode.restraint.D2 ? 'D2' : null,
+                            selectedNode.restraint.D3 ? 'D3' : null,
                         ].filter(Boolean).join(', ') || 'free';
 
                         return (
@@ -226,19 +226,19 @@ export const StaticDiagramSidebar = React.memo(function StaticDiagramSidebar({
                                         { label: 'z',     value: fmt(selectedNode.y) },
                                         { label: 'angle', value: `${(selectedNode.angle * 180 / Math.PI).toFixed(2)} °` },
                                         null,
-                                        { label: 'u',  value: fmt(u) },
-                                        { label: 'v',  value: fmt(v) },
-                                        { label: 'θ',  value: fmt(th) + ' rad' },
+                                        { label: 'D1', value: fmt(d1) },
+                                        { label: 'D2', value: fmt(d2) },
+                                        { label: 'D3', value: fmt(d3) + ' rad' },
                                         // A reaction only exists where the node is held, and it is
                                         // reported along that bearing's own axes.
                                         ...(restraintLabel === 'free' ? [] : [
                                             null,
-                                            ...(selectedNode.restraint.u
-                                                ? [{ label: 'R u', value: fmt(solution.get_r(selectedNode.dofs[0])), accent: true }] : []),
-                                            ...(selectedNode.restraint.v
-                                                ? [{ label: 'R v', value: fmt(solution.get_r(selectedNode.dofs[1])), accent: true }] : []),
-                                            ...(selectedNode.restraint.theta
-                                                ? [{ label: 'R θ', value: fmt(solution.get_r(selectedNode.dofs[2])), accent: true }] : []),
+                                            ...(selectedNode.restraint.D1
+                                                ? [{ label: 'R D1', value: fmt(solution.get_r(selectedNode.dofs[0])), accent: true }] : []),
+                                            ...(selectedNode.restraint.D2
+                                                ? [{ label: 'R D2', value: fmt(solution.get_r(selectedNode.dofs[1])), accent: true }] : []),
+                                            ...(selectedNode.restraint.D3
+                                                ? [{ label: 'R D3', value: fmt(solution.get_r(selectedNode.dofs[2])), accent: true }] : []),
                                         ]),
                                     ].map((row, i) =>
                                         row === null ? <Divider key={`sp-${i}`} my={4} color="gray.2" /> : (

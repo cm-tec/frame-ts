@@ -44,7 +44,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
     const updateNode = (id: number, patch: Partial<Omit<NodeInput, 'id'>>) =>
         setNodes(r => r.map(row => row.id === id ? { ...row, ...patch } : row));
 
-    const IC_DEFAULTS: InitialConditions[number] = { u0: 0, du0: 0, v0: 0, dv0: 0, theta0: 0, dtheta0: 0 };
+    const IC_DEFAULTS: InitialConditions[number] = { D1_0: 0, dD1_0: 0, D2_0: 0, dD2_0: 0, D3_0: 0, dD3_0: 0 };
     const updateInitialCondition = (nodeId: number, patch: Partial<InitialConditions[number]>) =>
         setInitialConditions(prev => ({
             ...prev,
@@ -84,7 +84,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
 
     const addHinge = () => {
         const nextId = hinges.length ? Math.max(...hinges.map(h => h.id)) + 1 : 1;
-        setHinges(r => [...r, { id: nextId, element_id: elements[0]?.id ?? 1, end: 'i', u: false, v: false, theta: true }]);
+        setHinges(r => [...r, { id: nextId, element_id: elements[0]?.id ?? 1, end: 'i', D1: false, D2: false, D3: true }]);
     };
     const updateHinge = (id: number, patch: Partial<HingeInput>) =>
         setHinges(r => r.map(h => h.id === id ? { ...h, ...patch } : h));
@@ -98,7 +98,7 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
             id: r.length ? Math.max(...r.map((n) => n.id)) + 1 : 1,
             x: 0, z: 0,
             mass: previous?.mass ?? 10,
-            restraint: { u: false, v: false, theta: true },
+            restraint: { D1: false, D2: false, D3: true },
             angle: 0,
         }];
     });
@@ -112,8 +112,8 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
             ea: previous?.ea ?? 100,
             ei: previous?.ei ?? 100,
             c: previous?.c ?? 0,
-            releases_i: { u: false, v: false, theta: false },
-            releases_j: { u: false, v: false, theta: false },
+            releases_i: { D1: false, D2: false, D3: false },
+            releases_j: { D1: false, D2: false, D3: false },
         }];
     });
 
@@ -205,9 +205,9 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                                     <Table.Th>x</Table.Th>
                                     <Table.Th>z</Table.Th>
                                     {view === 'dynamic' && <Table.Th>Mass</Table.Th>}
-                                    <Table.Th>u</Table.Th>
-                                    <Table.Th>v</Table.Th>
-                                    {view === 'static' && <Table.Th>θ</Table.Th>}
+                                    <Table.Th>D1</Table.Th>
+                                    <Table.Th>D2</Table.Th>
+                                    {view === 'static' && <Table.Th>D3</Table.Th>}
                                     <Table.Th />
                                 </Table.Tr>
                             </Table.Thead>
@@ -225,14 +225,14 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                                             <NumberInput value={row.mass} onChange={(e) => updateNode(row.id, { mass: Number(e) || 0 })} variant="unstyled" hideControls />
                                         </Table.Td>}
                                         <Table.Td>
-                                            <Checkbox checked={row.restraint.u} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, u: e.currentTarget.checked } })} />
+                                            <Checkbox checked={row.restraint.D1} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, D1: e.currentTarget.checked } })} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <Checkbox checked={row.restraint.v} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, v: e.currentTarget.checked } })} />
+                                            <Checkbox checked={row.restraint.D2} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, D2: e.currentTarget.checked } })} />
                                         </Table.Td>
                                         {view === 'static' && (
                                             <Table.Td>
-                                                <Checkbox checked={row.restraint.theta} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, theta: e.currentTarget.checked } })} />
+                                                <Checkbox checked={row.restraint.D3} onChange={(e) => updateNode(row.id, { restraint: { ...row.restraint, D3: e.currentTarget.checked } })} />
                                             </Table.Td>
                                         )}
                                         <Table.Td>
@@ -253,10 +253,10 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                             <Table.Thead>
                                 <Table.Tr>
                                     <Table.Th bg="gray.1">Id</Table.Th>
-                                    <Table.Th>u₀</Table.Th>
-                                    <Table.Th>v₀</Table.Th>
-                                    <Table.Th>u̇₀</Table.Th>
-                                    <Table.Th>v̇₀</Table.Th>
+                                    <Table.Th>D1₀</Table.Th>
+                                    <Table.Th>D2₀</Table.Th>
+                                    <Table.Th>Ḋ1₀</Table.Th>
+                                    <Table.Th>Ḋ2₀</Table.Th>
                                 </Table.Tr>
                             </Table.Thead>
                             <Table.Tbody>
@@ -266,16 +266,16 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
                                     <Table.Tr key={row.id}>
                                         <Table.Td bg="gray.1">{row.id}</Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={ic.u0} onChange={(e) => updateInitialCondition(row.id, { u0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
+                                            <NumberInput value={ic.D1_0} onChange={(e) => updateInitialCondition(row.id, { D1_0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.D1} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={ic.v0} onChange={(e) => updateInitialCondition(row.id, { v0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
+                                            <NumberInput value={ic.D2_0} onChange={(e) => updateInitialCondition(row.id, { D2_0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.D2} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={ic.du0} onChange={(e) => updateInitialCondition(row.id, { du0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.u} />
+                                            <NumberInput value={ic.dD1_0} onChange={(e) => updateInitialCondition(row.id, { dD1_0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.D1} />
                                         </Table.Td>
                                         <Table.Td>
-                                            <NumberInput value={ic.dv0} onChange={(e) => updateInitialCondition(row.id, { dv0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.v} />
+                                            <NumberInput value={ic.dD2_0} onChange={(e) => updateInitialCondition(row.id, { dD2_0: Number(e) || 0 })} variant="unstyled" hideControls disabled={row.restraint.D2} />
                                         </Table.Td>
                                     </Table.Tr>
                                     );

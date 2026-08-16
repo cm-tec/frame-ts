@@ -104,14 +104,14 @@ test('assembly of matrices with releases', () => {
 
     system = new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: m, restraint: { u: true, v: true, theta: true }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: m, restraint: { u: false, v: true, theta: true }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: m, restraint: { D1: true, D2: true, D3: true }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: m, restraint: { D1: false, D2: true, D3: true }, angle: 0 },
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: ea, ei: ei, c: c },
         ],
         [
-            { id: 1, element_id: 1, end: 'j', u: false, v: true, theta: true }
+            { id: 1, element_id: 1, end: 'j', D1: false, D2: true, D3: true }
         ]
     );
     solver = new SystemSolver(system);
@@ -219,7 +219,7 @@ test('assembly of cantilever with a 180-degree flipped node system', () => {
 
 test('fully restrained system is not kinematic', () => {
     const system = new StructuralSystem(
-        [{ id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0}],
+        [{ id: 1, x: 0, z: 0, mass: 1, restraint: { D1: true, D2: true, D3: true }, angle: 0}],
         []
     );
     const solver = new SystemSolver(system);
@@ -234,8 +234,8 @@ test('solveDynamic — overdamped SDOF eigenvalues and time response', () => {
 
     const system = StructuralSystem.createPureTruss(
         [
-            { id: 1, x: 0, z: 0, mass: 1, restraint: { u: true, v: true, theta: true }, angle: 0},
-            { id: 2, x: 0, z: 1, mass: m, restraint: { u: true, v: false, theta: true }, angle: 0},
+            { id: 1, x: 0, z: 0, mass: 1, restraint: { D1: true, D2: true, D3: true }, angle: 0},
+            { id: 2, x: 0, z: 1, mass: m, restraint: { D1: true, D2: false, D3: true }, angle: 0},
         ],
         [
             {
@@ -456,8 +456,8 @@ test('a reaction includes the fixed-end forces of a span load reaching the suppo
 test('a free node without mass leaves the mass matrix singular', () => {
     const system = StructuralSystem.createPureTruss(
         [
-            { id: 1, x: 0, z: 0, mass: 5, restraint: { u: true,  v: true,  theta: false }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 5, restraint: { D1: true,  D2: true,  D3: false }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea: 1000, ei: 0, c: 0 }],
     );
@@ -468,8 +468,8 @@ test('a free node without mass leaves the mass matrix singular', () => {
 test('a system carrying mass at every free node is not flagged', () => {
     const system = StructuralSystem.createPureTruss(
         [
-            { id: 1, x: 0, z: 0, mass: 5, restraint: { u: true,  v: true,  theta: false }, angle: 0 },
-            { id: 2, x: 1, z: 0, mass: 5, restraint: { u: false, v: false, theta: false }, angle: 0 },
+            { id: 1, x: 0, z: 0, mass: 5, restraint: { D1: true,  D2: true,  D3: false }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: 5, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
         ],
         [{ id: 1, node_i: 1, node_j: 2, ea: 1000, ei: 0, c: 0 }],
     );

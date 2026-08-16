@@ -116,8 +116,8 @@ type NodeColors = { supportFill: string; nodeFill: string; nodeCircleFill: strin
 function supportOutline(node: StructuralNode, B: number): Array<[number, number]> {
     const corners: Array<[number, number]> = [];
 
-    if (node.restraint.u) corners.push([0, 0], [-3 * B, -2 * B], [-3 * B, 2 * B]);
-    if (node.restraint.v) corners.push([0, 0], [-2 * B, 3 * B], [2 * B, 3 * B]);
+    if (node.restraint.D1) corners.push([0, 0], [-3 * B, -2 * B], [-3 * B, 2 * B]);
+    if (node.restraint.D2) corners.push([0, 0], [-2 * B, 3 * B], [2 * B, 3 * B]);
 
     return corners;
 }
@@ -126,7 +126,7 @@ function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false,
     const R = THEME.nodeRadius;
     const B = THEME.bearingSize;
     return <>
-        {node.restraint.u && (
+        {node.restraint.D1 && (
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
@@ -136,7 +136,7 @@ function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false,
                 ctx.fillStrokeShape(shape);
             }} />
         )}
-        {node.restraint.v && (
+        {node.restraint.D2 && (
             <Shape visible={showBearing} stroke={colors.stroke} fill={colors.supportFill} strokeWidth={THEME.bearingStrokeWidth} sceneFunc={(ctx, shape) => {
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
@@ -147,7 +147,7 @@ function NodeShape({ node, colors, showNode, showBearing, showNodeCross = false,
             }} />
         )}
         <Group ref={jointRef}>
-            {node.restraint.theta
+            {node.restraint.D3
                 ? <Rect visible={showNode} x={-(B-2)} y={-(B-2)} width={2 * (B-2)} height={2 * (B-2)} fill={colors.nodeFill} stroke={colors.stroke} strokeWidth={2} />
                 : <Group visible={showNode}>
                       <Circle radius={R} fill={colors.nodeCircleFill} stroke={colors.stroke} strokeWidth={2} />
@@ -844,14 +844,14 @@ function AnimatedLayer({ structuralSystem, getNodePosition, getElementPositions,
                                 align="center" verticalAlign="middle"
                             />
                         </Group>
-                        {showHinges && el.releases_i.theta && (
+                        {showHinges && el.releases_i.D3 && (
                             <Circle
                                 ref={refSetter(hingeCircleRefs, `${el.id}-i`)}
                                 x={hcxi + HINGE_OFFSET * hdxi} y={hcyi + HINGE_OFFSET * hdyi}
                                 radius={HINGE_RADIUS} fill={theme.hingeFill} stroke={theme.hingeStroke} strokeWidth={1.5}
                             />
                         )}
-                        {showHinges && el.releases_j.theta && (
+                        {showHinges && el.releases_j.D3 && (
                             <Circle
                                 ref={refSetter(hingeCircleRefs, `${el.id}-j`)}
                                 x={hcxj + HINGE_OFFSET * hdxj} y={hcyj + HINGE_OFFSET * hdyj}

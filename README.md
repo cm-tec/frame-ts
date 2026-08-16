@@ -22,7 +22,7 @@ mechanical model:
 | | **Static** | **Dynamic** |
 |---|---|---|
 | Element | Beam element, moment-rigid at both ends unless a hinge is defined | Pin-jointed truss member (moment released at both ends) |
-| Nodal DOFs | `u`, `v`, `θ` | `u`, `v` (rotations restrained) |
+| Nodal DOFs | `D1`, `D2`, `D3` | `D1`, `D2` (rotations restrained) |
 | Inputs | Nodal loads, element loads, hinges, supports incl. rotational restraint | Nodal masses, axial dampers, initial conditions |
 | Results | Deformed shape, `N` / `Q` / `M` diagrams, nodal displacements, support reactions | Animated time response, displacement & velocity time histories, eigenfrequencies, damping ratios, animated eigenmodes |
 
@@ -38,8 +38,8 @@ The implementation follows the classical **displacement (direct stiffness) metho
 ### Discretisation
 
 - Global coordinates: `x` horizontal (positive to the right), `z` vertical (positive upwards).
-- Every node carries **three degrees of freedom**: horizontal displacement `u`, vertical
-  displacement `v`, and rotation `θ` (counter-clockwise, in radians).
+- Every node carries **three degrees of freedom**: horizontal displacement `D1`, vertical
+  displacement `D2`, and rotation `D3` (counter-clockwise, in radians).
 - Every node may additionally be given a **nodal rotation angle**, which rotates its local
   coordinate system. This allows inclined supports and skewed member connections.
 - Supports are imposed by restraining individual DOFs; the global system is partitioned into
@@ -49,7 +49,7 @@ The implementation follows the classical **displacement (direct stiffness) metho
 
 Each element is a two-node **Euler–Bernoulli beam element** with axial stiffness `EA` and bending
 stiffness `EI`, giving the standard 6×6 local stiffness matrix in the DOF order
-`[uᵢ, vᵢ, θᵢ, uⱼ, vⱼ, θⱼ]`. In the terminology of the German lecture notes this is
+`[D1ᵢ, D2ᵢ, D3ᵢ, D1ⱼ, D2ⱼ, D3ⱼ]`. In the terminology of the German lecture notes this is
 *Grundelement 1* (clamped–clamped). Element matrices are rotated into global coordinates with a
 transformation matrix built per element end, so that nodal rotations are respected, and then
 expanded and added into the global matrices.
@@ -148,7 +148,7 @@ or bracing easy to spot.
 
 **Editor**
 
-- Tabular input of nodes (coordinates, mass, supports `u` / `v` / `θ`), elements (`EA`, `EI`,
+- Tabular input of nodes (coordinates, mass, supports `D1` / `D2` / `D3`), elements (`EA`, `EI`,
   damper `c`), hinges (element and end), nodal loads, element loads and initial conditions.
 - Live blueprint preview of the structure next to the tables, including supports, hinge symbols,
   joint types and load arrows.
@@ -161,7 +161,7 @@ or bracing easy to spot.
   manual scale factor; the normal force diagram is coloured by tension/compression.
 - Click an element to get its `N`, `V`, `M`, transverse and axial displacement diagrams in the
   side panel; click any diagram to enlarge it.
-- Click a node to read out its coordinates, displacements `u`, `v`, `θ` and support condition.
+- Click a node to read out its coordinates, displacements `D1`, `D2`, `D3` and support condition.
 - Toggles for the undeformed system, node markers, supports, member orientation (reference
   fibre), nodal loads and element loads.
 - Plausibility warning when a member with `EI = 0` carries a transverse distributed load.

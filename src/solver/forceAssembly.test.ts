@@ -12,8 +12,8 @@ const ACC = 9;
 function horizontalBeam(nodeAngle: number = 0) {
     return new StructuralSystem(
         [
-            { id: 1, x: 0, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
-            { id: 2, x: 6, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: nodeAngle },
+            { id: 1, x: 0, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: 0 },
+            { id: 2, x: 6, z: 0, mass: 0, restraint: { D1: false, D2: false, D3: false }, angle: nodeAngle },
         ],
         [
             { id: 1, node_i: 1, node_j: 2, ea: 1000, ei: 1000, c: 0 },

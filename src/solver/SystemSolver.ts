@@ -67,9 +67,9 @@ export class SystemSolver {
         }
 
         for (const n of system.nodes) {
-            if (n.restraint.u)     restrained.push(n.dofs[0]);
-            if (n.restraint.v)     restrained.push(n.dofs[1]);
-            if (n.restraint.theta) restrained.push(n.dofs[2]);
+            if (n.restraint.D1) restrained.push(n.dofs[0]);
+            if (n.restraint.D2) restrained.push(n.dofs[1]);
+            if (n.restraint.D3) restrained.push(n.dofs[2]);
         }
 
         for (let i = 0; i < system.ndof; i++) {

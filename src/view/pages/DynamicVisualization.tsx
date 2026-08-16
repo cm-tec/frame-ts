@@ -23,7 +23,7 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
 
     useEffect(() => {
         const key = structuralSystem.nodes
-            .flatMap(n => [n.restraint.u ? null : n.dofs[0], n.restraint.v ? null : n.dofs[1]])
+            .flatMap(n => [n.restraint.D1 ? null : n.dofs[0], n.restraint.D2 ? null : n.dofs[1]])
             .filter(v => v !== null)
             .join(',');
         syncDofKey(key);
@@ -40,9 +40,9 @@ export default function DynamicVisualization({ structuralSystem, initialConditio
             const nodeIc = initialConditions[node.id];
             if (!nodeIc) continue;
             let disp = 0, vel = 0;
-            if      (node.dofs[0] === dof) { disp = nodeIc.u0;     vel = nodeIc.du0; }
-            else if (node.dofs[1] === dof) { disp = nodeIc.v0;     vel = nodeIc.dv0; }
-            else if (node.dofs[2] === dof) { disp = nodeIc.theta0; vel = nodeIc.dtheta0; }
+            if      (node.dofs[0] === dof) { disp = nodeIc.D1_0; vel = nodeIc.dD1_0; }
+            else if (node.dofs[1] === dof) { disp = nodeIc.D2_0; vel = nodeIc.dD2_0; }
+            else if (node.dofs[2] === dof) { disp = nodeIc.D3_0; vel = nodeIc.dD3_0; }
             ic.set([i, 0], disp);
             ic.set([i + N, 0], vel);
         }
