@@ -112,6 +112,20 @@ export class SystemSolver {
             .map(ev => ev.vector as Matrix);
     }
 
+    // A direction that can move but carries no mass leaves m_11 singular, so solveDynamic
+    // has nothing to invert.
+    hasMasslessDofs(threshold: number = 1e-9): boolean {
+        return this.getMasslessModes(threshold).length > 0;
+    }
+
+    getMasslessModes(threshold: number = 1e-9): Matrix[] {
+        if (this.ndof_non_restrained === 0) return [];
+
+        return eigs(this.m_11).eigenvectors
+            .filter(ev => Math.abs(ev.value as number) < threshold)
+            .map(ev => ev.vector as Matrix);
+    }
+
     solveKinematic(threshold: number = 1e-9): KinematicSolution {
         return new KinematicSolution(
             this.getKinematicModes(threshold),

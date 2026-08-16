@@ -1,5 +1,5 @@
 import '@mantine/core/styles.css';
-import { ActionIcon, AppShell, Badge, Button, Divider, Group, MantineProvider, SegmentedControl, Text, TextInput, Tooltip } from '@mantine/core';
+import { ActionIcon, Alert, AppShell, Badge, Button, Divider, Group, MantineProvider, SegmentedControl, Text, TextInput, Tooltip } from '@mantine/core';
 import { IconCamera, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from "react";
 
@@ -112,6 +112,12 @@ export default function App() {
   const activeSystem = view === 'static' ? staticSystem : dynamicSystem;
   const isKinematic  = useMemo(() => new SystemSolver(activeSystem).isKinematic(), [activeSystem]);
 
+  // Only the dynamic model needs mass; the static one solves fine without it.
+  const masslessDynamic = useMemo(
+    () => view === 'dynamic' && !isKinematic && new SystemSolver(dynamicSystem).hasMasslessDofs(),
+    [view, isKinematic, dynamicSystem],
+  );
+
   const openExample = (data: SystemFile) => {
     if (loadSystem(data)) {
       setEditMode(false);
@@ -189,6 +195,9 @@ export default function App() {
               {isKinematic && (
                 <Badge color="orange" variant="light">Kinematic System</Badge>
               )}
+              {masslessDynamic && (
+                <Badge color="orange" variant="light">Massless Degrees of Freedom</Badge>
+              )}
             </Group>
 
             <Group gap="xs">
@@ -235,10 +244,18 @@ export default function App() {
           {!editMode && isKinematic && (
             <KinematicVisualization structuralSystem={activeSystem} />
           )}
-          {!editMode && !isKinematic && view === 'dynamic' && subView === 'response' && (
+          {!editMode && !isKinematic && view === 'dynamic' && masslessDynamic && (
+            <Alert color="orange" title="Massless degrees of freedom" variant="light" m="md">
+              <Text size="sm">
+                Every node that is free to move needs a mass before the dynamic response can be
+                computed. Give the unrestrained nodes a mass in the editor, or restrain them.
+              </Text>
+            </Alert>
+          )}
+          {!editMode && !isKinematic && !masslessDynamic && view === 'dynamic' && subView === 'response' && (
             <DynamicVisualization structuralSystem={dynamicSystem} initialConditions={initialConditions} loads={loads} />
           )}
-          {!editMode && !isKinematic && view === 'dynamic' && subView === 'eigenmodes' && (
+          {!editMode && !isKinematic && !masslessDynamic && view === 'dynamic' && subView === 'eigenmodes' && (
             <EigenmodeVisualization structuralSystem={dynamicSystem} />
           )}
           {!editMode && !isKinematic && view === 'static' && (

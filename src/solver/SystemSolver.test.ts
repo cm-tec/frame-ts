@@ -451,3 +451,20 @@ test('a reaction includes the fixed-end forces of a span load reaching the suppo
     expect(sol.get_r(support.dofs[1])).toBeCloseTo(q * L, ACC);
     expect(sol.get_r(support.dofs[2])).toBeCloseTo(q * L * L / 2, ACC);
 });
+
+
+test('a free node without mass leaves the mass matrix singular', () => {
+    const system = StructuralSystem.createPureTruss(
+        [
+            { id: 1, x: 0, z: 0, mass: 5, restraint: { u: true,  v: true,  theta: false }, angle: 0 },
+            { id: 2, x: 1, z: 0, mass: 0, restraint: { u: false, v: false, theta: false }, angle: 0 },
+        ],
+        [{ id: 1, node_i: 1, node_j: 2, ea: 1000, ei: 0, c: 0 }],
+    );
+
+    expect(new SystemSolver(system).hasMasslessDofs()).toBe(true);
+});
+
+test('a system carrying mass at every free node is not flagged', () => {
+    expect(new SystemSolver(getBeam()).hasMasslessDofs()).toBe(false);
+});
