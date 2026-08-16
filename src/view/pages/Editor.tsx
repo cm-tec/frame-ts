@@ -91,23 +91,31 @@ export default function Editor({ view, nodes, setNodes, elements, setElements, h
     const deleteHinge = (id: number) =>
         setHinges(r => r.filter(h => h.id !== id));
 
-    const addNode = () => {
-        const nextId = nodes.length ? Math.max(...nodes.map((r) => r.id)) + 1 : 1;
-        setNodes((r) => [...r, {
-            id: nextId, x: 0, z: 0, mass: 0,
+    const addNode = () => setNodes((r) => {
+        const previous = r[r.length - 1];
+
+        return [...r, {
+            id: r.length ? Math.max(...r.map((n) => n.id)) + 1 : 1,
+            x: 0, z: 0,
+            mass: previous?.mass ?? 10,
             restraint: { u: false, v: false, theta: true },
             angle: 0,
-        }]);
-    };
+        }];
+    });
 
-    const addElement = () => {
-        const nextId = elements.length ? Math.max(...elements.map((r) => r.id)) + 1 : 1;
-        setElements((r) => [...r, {
-            id: nextId, node_i: 1, node_j: 2, ea: 1, ei: 0, c: 0,
+    const addElement = () => setElements((r) => {
+        const previous = r[r.length - 1];
+
+        return [...r, {
+            id: r.length ? Math.max(...r.map((e) => e.id)) + 1 : 1,
+            node_i: 1, node_j: 2,
+            ea: previous?.ea ?? 100,
+            ei: previous?.ei ?? 100,
+            c: previous?.c ?? 0,
             releases_i: { u: false, v: false, theta: false },
             releases_j: { u: false, v: false, theta: false },
-        }]);
-    };
+        }];
+    });
 
     // ── Viewer data ──────────────────────────────────────────────────────────────
 
