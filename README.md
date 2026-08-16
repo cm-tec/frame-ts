@@ -1,11 +1,11 @@
-# Truss
+# FrameTS
 
 An interactive, browser-based tool for the analysis of **plane (2D) frame and truss structures**.
 You define a structure in a table-driven editor and immediately see its behaviour: deformed
 shapes, internal force diagrams, free-vibration animations, eigenmodes and — for insufficiently
 supported systems — the kinematic mechanisms themselves.
 
-Despite the name, the tool is not restricted to trusses: the underlying element is a full Euler–Bernoulli beam element with axial, bending and rotational degrees of freedom.
+The underlying element is a full Euler–Bernoulli beam element with axial, bending and rotational degrees of freedom.
 Truss members are a special case obtained through moment releases.
 
 The app is intended as a **teaching and intuition-building companion** to courses in structural

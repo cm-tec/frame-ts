@@ -90,7 +90,7 @@ export default function Welcome({ examples, onSelect, onStartFromScratch, onImpo
         <Container size="lg" py={60}>
             <Stack gap={4} mb="xl">
                 <Group gap="xs" align="baseline">
-                    <Title order={1}>Truss</Title>
+                    <Title order={1}>FrameTS</Title>
                     <Button variant="subtle" color="gray" size="compact-sm" leftSection={<IconInfoCircle size={16} />} onClick={onAbout}>
                         About
                     </Button>

@@ -1,4 +1,4 @@
-import { Anchor, Blockquote, Code, Divider, List, Modal, Stack, Table, Text, Title } from '@mantine/core';
+import { Blockquote, Code, Divider, List, Modal, Stack, Table, Text, Title } from '@mantine/core';
 
 const MONO = { fontFamily: 'monospace' } as const;
 
@@ -13,7 +13,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () => void }) {
     return (
-        <Modal opened={opened} onClose={onClose} title="About Truss" size="lg">
+        <Modal opened={opened} onClose={onClose} title="About FrameTS" size="lg">
             <Stack gap="lg">
 
                 <Text size="sm">
@@ -24,9 +24,8 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                 </Text>
 
                 <Text size="sm" c="dimmed">
-                    Despite the name the tool is not restricted to trusses: the underlying element is a full
-                    Euler–Bernoulli beam element. Truss members are the special case obtained by releasing the
-                    moment at both member ends.
+                    The underlying element is a full Euler–Bernoulli beam element. Truss members are the
+                    special case obtained by releasing the moment at both member ends.
                 </Text>
 
                 <Divider />
@@ -200,8 +199,7 @@ export function AboutModal({ opened, onClose }: { opened: boolean; onClose: () =
                 <Divider />
 
                 <Text size="xs" c="dimmed">
-                    Developed by Christoph Markefka. Source code and documentation:{' '}
-                    <Anchor size="xs" href="https://github.com/" target="_blank" rel="noreferrer">repository</Anchor>.
+                    Developed by Christoph Markefka.
                 </Text>
 
             </Stack>

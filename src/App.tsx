@@ -165,7 +165,7 @@ export default function App() {
                   tabIndex={0}
                   onKeyDown={e => { if (e.key === 'Enter') setGalleryOpen(true); }}
                 >
-                  Truss
+                  FrameTS
                 </Text>
               </Tooltip>
               <Tooltip label="About — concepts, methods, conventions">
