@@ -1,6 +1,6 @@
 import '@mantine/core/styles.css';
 import { ActionIcon, Alert, AppShell, Badge, Button, Divider, Group, MantineProvider, SegmentedControl, Text, TextInput, Tooltip } from '@mantine/core';
-import { IconCamera, IconInfoCircle } from '@tabler/icons-react';
+import { IconCamera } from '@tabler/icons-react';
 import { useMemo, useRef, useState } from "react";
 
 import { type NodeInput, type ElementInput, type HingeInput, type InitialConditions, type Loads } from "./models/inputModels";
@@ -12,7 +12,6 @@ import DynamicVisualization from "./view/pages/DynamicVisualization";
 import EigenmodeVisualization from "./view/pages/EigenmodeVisualization";
 import StaticVisualization from "./view/pages/StaticVisualization";
 import KinematicVisualization from "./view/pages/KinematicVisualization";
-import { AboutModal } from "./view/components/AboutModal";
 import Welcome from "./view/pages/Welcome";
 import { examples } from "./examples";
 import { migrateSystemFile, SYSTEM_FILE_VERSION, type SystemFile } from "./models/systemFile";
@@ -32,7 +31,6 @@ const EMPTY_SYSTEM: SystemFile = {
 
 export default function App() {
   const [editMode, setEditMode]   = useState(false);
-  const [aboutOpen, setAboutOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(true);
   const [view,     setView]       = useState<'dynamic' | 'static'>('dynamic');
   const [subView,  setSubView]    = useState<'response' | 'eigenmodes'>('response');
@@ -144,7 +142,6 @@ export default function App() {
   if (galleryOpen) {
     return (
       <MantineProvider>
-        <AboutModal opened={aboutOpen} onClose={() => setAboutOpen(false)} />
         <input ref={importRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
         {loadErrorAlert}
         <Welcome
@@ -152,7 +149,6 @@ export default function App() {
           onSelect={openExample}
           onStartFromScratch={startFromScratch}
           onImport={() => importRef.current?.click()}
-          onAbout={() => setAboutOpen(true)}
         />
       </MantineProvider>
     );
@@ -160,12 +156,11 @@ export default function App() {
 
   return (
     <MantineProvider>
-      <AboutModal opened={aboutOpen} onClose={() => setAboutOpen(false)} />
       <AppShell header={{ height: 50 }} padding={0}>
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
             <Group gap={6}>
-              <Tooltip label="Back to examples">
+              <Tooltip label="Back to examples and documentation">
                 <Text
                   fw={700}
                   size="lg"
@@ -177,11 +172,6 @@ export default function App() {
                 >
                   FrameTS
                 </Text>
-              </Tooltip>
-              <Tooltip label="About — concepts, methods, conventions">
-                <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => setAboutOpen(true)} aria-label="About">
-                  <IconInfoCircle size={18} />
-                </ActionIcon>
               </Tooltip>
             </Group>
 
