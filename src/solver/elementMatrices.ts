@@ -51,60 +51,56 @@ export function get_rotation_matrix_of_element(theta_element: number, angle_i: n
     ]);
 }
 
+// Local DOF indices: u_i=0, v_i=1, theta_i=2, u_j=3, v_j=4, theta_j=5.
+const LOCAL_DOFS = [0, 1, 2, 3, 4, 5];
+
 /**
- * Condenses the released local DOFs out of an element matrix.
+ * Condenses the released local DOFs out of `a`.
  *
- * The result is returned as a full 6x6 with zeros in the cut positions, so it drops
+ * `a` is the quantity being condensed - an element matrix (6x6) or a load vector (6x1) -
+ * and `k` is the stiffness that couples the released DOFs to the kept ones (the element
+ * matrix itself, when that is what is being condensed). Columns of `a` count as local
+ * DOFs only when there are six of them, so a matrix is condensed on both axes while a
+ * vector is condensed on its rows alone.
+ *
+ * The result keeps the full six rows with zeros in the cut positions, so it drops
  * straight into the assembly pipeline.
  */
-export function applyStaticCondensation(k_elem: Matrix, releases_i: Releases, releases_j: Releases): Matrix {
+export function condenseReleases(a: Matrix, k: Matrix, releases_i: Releases, releases_j: Releases): Matrix {
+    const n_cols = a.size()[1];
+
+    // An end with every DOF released transmits nothing at all.
     const all_i_released = releases_i.u && releases_i.v && releases_i.theta;
     const all_j_released = releases_j.u && releases_j.v && releases_j.theta;
+    if (all_i_released || all_j_released) return matrix(zeros([LOCAL_DOFS.length, n_cols])) as Matrix;
 
-    if (all_i_released || all_j_released) {
-        return matrix(zeros([6, 6]));
-    }
+    const released = [releases_i.u, releases_i.v, releases_i.theta, releases_j.u, releases_j.v, releases_j.theta];
+    const cut = LOCAL_DOFS.filter(dof => released[dof]);
 
+    if (cut.length === 0) return a;
 
-    // Array of local DOF indices to condense (0 to 5)
-    // u_i=0, v_i=1, theta_i=2, u_j=3, v_j=4, theta_j=5
-    const cutIdx: number[] = [];
-    if (releases_i.u) cutIdx.push(0);
-    if (releases_i.v) cutIdx.push(1);
-    if (releases_i.theta) cutIdx.push(2);
-    if (releases_j.u) cutIdx.push(3);
-    if (releases_j.v) cutIdx.push(4);
-    if (releases_j.theta) cutIdx.push(5);
+    const keep = LOCAL_DOFS.filter(dof => !released[dof]);
+    const cols = n_cols === LOCAL_DOFS.length ? keep : LOCAL_DOFS.slice(0, n_cols);
 
-    if (cutIdx.length === 0) return k_elem;
+    const K_cc = subset(k, index(cut, cut)) as Matrix;
+    const a_keep = subset(a, index(keep, cols)) as Matrix;
 
-
-    const keepIdx = [0, 1, 2, 3, 4, 5].filter(idx => !cutIdx.includes(idx));
-
-    // Split the element matrix into Sub-matrices
-    const K_rr = subset(k_elem, index(keepIdx, keepIdx));
-    const K_rc = subset(k_elem, index(keepIdx, cutIdx));
-    const K_cr = subset(k_elem, index(cutIdx, keepIdx));
-    const K_cc = subset(k_elem, index(cutIdx, cutIdx));
-
-    let K_condensed: Matrix;
+    let condensed: Matrix;
 
     if (Math.abs(det(K_cc)) < 1e-12) {
-        // If the cut properties are already pure zero (like in the damping matrix),
-        // there is nothing to condense out; K_rr is already the answer.
-        K_condensed = K_rr;
+        // If the cut DOFs carry no stiffness of their own (like the bending rows of the
+        // damping matrix), there is nothing to condense out; the kept block is the answer.
+        condensed = a_keep;
     } else {
-        K_condensed = subtract(K_rr, multiply(K_rc, multiply(inv(K_cc), K_cr)));
+        const K_kc = subset(k, index(keep, cut)) as Matrix;
+        const a_cut = subset(a, index(cut, cols)) as Matrix;
+
+        condensed = subtract(a_keep, multiply(K_kc, multiply(inv(K_cc), a_cut))) as Matrix;
     }
 
-    // Reconstruct a full 6x6 matrix with zeros in the cut positions
-    // so it perfectly fits your existing assembly pipeline
-    let k_final = matrix(zeros([6, 6]));
-    keepIdx.forEach((r, i) => {
-        keepIdx.forEach((c, j) => {
-            k_final.set([r, c], K_condensed.get([i, j]));
-        });
-    });
+    // Scatter back into the full shape, leaving zeros in the cut positions.
+    const result = matrix(zeros([LOCAL_DOFS.length, n_cols])) as Matrix;
+    keep.forEach((r, i) => cols.forEach((c, j) => result.set([r, c], condensed.get([i, j]))));
 
-    return k_final;
+    return result;
 }

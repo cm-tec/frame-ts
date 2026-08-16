@@ -1,6 +1,6 @@
 import { add, eigs, identity, index, inv, lusolve, matrix, multiply, subset, subtract, transpose, zeros, type Matrix } from "mathjs";
 import { merge, getEigenvalues, getEigenvectors } from "./utils";
-import { applyStaticCondensation, c_element, get_rotation_matrix_of_element, k_element } from "./elementMatrices";
+import { c_element, condenseReleases, get_rotation_matrix_of_element, k_element } from "./elementMatrices";
 import type { StructuralSystem } from "./StructuralSystem";
 import { KinematicSolution } from "./KinematicSolution";
 import { DynamicSolution } from "./DynamicSolution";
@@ -44,8 +44,8 @@ export class SystemSolver {
             let k_e = k_element(e.ea, e.ei, e.L);
             let c_e = c_element(e.c);
 
-            k_e = applyStaticCondensation(k_e, e.releases_i, e.releases_j);
-            c_e = applyStaticCondensation(c_e, e.releases_i, e.releases_j);
+            k_e = condenseReleases(k_e, k_e, e.releases_i, e.releases_j);
+            c_e = condenseReleases(c_e, c_e, e.releases_i, e.releases_j);
 
             const R_e = get_rotation_matrix_of_element(
                 e.angle,

@@ -1,7 +1,7 @@
 import { matrix, multiply, subtract, type Matrix } from "mathjs";
 import { Polynomial } from "./Polynomial";
-import { applyStaticCondensation, get_rotation_matrix_of_element, k_element } from "./elementMatrices";
-import { condenseForReleases, equivalentNodalLoad } from "./forceAssembly";
+import { condenseReleases, get_rotation_matrix_of_element, k_element } from "./elementMatrices";
+import { condenseElementLoad, equivalentNodalLoad } from "./forceAssembly";
 import type { StructuralLoads } from "./StructuralLoads";
 import type { StructuralElement } from "./StructuralSystem";
 
@@ -39,12 +39,10 @@ function memberEndForces(
 ): number[] {
     const w_local = localDisplacements(element, getDof);
 
-    const k = applyStaticCondensation(
-        k_element(element.ea, element.ei, element.L),
-        element.releases_i,
-        element.releases_j,
-    );
-    const f = condenseForReleases(element, equivalentNodalLoad(element, q_trans, q_axial));
+    const k_e = k_element(element.ea, element.ei, element.L);
+
+    const k = condenseReleases(k_e, k_e, element.releases_i, element.releases_j);
+    const f = condenseElementLoad(element, equivalentNodalLoad(element, q_trans, q_axial));
 
     const s = subtract(multiply(k, w_local), f) as Matrix;
 

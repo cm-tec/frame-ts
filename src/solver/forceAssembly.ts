@@ -1,6 +1,6 @@
-import { det, index, inv, matrix, multiply, subset, subtract, transpose, zeros, type Matrix } from 'mathjs';
+import { matrix, multiply, transpose, zeros, type Matrix } from 'mathjs';
 import { Polynomial } from './Polynomial';
-import { get_rotation_matrix_of_element, k_element } from './elementMatrices';
+import { condenseReleases, get_rotation_matrix_of_element, k_element } from './elementMatrices';
 import type { StructuralLoads } from './StructuralLoads';
 import type { StructuralElement, StructuralSystem } from './StructuralSystem';
 
@@ -35,7 +35,7 @@ export function assembleForceVector(system: StructuralSystem, loads: StructuralL
         const f_local = equivalentNodalLoad(element, q_trans, q_axial);
 
         const R = get_rotation_matrix_of_element(element.angle, element.n_i.angle, element.n_j.angle);
-        const f = multiply(transpose(R), condenseForReleases(element, f_local)) as Matrix;
+        const f = multiply(transpose(R), condenseElementLoad(element, f_local)) as Matrix;
 
         element.dofs.forEach((dof, i) => F.set([dof, 0], F.get([dof, 0]) + f.get([i, 0])));
     }
@@ -56,40 +56,8 @@ export function equivalentNodalLoad(element: StructuralElement, q_trans: Polynom
     ]) as Matrix;
 }
 
-export function condenseForReleases(element: StructuralElement, f: Matrix): Matrix {
-    const { releases_i, releases_j } = element;
-
-    if (releases_i.u && releases_i.v && releases_i.theta) return matrix(zeros([6, 1])) as Matrix;
-    if (releases_j.u && releases_j.v && releases_j.theta) return matrix(zeros([6, 1])) as Matrix;
-
-    const cut: number[] = [];
-    if (releases_i.u) cut.push(0);
-    if (releases_i.v) cut.push(1);
-    if (releases_i.theta) cut.push(2);
-    if (releases_j.u) cut.push(3);
-    if (releases_j.v) cut.push(4);
-    if (releases_j.theta) cut.push(5);
-
-    if (cut.length === 0) return f;
-
-    const keep = [0, 1, 2, 3, 4, 5].filter(i => !cut.includes(i));
-
+export function condenseElementLoad(element: StructuralElement, f: Matrix): Matrix {
     const k = k_element(element.ea, element.ei, element.L);
-    const K_cc = subset(k, index(cut, cut)) as Matrix;
 
-    const condensed = matrix(zeros([6, 1])) as Matrix;
-
-    if (Math.abs(det(K_cc)) < 1e-12) {
-        keep.forEach(r => condensed.set([r, 0], f.get([r, 0])));
-        return condensed;
-    }
-
-    const K_kc = subset(k, index(keep, cut)) as Matrix;
-    const f_cut = subset(f, index(cut, [0])) as Matrix;
-    const f_keep = subset(f, index(keep, [0])) as Matrix;
-
-    const corrected = subtract(f_keep, multiply(K_kc, multiply(inv(K_cc), f_cut))) as Matrix;
-    keep.forEach((r, i) => condensed.set([r, 0], corrected.get([i, 0])));
-
-    return condensed;
+    return condenseReleases(f, k, element.releases_i, element.releases_j);
 }
